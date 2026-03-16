@@ -1,37 +1,30 @@
-import { useState } from 'react'
-import Button from './components/common/Button'
-import Input from './components/common/Input'
+import React from 'react'
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
+import Home from './pages/player/Home.tsx'
+import FindPitch from './pages/player/FindPitch.tsx'
 
 function App() {
-  const [testValue, setTestValue] = useState('')
-
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
-        <h1 className="text-2xl font-bold text-blue-600 mb-6 text-center">
-          Tailwind & Components Test
-        </h1>
+    <Router>
+      <div className="min-h-screen bg-gray-50">
+        <nav className="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-50">
+          <div className="max-w-6xl mx-auto flex justify-between items-center">
+            <div className="text-xl font-bold tracking-wider">PitchBooking</div>
+            <div className="flex gap-6 font-medium">
+              <Link to="/" className="hover:text-blue-200 transition">Trang chủ</Link>
+              <Link to="/tim-san" className="hover:text-blue-200 transition">Tìm sân</Link>
+            </div>
+          </div>
+        </nav>
         
-        <Input 
-          label="Test Input" 
-          placeholder="Nhập thử gì đó..." 
-          value={testValue}
-          onChange={(e) => setTestValue(e.target.value)}
-        />
-
-        <div className="flex flex-col gap-3 mt-6">
-          <Button variant="primary" onClick={() => alert(`Nội dung: ${testValue}`)}>
-            Test Primary
-          </Button>
-          <Button variant="secondary">
-            Test Secondary
-          </Button>
-          <Button variant="danger">
-            Test Danger
-          </Button>
-        </div>
+        <main className="max-w-6xl mx-auto p-4 mt-6">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/tim-san" element={<FindPitch />} />
+          </Routes>
+        </main>
       </div>
-    </div>
+    </Router>
   )
 }
 
