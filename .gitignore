@@ -1,0 +1,107 @@
+# ==============================
+# Mục chung & Bảo mật (Security)
+# ==============================
+# BẮT BUỘC bỏ qua các file môi trường chứa mật khẩu, API keys (DB, Momo, Stripe...)
+.env
+.env.*.local
+.env.local
+.env.development
+.env.test
+.env.production
+*.pem
+*.key
+
+# ==============================
+# Front-end (React JS / Node.js)
+# ==============================
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# ==============================
+# Back-end (Java Spring Boot)
+# ==============================
+# Maven / Gradle build folders
+target/
+build/
+.gradle/
+out/
+bin/
+
+# Compiled class và file đóng gói
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+*.rar
+
+# Bỏ qua thư viện của Maven wrapper (giữ lại file script thiết yếu)
+.mvn/wrapper/maven-wrapper.jar
+
+# ==============================
+# Logs
+# ==============================
+logs/
+*.log
+
+# ==============================
+# Database & Prisma ORM
+# ==============================
+# Prisma có thể sinh ra file db local để test hoặc sinh ra thư mục client
+*.db
+*.sqlite
+*.sqlite3
+prisma/*.db
+
+# ==============================
+# IDEs và Công cụ lập trình (Editors)
+# ==============================
+# Dành cho IntelliJ IDEA, Webstorm
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Dành cho VSCode
+.vscode/
+*.code-workspace
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# ==============================
+# OS Generated Files (Hệ điều hành)
+# ==============================
+# Hệ điều hành Mac
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Hệ điều hành Windows
+ehthumbs.db
+Thumbs.db
+$RECYCLE.BIN/
