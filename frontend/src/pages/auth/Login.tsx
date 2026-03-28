@@ -21,11 +21,9 @@ const Login = () => {
       alert('Đăng nhập thành công!');
       
       // LOGIC KIỂM TRA ROLE GIẢ LẬP Ở ĐÂY:
-      // Nếu email chứa chữ "owner" hoặc "admin" thì cho vào trang Chủ sân
       if (email.toLowerCase().includes('owner') || email.toLowerCase().includes('admin')) {
         navigate('/chu-san');
       } else {
-        // Mặc định là tài khoản Người chơi
         navigate('/');
       }
     }, 1000);
@@ -43,18 +41,21 @@ const Login = () => {
         )}
 
         <form onSubmit={handleLogin} className="space-y-6">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-              <FaEnvelope />
+          {/* SỬA LỖI Ở ĐÂY: Bọc input và icon vào 1 div riêng */}
+          <div>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <FaEnvelope />
+              </div>
+              <input
+                type="email"
+                placeholder="Email của bạn"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
-            <input
-              type="email"
-              placeholder="Email của bạn"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            {/* Thêm mẹo test cho dev */}
+            {/* Đưa dòng text ra ngoài thẻ relative */}
             <p className="text-xs text-gray-400 mt-2">
               *Mẹo: Nhập email có chữ "owner" (VD: owner@gmail.com) để vào kênh Chủ Sân.
             </p>
