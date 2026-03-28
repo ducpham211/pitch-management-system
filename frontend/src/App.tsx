@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/common/Navbar';
+import Footer from './components/common/Footer';
 import Home from './pages/player/Home';
 import FindPitch from './pages/player/FindPitch';
 import PitchDetail from './pages/player/PitchDetail';
@@ -27,11 +28,12 @@ function App() {
             <Route path="/dang-nhap" element={<Login />} />
             <Route path="/dang-ky" element={<Register />} />
             <Route path="/tin-nhan" element={<Chat />} />
-            <Route path="/ho-so" element={<Profile />} />            
+            <Route path="/ho-so" element={<Profile />} />
             <Route path="/chu-san" element={<OwnerDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
           </Routes>
         </main>
+        <Footer />
       </div>
     </Router>
   );
