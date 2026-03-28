@@ -1,10 +1,15 @@
 import { useState } from 'react';
-import { FaChartLine, FaList, FaCalendarCheck, FaPlus, FaCheck, FaTimes } from 'react-icons/fa';
+import { FaChartLine, FaList, FaCalendarCheck, FaPlus, FaCheck, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
 import { OWNER_STATS, OWNER_PITCHES, OWNER_BOOKINGS } from '../../mocks/ownerData';
 import Button from '../../components/common/Button';
+import PitchFormModal from '../../components/owner/PitchFormModal';
 
 const OwnerDashboard = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'pitches' | 'bookings'>('overview');
+  
+  const [pitches, setPitches] = useState(OWNER_PITCHES);
+  const [isPitchModalOpen, setIsPitchModalOpen] = useState(false);
+  const [editingPitch, setEditingPitch] = useState<any | null>(null);
 
   const getBookingStatusBadge = (status: string) => {
     switch (status) {
@@ -15,9 +20,34 @@ const OwnerDashboard = () => {
     }
   };
 
+  const handleOpenAddModal = () => {
+    setEditingPitch(null);
+    setIsPitchModalOpen(true);
+  };
+
+  const handleOpenEditModal = (pitch: any) => {
+    setEditingPitch(pitch);
+    setIsPitchModalOpen(true);
+  };
+
+  const handleDeletePitch = (id: number) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa sân này không?')) {
+      setPitches(pitches.filter(p => p.id !== id));
+    }
+  };
+
+  const handleSavePitch = (pitchData: any) => {
+    if (editingPitch) {
+      setPitches(pitches.map(p => p.id === pitchData.id ? pitchData : p));
+    } else {
+      const newPitch = { ...pitchData, id: Date.now() };
+      setPitches([...pitches, newPitch]);
+    }
+    setIsPitchModalOpen(false);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl flex flex-col md:flex-row gap-6 h-full">
-      
       <div className="w-full md:w-1/4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit sticky top-24">
         <h2 className="text-xl font-bold text-gray-800 mb-6">Kênh Chủ Sân</h2>
         <div className="flex flex-col gap-2">
@@ -34,7 +64,6 @@ const OwnerDashboard = () => {
       </div>
 
       <div className="w-full md:w-3/4">
-        
         {activeTab === 'overview' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-800">Báo cáo doanh thu</h2>
@@ -63,7 +92,9 @@ const OwnerDashboard = () => {
           <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Danh sách Sân con</h2>
-              <Button variant="primary" className="flex items-center gap-2 !bg-blue-600"><FaPlus /> Thêm sân</Button>
+              <Button variant="primary" className="flex items-center gap-2 !bg-blue-600" onClick={handleOpenAddModal}>
+                <FaPlus /> Thêm sân
+              </Button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -73,25 +104,36 @@ const OwnerDashboard = () => {
                     <th className="p-4 font-medium">Loại sân</th>
                     <th className="p-4 font-medium">Khung giá</th>
                     <th className="p-4 font-medium">Trạng thái</th>
-                    <th className="p-4 font-medium rounded-tr-lg">Thao tác</th>
+                    <th className="p-4 font-medium rounded-tr-lg text-center">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {OWNER_PITCHES.map((pitch) => (
-                    <tr key={pitch.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="p-4 font-bold text-gray-800">{pitch.name}</td>
-                      <td className="p-4 text-gray-600">{pitch.type}</td>
-                      <td className="p-4 text-blue-600 font-medium">{pitch.price}</td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${pitch.status === 'Hoạt động' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                          {pitch.status}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <button className="text-blue-600 hover:underline mr-3 text-sm font-medium">Sửa</button>
-                      </td>
+                  {pitches.length > 0 ? (
+                    pitches.map((pitch) => (
+                      <tr key={pitch.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="p-4 font-bold text-gray-800">{pitch.name}</td>
+                        <td className="p-4 text-gray-600">{pitch.type}</td>
+                        <td className="p-4 text-blue-600 font-medium">{pitch.price}</td>
+                        <td className="p-4">
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${pitch.status === 'Hoạt động' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {pitch.status}
+                          </span>
+                        </td>
+                        <td className="p-4 flex items-center justify-center gap-3">
+                          <button onClick={() => handleOpenEditModal(pitch)} className="text-blue-500 hover:text-blue-700 transition">
+                            <FaEdit className="text-lg" />
+                          </button>
+                          <button onClick={() => handleDeletePitch(pitch.id)} className="text-red-400 hover:text-red-600 transition">
+                            <FaTrash className="text-lg" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-gray-500">Chưa có sân nào. Hãy thêm sân mới!</td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -129,8 +171,14 @@ const OwnerDashboard = () => {
             </div>
           </div>
         )}
-
       </div>
+
+      <PitchFormModal 
+        isOpen={isPitchModalOpen} 
+        onClose={() => setIsPitchModalOpen(false)} 
+        onSubmit={handleSavePitch} 
+        initialData={editingPitch} 
+      />
     </div>
   );
 };
