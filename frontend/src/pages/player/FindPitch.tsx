@@ -1,14 +1,14 @@
-// src/pages/player/FindPitch.tsx
+
 import { useState } from 'react';
 import PitchCard from '../../components/common/PitchCard';
 import { MOCK_PITCHES } from '../../mocks/pitchData';
 import { FaSearch, FaFilter } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 const FindPitch = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('Tất cả');
 
-  // Xử lý logic lọc sân bóng dựa trên Mock Data
   const filteredPitches = MOCK_PITCHES.filter((pitch) => {
     const matchName = pitch.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                       pitch.location.toLowerCase().includes(searchTerm.toLowerCase());
@@ -17,10 +17,10 @@ const FindPitch = () => {
     return matchName && matchType;
   });
 
+  const navigate = useNavigate();
+
   const handleBookClick = (pitchId: number) => {
-    // Tạm thời log ra console. Sau này sẽ navigate đến trang chi tiết sân (/san/:id)
-    console.log(`Maps to booking details for pitch ID: ${pitchId}`);
-    alert(`Đang chuyển hướng đến chi tiết đặt sân ID: ${pitchId}...`);
+    navigate(`/san/${pitchId}`);
   };
 
   return (
@@ -31,7 +31,7 @@ const FindPitch = () => {
           <p className="text-gray-600">Lựa chọn sân phù hợp với đội của bạn</p>
         </div>
 
-        {/* Search & Filter Component */}
+        {}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
@@ -64,7 +64,7 @@ const FindPitch = () => {
         </div>
       </div>
 
-      {/* Grid hiển thị danh sách sân */}
+      {}
       {filteredPitches.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredPitches.map((pitch) => (

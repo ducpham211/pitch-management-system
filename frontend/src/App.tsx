@@ -2,6 +2,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/player/Home';
 import FindPitch from './pages/player/FindPitch';
+import PitchDetail from './pages/player/PitchDetail';
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/tim-san" element={<FindPitch />} />
+          <Route path="/san/:id" element={<PitchDetail />} />
         </Routes>
       </div>
     </Router>

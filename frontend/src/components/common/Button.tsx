@@ -6,6 +6,7 @@ type ButtonProps = {
   type?: 'button' | 'submit' | 'reset';
   variant?: 'primary' | 'secondary' | 'danger'; 
   className?: string;
+  disabled?: boolean; 
 };
 
 const Button = ({ 
@@ -13,7 +14,8 @@ const Button = ({
   onClick, 
   type = 'button', 
   variant = 'primary', 
-  className = '' 
+  className = '',
+  disabled = false 
 }: ButtonProps) => {
   const baseStyle = "px-4 py-2 rounded font-medium transition duration-200 ease-in-out focus:outline-none";
   
@@ -23,11 +25,14 @@ const Button = ({
     danger: "bg-red-600 text-white hover:bg-red-700"
   };
 
+  const disabledStyle = disabled ? "opacity-50 cursor-not-allowed" : "";
+
   return (
     <button
       type={type}
       onClick={onClick}
-      className={`${baseStyle} ${variants[variant]} ${className}`}
+      disabled={disabled} 
+      className={`${baseStyle} ${variants[variant]} ${disabledStyle} ${className}`}
     >
       {children}
     </button>

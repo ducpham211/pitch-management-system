@@ -1,4 +1,4 @@
-// src/mocks/pitchData.ts
+
 
 export interface Pitch {
   id: number;
@@ -45,4 +45,27 @@ export const MOCK_PITCHES: Pitch[] = [
     type: "Sân 7 người",
     price: "300.000đ - 500.000đ/giờ",
   }
+];
+
+export interface TimeSlot {
+  id: string;
+  pitchId: number;
+  date: string; 
+  startTime: string; 
+  endTime: string; 
+  price: number;
+  isBooked: boolean;
+}
+
+
+const today = new Date().toISOString().split('T')[0];
+
+export const MOCK_SLOTS: TimeSlot[] = [
+  { id: 'slot_1', pitchId: 1, date: today, startTime: '17:00', endTime: '18:30', price: 300000, isBooked: true },
+  { id: 'slot_2', pitchId: 1, date: today, startTime: '18:30', endTime: '20:00', price: 300000, isBooked: false },
+  { id: 'slot_3', pitchId: 1, date: today, startTime: '20:00', endTime: '21:30', price: 250000, isBooked: false },
+  { id: 'slot_4', pitchId: 1, date: today, startTime: '21:30', endTime: '23:00', price: 200000, isBooked: false },
+  
+  { id: 'slot_5', pitchId: 2, date: today, startTime: '18:00', endTime: '19:30', price: 400000, isBooked: false },
+  { id: 'slot_6', pitchId: 2, date: today, startTime: '19:30', endTime: '21:00', price: 400000, isBooked: true },
 ];
