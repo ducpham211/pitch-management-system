@@ -26,7 +26,7 @@ function App() {
             <Route path="/dang-nhap" element={<Login />} />
             <Route path="/dang-ky" element={<Register />} />
             <Route path="/tin-nhan" element={<Chat />} />
-            <Route path="/ho-so" element={<Profile />} />
+            <Route path="/ho-so" element={<Profile />} />            
             <Route path="/chu-san" element={<OwnerDashboard />} />
           </Routes>
         </main>

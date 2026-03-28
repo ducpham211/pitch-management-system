@@ -16,9 +16,18 @@ const Login = () => {
       return;
     }
     
+    // Giả lập gọi API đăng nhập
     setTimeout(() => {
       alert('Đăng nhập thành công!');
-      navigate('/');
+      
+      // LOGIC KIỂM TRA ROLE GIẢ LẬP Ở ĐÂY:
+      // Nếu email chứa chữ "owner" hoặc "admin" thì cho vào trang Chủ sân
+      if (email.toLowerCase().includes('owner') || email.toLowerCase().includes('admin')) {
+        navigate('/chu-san');
+      } else {
+        // Mặc định là tài khoản Người chơi
+        navigate('/');
+      }
     }, 1000);
   };
 
@@ -45,6 +54,10 @@ const Login = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+            {/* Thêm mẹo test cho dev */}
+            <p className="text-xs text-gray-400 mt-2">
+              *Mẹo: Nhập email có chữ "owner" (VD: owner@gmail.com) để vào kênh Chủ Sân.
+            </p>
           </div>
 
           <div className="relative">
