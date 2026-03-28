@@ -1,62 +1,91 @@
-import { useState } from 'react'
-import Input from '../../components/common/Input'
-import Button from '../../components/common/Button'
-import PitchCard from '../../components/common/PitchCard'
-
-const MOCK_PITCHES = [
-  { id: 1, name: 'Sân bóng Chảo Lửa', location: 'Quận Tân Bình', price: '300.000đ/h', type: 'Sân 5' },
-  { id: 2, name: 'Sân bóng K34', location: 'Quận Gò Vấp', price: '250.000đ/h', type: 'Sân 7' },
-  { id: 3, name: 'Sân bóng Tao Đàn', location: 'Quận 1', price: '400.000đ/h', type: 'Sân 5' },
-  { id: 4, name: 'Sân bóng Phú Thọ', location: 'Quận 11', price: '350.000đ/h', type: 'Sân 7' },
-  { id: 5, name: 'Sân bóng Thăng Long', location: 'Quận Tân Bình', price: '280.000đ/h', type: 'Sân 5' },
-  { id: 6, name: 'Sân bóng HCA', location: 'Bình Thạnh', price: '200.000đ/h', type: 'Sân 5' },
-]
+// src/pages/player/FindPitch.tsx
+import { useState } from 'react';
+import PitchCard from '../../components/common/PitchCard';
+import { MOCK_PITCHES } from '../../mocks/pitchData';
+import { FaSearch, FaFilter } from 'react-icons/fa';
 
 const FindPitch = () => {
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('Tất cả');
+
+  // Xử lý logic lọc sân bóng dựa trên Mock Data
+  const filteredPitches = MOCK_PITCHES.filter((pitch) => {
+    const matchName = pitch.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                      pitch.location.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchType = filterType === 'Tất cả' || pitch.type.includes(filterType);
+    
+    return matchName && matchType;
+  });
+
+  const handleBookClick = (pitchId: number) => {
+    // Tạm thời log ra console. Sau này sẽ navigate đến trang chi tiết sân (/san/:id)
+    console.log(`Maps to booking details for pitch ID: ${pitchId}`);
+    alert(`Đang chuyển hướng đến chi tiết đặt sân ID: ${pitchId}...`);
+  };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Bộ Lọc Tìm Kiếm</h2>
-        <div className="flex flex-col md:flex-row gap-4 items-center">
-          <div className="flex-1 w-full">
-            <Input 
-              placeholder="Nhập tên sân hoặc khu vực..." 
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Tìm kiếm sân bóng</h1>
+          <p className="text-gray-600">Lựa chọn sân phù hợp với đội của bạn</p>
+        </div>
+
+        {/* Search & Filter Component */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+              <FaSearch />
+            </div>
+            <input
+              type="text"
+              placeholder="Tên sân, khu vực..."
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-full sm:w-64 transition"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="!mb-0"
             />
           </div>
-          <div className="w-full md:w-48">
-            <select className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white h-[42px]">
-              <option value="">Tất cả loại sân</option>
+          
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+              <FaFilter />
+            </div>
+            <select
+              className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none bg-white cursor-pointer w-full sm:w-auto"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+            >
+              <option value="Tất cả">Tất cả loại sân</option>
               <option value="5">Sân 5 người</option>
               <option value="7">Sân 7 người</option>
               <option value="11">Sân 11 người</option>
             </select>
           </div>
-          <Button variant="primary" className="w-full md:w-auto h-[42px]">
-            Tìm kiếm
-          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {MOCK_PITCHES.map(pitch => (
-          <PitchCard
-            key={pitch.id}
-            id={pitch.id}
-            name={pitch.name}
-            location={pitch.location}
-            type={pitch.type}
-            price={pitch.price}
-            onActionClick={() => console.log(`Mở modal lịch cho sân ${pitch.id}`)}
-          />
-        ))}
-      </div>
+      {/* Grid hiển thị danh sách sân */}
+      {filteredPitches.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredPitches.map((pitch) => (
+            <PitchCard
+              key={pitch.id}
+              id={pitch.id}
+              name={pitch.name}
+              location={pitch.location}
+              type={pitch.type}
+              price={pitch.price}
+              onActionClick={() => handleBookClick(pitch.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-20 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+          <p className="text-gray-500 text-lg">Không tìm thấy sân bóng nào phù hợp với tiêu chí của bạn.</p>
+        </div>
+      )}
     </div>
-  )
-}
+  );
+};
 
-export default FindPitch
+export default FindPitch;
