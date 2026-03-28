@@ -41,6 +41,11 @@ const Navbar = () => {
           </div>
 
           <div className="hidden md:flex items-center space-x-4">
+            <Link to="/chu-san">
+              <span className="text-sm font-bold text-blue-600 hover:text-blue-800 mr-2 cursor-pointer">
+                Kênh Chủ Sân
+              </span>
+            </Link>
             <Link to="/dang-nhap">
               <Button variant="secondary" className="bg-transparent border border-gray-300">
                 Đăng Nhập
@@ -82,6 +87,11 @@ const Navbar = () => {
               </Link>
             ))}
             <div className="pt-4 flex flex-col gap-3 border-t border-gray-100">
+              <Link to="/chu-san">
+                <span className="text-sm font-bold text-blue-600 hover:text-blue-800 mr-2 cursor-pointer">
+                    Kênh Chủ Sân
+                </span>
+              </Link>
               <Link to="/dang-nhap" onClick={() => setIsOpen(false)}>
                 <Button variant="secondary" className="w-full text-center border border-gray-300 bg-transparent py-3">
                   Đăng Nhập

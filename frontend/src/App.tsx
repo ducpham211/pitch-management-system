@@ -9,6 +9,7 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Chat from './pages/player/Chat';
 import Profile from './pages/player/Profile';
+import OwnerDashboard from './pages/owner/Dashboard';
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
             <Route path="/dang-ky" element={<Register />} />
             <Route path="/tin-nhan" element={<Chat />} />
             <Route path="/ho-so" element={<Profile />} />
+            <Route path="/chu-san" element={<OwnerDashboard />} />
           </Routes>
         </main>
       </div>
