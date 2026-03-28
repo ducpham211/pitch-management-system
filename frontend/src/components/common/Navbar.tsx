@@ -39,10 +39,16 @@ const Navbar = () => {
           </div>
 
           <div className="hidden md:flex items-center space-x-4">
-            <Button variant="secondary" className="bg-transparent border border-gray-300">
-              Đăng Nhập
-            </Button>
-            <Button variant="primary" className="!bg-green-600 hover:!bg-green-700">Đăng Ký</Button>
+            <Link to="/dang-nhap">
+              <Button variant="secondary" className="bg-transparent border border-gray-300">
+                Đăng Nhập
+              </Button>
+            </Link>
+            <Link to="/dang-ky">
+              <Button variant="primary" className="!bg-green-600 hover:!bg-green-700">
+                Đăng Ký
+              </Button>
+            </Link>
           </div>
 
           <div className="md:hidden flex items-center">
@@ -74,12 +80,16 @@ const Navbar = () => {
               </Link>
             ))}
             <div className="pt-4 flex flex-col gap-3 border-t border-gray-100">
-              <Button variant="secondary" className="w-full text-center border border-gray-300 bg-transparent py-3">
-                Đăng Nhập
-              </Button>
-              <Button variant="primary" className="w-full text-center !bg-green-600 py-3">
-                Đăng Ký
-              </Button>
+              <Link to="/dang-nhap" onClick={() => setIsOpen(false)}>
+                <Button variant="secondary" className="w-full text-center border border-gray-300 bg-transparent py-3">
+                  Đăng Nhập
+                </Button>
+              </Link>
+              <Link to="/dang-ky" onClick={() => setIsOpen(false)}>
+                <Button variant="primary" className="w-full text-center !bg-green-600 py-3">
+                  Đăng Ký
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

@@ -5,6 +5,8 @@ import FindPitch from './pages/player/FindPitch';
 import PitchDetail from './pages/player/PitchDetail';
 import Checkout from './pages/player/Checkout';
 import MatchBoard from './pages/player/MatchBoard';
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
 
 function App() {
   return (
@@ -18,6 +20,8 @@ function App() {
             <Route path="/san/:id" element={<PitchDetail />} />
             <Route path="/thanh-toan" element={<Checkout />} />
             <Route path="/ghep-tran" element={<MatchBoard />} />
+            <Route path="/dang-nhap" element={<Login />} />
+            <Route path="/dang-ky" element={<Register />} />
           </Routes>
         </main>
       </div>
