@@ -14,6 +14,7 @@ const Navbar = () => {
     { name: 'Tìm Sân', path: '/tim-san' },
     { name: 'Ghép Trận', path: '/ghep-tran' },
     { name: 'Tin Nhắn', path: '/tin-nhan' },
+    { name: 'Hồ Sơ', path: '/ho-so' },
   ];
 
   return (
