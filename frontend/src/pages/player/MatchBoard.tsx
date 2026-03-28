@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { MOCK_MATCHES } from '../../mocks/matchData';
 import MatchCard from '../../components/common/MatchCard';
 import Button from '../../components/common/Button';
 import { FaPlus } from 'react-icons/fa';
 
 const MatchBoard = () => {
-  const navigate = useNavigate();
   const [matches] = useState(MOCK_MATCHES);
 
   const handleApplyMatch = (matchId: string) => {

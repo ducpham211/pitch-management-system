@@ -13,6 +13,7 @@ const Navbar = () => {
     { name: 'Trang Chủ', path: '/' },
     { name: 'Tìm Sân', path: '/tim-san' },
     { name: 'Ghép Trận', path: '/ghep-tran' },
+    { name: 'Tin Nhắn', path: '/tin-nhan' },
   ];
 
   return (

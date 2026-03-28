@@ -7,6 +7,7 @@ import Checkout from './pages/player/Checkout';
 import MatchBoard from './pages/player/MatchBoard';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import Chat from './pages/player/Chat';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route path="/ghep-tran" element={<MatchBoard />} />
             <Route path="/dang-nhap" element={<Login />} />
             <Route path="/dang-ky" element={<Register />} />
+            <Route path="/tin-nhan" element={<Chat />} />
           </Routes>
         </main>
       </div>
