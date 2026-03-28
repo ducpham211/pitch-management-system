@@ -16,12 +16,14 @@ const Login = () => {
       return;
     }
     
-    // Giả lập gọi API đăng nhập
+    
     setTimeout(() => {
       alert('Đăng nhập thành công!');
       
-      // LOGIC KIỂM TRA ROLE GIẢ LẬP Ở ĐÂY:
-      if (email.toLowerCase().includes('owner') || email.toLowerCase().includes('admin')) {
+      
+      if (email.toLowerCase().includes('admin')) {
+        navigate('/admin');
+      } else if (email.toLowerCase().includes('owner')) {
         navigate('/chu-san');
       } else {
         navigate('/');
@@ -41,7 +43,7 @@ const Login = () => {
         )}
 
         <form onSubmit={handleLogin} className="space-y-6">
-          {/* SỬA LỖI Ở ĐÂY: Bọc input và icon vào 1 div riêng */}
+          {}
           <div>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
@@ -55,7 +57,6 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            {/* Đưa dòng text ra ngoài thẻ relative */}
             <p className="text-xs text-gray-400 mt-2">
               *Mẹo: Nhập email có chữ "owner" (VD: owner@gmail.com) để vào kênh Chủ Sân.
             </p>

@@ -10,6 +10,7 @@ import Register from './pages/auth/Register';
 import Chat from './pages/player/Chat';
 import Profile from './pages/player/Profile';
 import OwnerDashboard from './pages/owner/Dashboard';
+import AdminDashboard from './pages/admin/Dashboard';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
             <Route path="/tin-nhan" element={<Chat />} />
             <Route path="/ho-so" element={<Profile />} />            
             <Route path="/chu-san" element={<OwnerDashboard />} />
+            <Route path="/admin" element={<AdminDashboard />} />
           </Routes>
         </main>
       </div>
