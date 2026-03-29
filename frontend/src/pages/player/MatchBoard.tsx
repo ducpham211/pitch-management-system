@@ -4,21 +4,38 @@ import { MOCK_MATCHES } from '../../mocks/matchData';
 import MatchCard from '../../components/common/MatchCard';
 import Button from '../../components/common/Button';
 import { FaPlus } from 'react-icons/fa';
+import CreateMatchModal from '../../components/match/CreateMatchModal';
+import ConfirmApplyModal from '../../components/match/ConfirmApplyModal';
 
 const MatchBoard = () => {
   const navigate = useNavigate();
-  const [matches] = useState(MOCK_MATCHES);
+  const [matches, setMatches] = useState(MOCK_MATCHES);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [applyingMatchId, setApplyingMatchId] = useState<string | null>(null);
 
-  const handleApplyMatch = (matchId: string) => {
-    alert(`Đã gửi yêu cầu tham gia trận đấu ID: ${matchId}`);
+  const handleCreatePostSubmit = (postData: any) => {
+    const createdMatch = {
+      id: `m${Date.now()}`,
+      creatorName: 'FC Của Bạn',
+      title: postData.title,
+      pitchName: postData.pitchName,
+      time: postData.time,
+      date: postData.date,
+      levelRequired: postData.levelRequired,
+      paymentPercentage: postData.paymentPercentage,
+      status: 'OPENING' as const
+    };
+    setMatches([createdMatch, ...matches]);
+    setIsCreateModalOpen(false);
   };
 
-  const handleCreatePost = () => {
-    alert('Chuyển đến trang Đăng tin mới');
+  const handleConfirmApply = () => {
+    setApplyingMatchId(null);
+    navigate('/tin-nhan');
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-4 py-8 max-w-7xl relative h-full">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Bảng Tin Giao Hữu</h1>
@@ -26,8 +43,8 @@ const MatchBoard = () => {
         </div>
         <Button 
           variant="primary" 
-          className="flex items-center gap-2 px-6 py-3 shadow-md"
-          onClick={handleCreatePost}
+          className="flex items-center gap-2 px-6 py-3 shadow-md !bg-green-600 hover:!bg-green-700"
+          onClick={() => setIsCreateModalOpen(true)}
         >
           <FaPlus /> Đăng Tin Tìm Đối
         </Button>
@@ -38,10 +55,23 @@ const MatchBoard = () => {
           <MatchCard 
             key={match.id} 
             match={match} 
-            onApply={() => handleApplyMatch(match.id)} 
+            onApply={() => setApplyingMatchId(match.id)} 
           />
         ))}
       </div>
+
+      <CreateMatchModal 
+        isOpen={isCreateModalOpen} 
+        onClose={() => setIsCreateModalOpen(false)} 
+        onSubmit={handleCreatePostSubmit} 
+      />
+
+      <ConfirmApplyModal 
+        isOpen={!!applyingMatchId} 
+        onClose={() => setApplyingMatchId(null)} 
+        onConfirm={handleConfirmApply} 
+      />
+
     </div>
   );
 };
