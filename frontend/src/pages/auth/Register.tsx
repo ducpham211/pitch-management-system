@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaEnvelope, FaLock, FaUser } from 'react-icons/fa';
 import Button from '../../components/common/Button';
+import axios from 'axios';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -10,8 +11,10 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  
+  const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !password || !confirmPassword) {
       setError('Vui lòng điền đầy đủ thông tin.');
@@ -22,10 +25,23 @@ const Register = () => {
       return;
     }
 
-    setTimeout(() => {
-      alert('Đăng ký tài khoản thành công!');
+    try {
+      
+      const response = await axios.post(`${API_URL}/auth/register`, {
+        email: email,
+        password: password,
+        
+      });
+
+      alert(response.data.message || 'Đăng ký tài khoản thành công!');
       navigate('/dang-nhap');
-    }, 1000);
+    } catch (err: any) {
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Đã xảy ra lỗi kết nối đến máy chủ. Vui lòng thử lại.');
+      }
+    }
   };
 
   return (

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
 import Button from '../../components/common/Button';
+import axios from 'axios';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -9,17 +10,29 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       setError('Vui lòng nhập đầy đủ email và mật khẩu.');
       return;
     }
     
-    
-    setTimeout(() => {
-      alert('Đăng nhập thành công!');
-      
+    try {
+      const response = await axios.post(`${API_URL}/auth/login`, {
+        email: email,
+        password: password
+      });
+
+      const { accessToken, message } = response.data;
+
+      if (accessToken) {
+        localStorage.setItem('accessToken', accessToken);
+        window.dispatchEvent(new Event('storage'));
+      }
+
+      alert(message || 'Đăng nhập thành công!');
       
       if (email.toLowerCase().includes('admin')) {
         navigate('/admin');
@@ -28,7 +41,13 @@ const Login = () => {
       } else {
         navigate('/');
       }
-    }, 1000);
+    } catch (err: any) {
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Đã xảy ra lỗi kết nối đến máy chủ. Vui lòng thử lại.');
+      }
+    }
   };
 
   return (
@@ -43,7 +62,6 @@ const Login = () => {
         )}
 
         <form onSubmit={handleLogin} className="space-y-6">
-          {}
           <div>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
@@ -57,9 +75,6 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            <p className="text-xs text-gray-400 mt-2">
-              *Mẹo: Nhập email có chữ "owner" (VD: owner@gmail.com) để vào kênh Chủ Sân.
-            </p>
           </div>
 
           <div className="relative">
