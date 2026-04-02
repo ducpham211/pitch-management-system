@@ -51,6 +51,7 @@ public class AuthServiceImpl implements AuthService {
                 newUser.setId(userId);
                 newUser.setEmail(request.getEmail());
                 newUser.setRole(Enums.UserRole.PLAYER);
+                newUser.setFullName(request.getFullName());
                 userRepository.save(newUser);
             }
 

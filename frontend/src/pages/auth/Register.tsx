@@ -16,6 +16,8 @@ const Register = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    
     if (!name || !email || !password || !confirmPassword) {
       setError('Vui lòng điền đầy đủ thông tin.');
       return;
@@ -26,11 +28,10 @@ const Register = () => {
     }
 
     try {
-      
       const response = await axios.post(`${API_URL}/auth/register`, {
         email: email,
         password: password,
-        
+        fullName: name
       });
 
       alert(response.data.message || 'Đăng ký tài khoản thành công!');
@@ -38,6 +39,8 @@ const Register = () => {
     } catch (err: any) {
       if (err.response?.data?.message) {
         setError(err.response.data.message);
+      } else if (typeof err.response?.data === 'string') {
+        setError(err.response.data);
       } else {
         setError('Đã xảy ra lỗi kết nối đến máy chủ. Vui lòng thử lại.');
       }
