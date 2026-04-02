@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { FaPaperPlane, FaUserCircle } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import SockJS from 'sockjs-client';
+import { Client } from '@stomp/stompjs';
 
 const Chat = () => {
   const [conversations, setConversations] = useState<any[]>([]);
@@ -9,10 +11,13 @@ const Chat = () => {
   const [messages, setMessages] = useState<any[]>([]);
   const [messageText, setMessageText] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const stompClientRef = useRef<Client | null>(null);
   const navigate = useNavigate();
 
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+  const SOCKET_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws';
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -62,6 +67,51 @@ const Chat = () => {
     fetchMessages();
   }, [activeConv, API_URL]);
 
+  // Cấu hình WebSocket + STOMP để nhận tin nhắn Real-time
+  useEffect(() => {
+    if (!activeConv) return;
+
+    const client = new Client({
+      webSocketFactory: () => new SockJS(SOCKET_URL),
+      debug: (str) => console.log('STOMP: ' + str),
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+    });
+
+    client.onConnect = () => {
+      console.log('✅ Đã kết nối Socket thành công vào phòng:', activeConv);
+      
+      // Đăng ký (Subscribe) vào kênh phòng chat hiện tại
+      const topic = `/topic/conversations/${activeConv}`;
+      client.subscribe(topic, (message) => {
+        const newMsg = JSON.parse(message.body);
+        
+        // Cập nhật tin nhắn mới vào mảng
+        setMessages((prev) => {
+          // Kiểm tra để chống lặp tin nhắn nếu BE trả về chậm
+          if (prev.some(m => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
+      });
+    };
+
+    client.onStompError = (frame) => {
+      console.error('❌ Lỗi Socket: ' + frame.headers['message']);
+    };
+
+    client.activate();
+    stompClientRef.current = client;
+
+    // Dọn dẹp: Ngắt kết nối khi rời phòng chat
+    return () => {
+      if (client.active) {
+        client.deactivate();
+        console.log('🛑 Đã ngắt kết nối Socket phòng:', activeConv);
+      }
+    };
+  }, [activeConv, SOCKET_URL]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -77,10 +127,11 @@ const Chat = () => {
         content: messageText
       };
       
-      const res = await axios.post(`${API_URL}/conversations/${activeConv}/messages`, payload, config);
-      
-      setMessages([...messages, res.data]);
+      // Gửi lên server. KHÔNG THÊM VÀO STATE MESSAGES Ở ĐÂY.
+      // Vì WebSocket sẽ tự động "dội" tin nhắn đó về cho mọi người trong phòng (kể cả mình)
+      await axios.post(`${API_URL}/conversations/${activeConv}/messages`, payload, config);
       setMessageText('');
+      
     } catch (err) {
       console.error(err);
       alert('Không thể gửi tin nhắn lúc này.');
