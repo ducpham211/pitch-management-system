@@ -3,6 +3,7 @@ package com.example.backend.entity;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "match_posts")
@@ -51,7 +52,9 @@ public class MatchPost {
     @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private User user;
 
-    // getters/setters
+    @OneToMany(mappedBy = "post", fetch = FetchType.EAGER)
+    private List<MatchRequest> requests;
+
     public MatchPost() {}
 
     public String getId() { return id; }
@@ -95,4 +98,7 @@ public class MatchPost {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public List<MatchRequest> getRequests() { return requests; }
+    public void setRequests(List<MatchRequest> requests) { this.requests = requests; }
 }

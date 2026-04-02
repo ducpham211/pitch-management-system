@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { FaChartLine, FaList, FaCalendarCheck, FaPlus, FaCheck, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
-import { OWNER_STATS, OWNER_BOOKINGS } from '../../mocks/ownerData';
+import { FaChartLine, FaList, FaCalendarCheck, FaPlus, FaCheck, FaTimes, FaEdit, FaTrash, FaMoneyBillWave } from 'react-icons/fa';
+import { OWNER_STATS } from '../../mocks/ownerData';
 import Button from '../../components/common/Button';
 import PitchFormModal from '../../components/owner/PitchFormModal';
 import axios from 'axios';
@@ -10,43 +10,34 @@ const OwnerDashboard = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'pitches' | 'bookings'>('overview');
   
   const [pitches, setPitches] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
+  
   const [isPitchModalOpen, setIsPitchModalOpen] = useState(false);
   const [editingPitch, setEditingPitch] = useState<any | null>(null);
+  
   const [isLoadingPitches, setIsLoadingPitches] = useState(false);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
 
   const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
   useEffect(() => {
-    if (activeTab === 'pitches') {
-      fetchPitches();
-    }
+    if (activeTab === 'pitches') fetchPitches();
+    if (activeTab === 'bookings') fetchBookings();
   }, [activeTab]);
 
+  // ================= API QUẢN LÝ SÂN =================
   const fetchPitches = async () => {
     setIsLoadingPitches(true);
     try {
       const token = localStorage.getItem('accessToken');
-      if (!token) {
-        navigate('/dang-nhap');
-        return;
-      }
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      const res = await axios.get(`${API_URL}/fields`, config);
+      if (!token) return navigate('/dang-nhap');
+      const res = await axios.get(`${API_URL}/fields`, { headers: { Authorization: `Bearer ${token}` } });
       setPitches(res.data.content || res.data || []);
     } catch (error) {
       console.error("Lỗi khi tải danh sách sân:", error);
     } finally {
       setIsLoadingPitches(false);
-    }
-  };
-
-  const getBookingStatusBadge = (status: string) => {
-    switch (status) {
-      case 'PENDING': return <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">Chờ duyệt cọc</span>;
-      case 'APPROVED': return <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">Đã nhận cọc</span>;
-      case 'COMPLETED': return <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">Hoàn thành</span>;
-      default: return null;
     }
   };
 
@@ -59,27 +50,19 @@ const OwnerDashboard = () => {
     }
   };
 
-  const handleOpenAddModal = () => {
-    setEditingPitch(null);
-    setIsPitchModalOpen(true);
-  };
-
-  const handleOpenEditModal = (pitch: any) => {
-    setEditingPitch(pitch);
-    setIsPitchModalOpen(true);
-  };
+  const handleOpenAddModal = () => { setEditingPitch(null); setIsPitchModalOpen(true); };
+  const handleOpenEditModal = (pitch: any) => { setEditingPitch(pitch); setIsPitchModalOpen(true); };
 
   const handleDeletePitch = async (id: string) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa sân này không? (Lưu ý: Không thể hoàn tác)')) {
       try {
         const token = localStorage.getItem('accessToken');
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        await axios.delete(`${API_URL}/fields/${id}`, config);
+        await axios.delete(`${API_URL}/fields/${id}`, { headers: { Authorization: `Bearer ${token}` } });
         alert("Đã xóa sân thành công!");
-        fetchPitches(); // Tải lại danh sách
+        fetchPitches();
       } catch (error) {
         console.error("Lỗi xóa sân:", error);
-        alert("Xóa sân thất bại. Có thể sân này đang có đơn đặt hoặc dữ liệu liên quan.");
+        alert("Xóa sân thất bại. Có thể sân này đang có đơn đặt.");
       }
     }
   };
@@ -88,27 +71,81 @@ const OwnerDashboard = () => {
     try {
       const token = localStorage.getItem('accessToken');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      
-      const payload = {
-        name: pitchData.name,
-        type: pitchData.type
-      };
+      const payload = { name: pitchData.name, type: pitchData.type };
 
       if (editingPitch && editingPitch.id) {
-        // Cập nhật sân
         await axios.put(`${API_URL}/fields/${editingPitch.id}`, payload, config);
         alert("Cập nhật sân thành công!");
       } else {
-        // Thêm sân mới
         await axios.post(`${API_URL}/fields`, payload, config);
         alert("Thêm sân mới thành công!");
       }
-      
       setIsPitchModalOpen(false);
-      fetchPitches(); // Tải lại danh sách
+      fetchPitches();
     } catch (error) {
       console.error("Lỗi lưu sân:", error);
       alert("Không thể lưu thông tin sân lúc này.");
+    }
+  };
+
+  const fetchBookings = async () => {
+    setIsLoadingBookings(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) return navigate('/dang-nhap');
+      // Lấy tạm API GET Bookings chung. Tương lai BE cần viết hàm findAll() cho riêng Owner.
+      const res = await axios.get(`${API_URL}/bookings`, { headers: { Authorization: `Bearer ${token}` } });
+      setBookings(res.data.content || res.data || []);
+    } catch (error) {
+      console.error("Lỗi khi tải danh sách đơn:", error);
+    } finally {
+      setIsLoadingBookings(false);
+    }
+  };
+
+  const getBookingStatusBadge = (status: string) => {
+    switch (status) {
+      case 'PENDING': return <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">Chờ thanh toán</span>;
+      case 'DEPOSIT_PAID': return <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">Đã nhận cọc (Chờ đá)</span>;
+      case 'COMPLETED': return <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">Hoàn thành</span>;
+      case 'CANCELLED': return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold">Bùng kèo / Hủy</span>;
+      default: return <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
+    }
+  };
+
+  const handleCheckIn = async (bookingId: string) => {
+    if (!window.confirm('Xác nhận khách đã đến nhận sân?')) return;
+    try {
+      const token = localStorage.getItem('accessToken');
+      await axios.put(`${API_URL}/bookings/${bookingId}/check-in`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      alert("Check-in thành công! Khách đã nhận sân.");
+      fetchBookings();
+    } catch (error: any) {
+      alert(error.response?.data || "Lỗi khi Check-in");
+    }
+  };
+
+  const handleNoShow = async (bookingId: string) => {
+    if (!window.confirm('Đánh dấu khách KHÔNG ĐẾN và tịch thu cọc? Hành động này sẽ nhả lại sân trống.')) return;
+    try {
+      const token = localStorage.getItem('accessToken');
+      await axios.put(`${API_URL}/bookings/${bookingId}/no-show`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      alert("Đã tịch thu cọc thành công!");
+      fetchBookings();
+    } catch (error: any) {
+      alert(error.response?.data || "Lỗi khi Hủy đơn");
+    }
+  };
+
+  const handleCheckOut = async (bookingId: string) => {
+    if (!window.confirm('Xác nhận thu nốt tiền mặt và Hoàn tất đơn này?')) return;
+    try {
+      const token = localStorage.getItem('accessToken');
+      await axios.post(`${API_URL}/bookings/${bookingId}/check-out?method=CASH`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      alert("Đã Check-out và thu đủ tiền thành công!");
+      fetchBookings();
+    } catch (error: any) {
+      alert(error.response?.data || "Lỗi khi Check-out");
     }
   };
 
@@ -154,9 +191,10 @@ const OwnerDashboard = () => {
           </div>
         )}
 
+        {/* Tab 2: Quản lý Sân (Đã code ở bước trước) */}
         {activeTab === 'pitches' && (
           <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-6">
+             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Danh sách Sân con</h2>
               <Button variant="primary" className="flex items-center gap-2 !bg-blue-600" onClick={handleOpenAddModal}>
                 <FaPlus /> Thêm sân
@@ -208,32 +246,55 @@ const OwnerDashboard = () => {
         {activeTab === 'bookings' && (
           <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Quản lý Đơn đặt sân (Dữ liệu mẫu)</h2>
+              <h2 className="text-2xl font-bold text-gray-800">Quản lý Đơn đặt sân</h2>
               <Button variant="secondary" className="flex items-center gap-2 border border-gray-300"><FaPlus /> Khách vãng lai</Button>
             </div>
-            <div className="space-y-4">
-              {OWNER_BOOKINGS.map((bk) => (
-                <div key={bk.id} className="p-5 border border-gray-100 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center hover:shadow-sm transition gap-4">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-xs font-bold text-gray-500">#{bk.id}</span>
-                      {getBookingStatusBadge(bk.status)}
-                    </div>
-                    <h3 className="font-bold text-gray-800 text-lg">{bk.customer} - {bk.phone}</h3>
-                    <p className="text-gray-600 text-sm mt-1">{bk.pitch} | <span className="font-medium">{bk.time}</span></p>
-                  </div>
-                  <div className="flex flex-col items-end w-full md:w-auto">
-                    <p className="text-sm text-gray-500 mb-2">Cọc: <span className="font-bold text-blue-600 text-lg">{bk.deposit.toLocaleString('vi-VN')}đ</span></p>
-                    {bk.status === 'PENDING' && (
-                      <div className="flex gap-2">
-                        <Button variant="primary" className="!bg-green-600 px-3 py-1 flex items-center gap-1 text-sm"><FaCheck /> Duyệt</Button>
-                        <Button variant="danger" className="px-3 py-1 flex items-center gap-1 text-sm"><FaTimes /> Hủy</Button>
+            
+            {isLoadingBookings ? (
+               <div className="text-center py-10 text-gray-500">Đang tải danh sách đơn...</div>
+            ) : bookings.length === 0 ? (
+               <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300 text-gray-500">Chưa có đơn đặt sân nào.</div>
+            ) : (
+              <div className="space-y-4">
+                {bookings.map((bk) => (
+                  <div key={bk.id} className="p-5 border border-gray-100 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center hover:shadow-sm transition gap-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-xs font-bold text-gray-500">#{bk.id.substring(0,8)}</span>
+                        {getBookingStatusBadge(bk.status)}
                       </div>
-                    )}
+                      <h3 className="font-bold text-gray-800 text-lg">Khách ID: {bk.userId.substring(0,8)}</h3>
+                      <p className="text-gray-600 text-sm mt-1">Ghi chú: {bk.note || 'Không có'}</p>
+                    </div>
+                    
+                    <div className="flex flex-col items-end w-full md:w-auto">
+                      <div className="text-right mb-3">
+                         <p className="text-sm text-gray-500">Tổng tiền: <span className="font-bold text-gray-800">{bk.totalAmount.toLocaleString('vi-VN')}đ</span></p>
+                         <p className="text-sm text-blue-600">Đã cọc: <span className="font-bold">{bk.depositAmount ? bk.depositAmount.toLocaleString('vi-VN') : 0}đ</span></p>
+                      </div>
+
+                      {bk.status === 'DEPOSIT_PAID' && (
+                        <div className="flex gap-2">
+                          <Button variant="primary" className="!bg-green-600 px-3 py-1 flex items-center gap-1 text-sm" onClick={() => handleCheckIn(bk.id)}>
+                            <FaCheck /> Nhận Sân (Check-in)
+                          </Button>
+                          <Button variant="danger" className="px-3 py-1 flex items-center gap-1 text-sm" onClick={() => handleNoShow(bk.id)}>
+                            <FaTimes /> Bùng Kèo
+                          </Button>
+                        </div>
+                      )}
+
+                      {bk.status === 'COMPLETED' && (
+                         <Button variant="secondary" className="!bg-blue-600 text-white px-3 py-1 flex items-center gap-1 text-sm" onClick={() => handleCheckOut(bk.id)}>
+                            <FaMoneyBillWave /> Check-out (Thu nốt)
+                         </Button>
+                      )}
+
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
