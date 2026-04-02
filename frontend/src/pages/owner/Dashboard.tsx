@@ -51,7 +51,17 @@ const OwnerDashboard = () => {
   };
 
   const handleOpenAddModal = () => { setEditingPitch(null); setIsPitchModalOpen(true); };
-  const handleOpenEditModal = (pitch: any) => { setEditingPitch(pitch); setIsPitchModalOpen(true); };
+  
+  const handleOpenEditModal = async (pitch: any) => { 
+    try {
+      const res = await axios.get(`${API_URL}/fields/${pitch.id}`);
+      setEditingPitch(res.data);
+      setIsPitchModalOpen(true);
+    } catch (error) {
+      console.error('Lỗi khi lấy thông tin chi tiết sân:', error);
+      alert('Không thể tải thông tin sân');
+    }
+  };
 
   const handleDeletePitch = async (id: string) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa sân này không? (Lưu ý: Không thể hoàn tác)')) {
@@ -67,24 +77,62 @@ const OwnerDashboard = () => {
     }
   };
 
-  const handleSavePitch = async (pitchData: any) => {
+  // Cập nhật hàm Save để xử lý cả thông tin sân và mảng TimeSlots
+  const handleSavePitch = async (pitchData: any, deletedSlotIds: string[]) => {
     try {
       const token = localStorage.getItem('accessToken');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const payload = { name: pitchData.name, type: pitchData.type };
+      
+      const fieldPayload = {
+        name: pitchData.name,
+        type: pitchData.type,
+        coverImage: pitchData.coverImage || ''
+      };
 
+      let savedFieldId = '';
+
+      // 1. Lưu thông tin Sân
       if (editingPitch && editingPitch.id) {
-        await axios.put(`${API_URL}/fields/${editingPitch.id}`, payload, config);
-        alert("Cập nhật sân thành công!");
+        await axios.put(`${API_URL}/fields/${editingPitch.id}`, fieldPayload, config);
+        savedFieldId = editingPitch.id;
       } else {
-        await axios.post(`${API_URL}/fields`, payload, config);
-        alert("Thêm sân mới thành công!");
+        const res = await axios.post(`${API_URL}/fields`, fieldPayload, config);
+        savedFieldId = res.data.id;
       }
+
+      // 2. Xóa các ca bị bỏ đi
+      if (deletedSlotIds && deletedSlotIds.length > 0) {
+        for (const slotId of deletedSlotIds) {
+          await axios.delete(`${API_URL}/fields/${savedFieldId}/time-slots/${slotId}`, config);
+        }
+      }
+
+      // 3. Thêm hoặc Cập nhật các ca đá (Convert HH:mm sang LocalDateTime ảo)
+      if (pitchData.timeSlots && pitchData.timeSlots.length > 0) {
+        for (const slot of pitchData.timeSlots) {
+          const slotPayload = {
+            // Chèn ngày ảo 2000-01-01 để map chuẩn với LocalDateTime của Backend
+            startTime: `2000-01-01T${slot.startTime}:00`,
+            endTime: `2000-01-01T${slot.endTime}:00`,
+            price: Number(slot.price),
+            status: slot.status || 'AVAILABLE'
+          };
+          
+          if (slot.id) {
+            await axios.put(`${API_URL}/fields/${savedFieldId}/time-slots/${slot.id}`, slotPayload, config);
+          } else {
+            await axios.post(`${API_URL}/fields/${savedFieldId}/time-slots`, slotPayload, config);
+          }
+        }
+      }
+
       setIsPitchModalOpen(false);
+      setEditingPitch(null);
       fetchPitches();
-    } catch (error) {
-      console.error("Lỗi lưu sân:", error);
-      alert("Không thể lưu thông tin sân lúc này.");
+      alert('Lưu sân thành công!');
+    } catch (error: any) {
+      console.error('Lỗi lưu sân:', error);
+      alert(error.response?.data?.message || error.response?.data || 'Lỗi khi lưu sân. Vui lòng thử lại.');
     }
   };
 
@@ -93,7 +141,6 @@ const OwnerDashboard = () => {
     try {
       const token = localStorage.getItem('accessToken');
       if (!token) return navigate('/dang-nhap');
-      // Lấy tạm API GET Bookings chung. Tương lai BE cần viết hàm findAll() cho riêng Owner.
       const res = await axios.get(`${API_URL}/bookings`, { headers: { Authorization: `Bearer ${token}` } });
       setBookings(res.data.content || res.data || []);
     } catch (error) {
@@ -191,7 +238,6 @@ const OwnerDashboard = () => {
           </div>
         )}
 
-        {/* Tab 2: Quản lý Sân (Đã code ở bước trước) */}
         {activeTab === 'pitches' && (
           <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
              <div className="flex justify-between items-center mb-6">
@@ -269,14 +315,14 @@ const OwnerDashboard = () => {
                     
                     <div className="flex flex-col items-end w-full md:w-auto">
                       <div className="text-right mb-3">
-                         <p className="text-sm text-gray-500">Tổng tiền: <span className="font-bold text-gray-800">{bk.totalAmount.toLocaleString('vi-VN')}đ</span></p>
+                         <p className="text-sm text-gray-500">Tổng tiền: <span className="font-bold text-gray-800">{bk.totalAmount ? bk.totalAmount.toLocaleString('vi-VN') : 0}đ</span></p>
                          <p className="text-sm text-blue-600">Đã cọc: <span className="font-bold">{bk.depositAmount ? bk.depositAmount.toLocaleString('vi-VN') : 0}đ</span></p>
                       </div>
 
                       {bk.status === 'DEPOSIT_PAID' && (
                         <div className="flex gap-2">
                           <Button variant="primary" className="!bg-green-600 px-3 py-1 flex items-center gap-1 text-sm" onClick={() => handleCheckIn(bk.id)}>
-                            <FaCheck /> Nhận Sân (Check-in)
+                            <FaCheck /> Nhận Sân
                           </Button>
                           <Button variant="danger" className="px-3 py-1 flex items-center gap-1 text-sm" onClick={() => handleNoShow(bk.id)}>
                             <FaTimes /> Bùng Kèo
@@ -286,7 +332,7 @@ const OwnerDashboard = () => {
 
                       {bk.status === 'COMPLETED' && (
                          <Button variant="secondary" className="!bg-blue-600 text-white px-3 py-1 flex items-center gap-1 text-sm" onClick={() => handleCheckOut(bk.id)}>
-                            <FaMoneyBillWave /> Check-out (Thu nốt)
+                            <FaMoneyBillWave /> Thu nốt tiền
                          </Button>
                       )}
 
@@ -302,7 +348,7 @@ const OwnerDashboard = () => {
       <PitchFormModal 
         isOpen={isPitchModalOpen} 
         onClose={() => setIsPitchModalOpen(false)} 
-        onSubmit={handleSavePitch} 
+        onSave={handleSavePitch} 
         initialData={editingPitch} 
       />
     </div>

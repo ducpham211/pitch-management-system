@@ -4,7 +4,7 @@ type ButtonProps = {
 	children: React.ReactNode;
 	onClick?: () => void;
 	type?: 'button' | 'submit' | 'reset';
-	variant?: 'primary' | 'secondary' | 'danger';
+	variant?: 'primary' | 'secondary' | 'danger' | 'outline';
 	className?: string;
 	disabled?: boolean;
 };
@@ -24,6 +24,7 @@ const Button = ({
 		primary: 'bg-blue-600 text-white hover:bg-blue-700',
 		secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300',
 		danger: 'bg-red-600 text-white hover:bg-red-700',
+		outline: 'border border-gray-300 text-gray-700 hover:bg-gray-50', 
 	};
 
 	const disabledStyle = disabled ? 'opacity-50 cursor-not-allowed' : '';
