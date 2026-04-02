@@ -74,14 +74,16 @@ const Chat = () => {
       const token = localStorage.getItem('accessToken');
       const config = { headers: { Authorization: `Bearer ${token}` } };
       const payload = {
-        conversationId: activeConv,
         content: messageText
       };
-      const res = await axios.post(`${API_URL}/messages`, payload, config);
+      
+      const res = await axios.post(`${API_URL}/conversations/${activeConv}/messages`, payload, config);
+      
       setMessages([...messages, res.data]);
       setMessageText('');
     } catch (err) {
       console.error(err);
+      alert('Không thể gửi tin nhắn lúc này.');
     }
   };
 
