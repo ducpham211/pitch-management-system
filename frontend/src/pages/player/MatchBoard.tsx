@@ -1,32 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_MATCHES } from '../../mocks/matchData';
 import MatchCard from '../../components/common/MatchCard';
 import Button from '../../components/common/Button';
 import { FaPlus } from 'react-icons/fa';
 import CreateMatchModal from '../../components/match/CreateMatchModal';
 import ConfirmApplyModal from '../../components/match/ConfirmApplyModal';
+import axios from 'axios';
 
 const MatchBoard = () => {
   const navigate = useNavigate();
-  const [matches, setMatches] = useState(MOCK_MATCHES);
+  const [matches, setMatches] = useState<any[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [applyingMatchId, setApplyingMatchId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleCreatePostSubmit = (postData: any) => {
-    const createdMatch = {
-      id: `m${Date.now()}`,
-      creatorName: 'FC Của Bạn',
-      title: postData.title,
-      pitchName: postData.pitchName,
-      time: postData.time,
-      date: postData.date,
-      levelRequired: postData.levelRequired,
-      paymentPercentage: postData.paymentPercentage,
-      status: 'OPENING' as const
+  const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+
+  useEffect(() => {
+    const fetchMatches = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/match-posts`);
+        setMatches(response.data.content || response.data || []);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    setMatches([createdMatch, ...matches]);
-    setIsCreateModalOpen(false);
+
+    fetchMatches();
+  }, [API_URL]);
+
+  const handleCreatePostSubmit = async (postData: any) => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      
+      const response = await axios.post(`${API_URL}/match-posts`, postData, config);
+      setMatches([response.data, ...matches]);
+      setIsCreateModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert('Không thể tạo bài đăng. Vui lòng thử lại!');
+    }
   };
 
   const handleConfirmApply = () => {
@@ -50,15 +66,25 @@ const MatchBoard = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {matches.map((match) => (
-          <MatchCard 
-            key={match.id} 
-            match={match} 
-            onApply={() => setApplyingMatchId(match.id)} 
-          />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="flex justify-center items-center min-h-[50vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600"></div>
+        </div>
+      ) : matches.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {matches.map((match, index) => (
+            <MatchCard 
+              key={match.id || index} 
+              match={match} 
+              onApply={() => setApplyingMatchId(match.id)} 
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-20 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+          <p className="text-gray-500 text-lg">Hiện chưa có bài đăng tìm đối nào.</p>
+        </div>
+      )}
 
       <CreateMatchModal 
         isOpen={isCreateModalOpen} 
