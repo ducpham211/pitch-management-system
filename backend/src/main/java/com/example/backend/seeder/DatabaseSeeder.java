@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 public class DatabaseSeeder implements CommandLineRunner {
@@ -40,25 +41,23 @@ public class DatabaseSeeder implements CommandLineRunner {
         if (userRepository.count() == 0) {
             System.out.println("Seeding entire ecosystem database...");
 
-            // 1. Users
             User admin = userRepository
-                    .save(new User("admin@system.com", "123456", Enums.UserRole.ADMIN, "System Admin", "0123456780"));
+                    .save(new User(UUID.randomUUID().toString(), "admin@system.com", "123456", Enums.UserRole.ADMIN, "System Admin", "0123456780"));
             User owner1 = userRepository
-                    .save(new User("owner1@gmail.com", "123456", Enums.UserRole.OWNER, "Trần Văn Chủ B", "0123456781"));
+                    .save(new User(UUID.randomUUID().toString(), "owner1@gmail.com", "123456", Enums.UserRole.OWNER, "Trần Văn Chủ B", "0123456781"));
             User owner2 = userRepository.save(
-                    new User("owner2@gmail.com", "123456", Enums.UserRole.OWNER, "Nguyễn Văn Chủ A", "0123456782"));
+                    new User(UUID.randomUUID().toString(), "owner2@gmail.com", "123456", Enums.UserRole.OWNER, "Nguyễn Văn Chủ A", "0123456782"));
             User player1 = userRepository.save(
-                    new User("player1@gmail.com", "123456", Enums.UserRole.PLAYER, "Nguyễn Cầu Thủ 1", "0123456783"));
+                    new User(UUID.randomUUID().toString(), "player1@gmail.com", "123456", Enums.UserRole.PLAYER, "Nguyễn Cầu Thủ 1", "0123456783"));
             User player2 = userRepository
-                    .save(new User("player2@gmail.com", "123456", Enums.UserRole.PLAYER, "Lê Cầu Thủ 2", "0123456784"));
+                    .save(new User(UUID.randomUUID().toString(), "player2@gmail.com", "123456", Enums.UserRole.PLAYER, "Lê Cầu Thủ 2", "0123456784"));
             User player3 = userRepository.save(
-                    new User("player3@gmail.com", "123456", Enums.UserRole.PLAYER, "Phạm Cầu Thủ 3", "0123456785"));
+                    new User(UUID.randomUUID().toString(), "player3@gmail.com", "123456", Enums.UserRole.PLAYER, "Phạm Cầu Thủ 3", "0123456785"));
             User player4 = userRepository.save(
-                    new User("player4@gmail.com", "123456", Enums.UserRole.PLAYER, "Trần Cầu Thủ 4", "0123456786"));
+                    new User(UUID.randomUUID().toString(), "player4@gmail.com", "123456", Enums.UserRole.PLAYER, "Trần Cầu Thủ 4", "0123456786"));
             User player5 = userRepository.save(
-                    new User("player5@gmail.com", "123456", Enums.UserRole.PLAYER, "Hoàng Cầu Thủ 5", "0123456787"));
+                    new User(UUID.randomUUID().toString(), "player5@gmail.com", "123456", Enums.UserRole.PLAYER, "Hoàng Cầu Thủ 5", "0123456787"));
 
-            // 2. Teams
             Team team1 = new Team();
             team1.setName("Team Alpha");
             team1.setCaptainId(player1.getId());
@@ -80,7 +79,6 @@ public class DatabaseSeeder implements CommandLineRunner {
             team3.setCreatedAt(LocalDateTime.now());
             team3 = teamRepository.save(team3);
 
-            // 3. Fields
             Field field1 = new Field();
             field1.setName("Sân bóng Mỹ Đình 1");
             field1.setType(Enums.FieldType.FIVE_A_SIDE);
@@ -107,7 +105,6 @@ public class DatabaseSeeder implements CommandLineRunner {
             field3 = fieldRepository.save(field3);
             TimeSlot slot3 = seedTimeSlotsForField(field3, new BigDecimal("150000")).get(2);
 
-            // 4. Bookings
             Booking booking1 = new Booking();
             booking1.setUserId(player4.getId());
             booking1.setFieldId(field1.getId());
@@ -130,7 +127,6 @@ public class DatabaseSeeder implements CommandLineRunner {
             booking2.setUpdatedAt(LocalDateTime.now());
             booking2 = bookingRepository.save(booking2);
 
-            // 5. MatchPosts
             MatchPost post1 = new MatchPost();
             post1.setUserId(player1.getId());
             post1.setTeamId(team1.getId());
@@ -171,7 +167,6 @@ public class DatabaseSeeder implements CommandLineRunner {
         List<TimeSlot> slots = new ArrayList<>();
         LocalDate today = LocalDate.now();
         
-        // Define standard 1.5-hour time slots starting from 16:00 until 23:30
         LocalTime[] startTimes = {
             LocalTime.of(16, 0),
             LocalTime.of(17, 30),
@@ -188,7 +183,6 @@ public class DatabaseSeeder implements CommandLineRunner {
             LocalTime.of(23, 30)
         };
 
-        // Create sample slots for 2 days
         for (int day = 0; day < 2; day++) {
             LocalDate date = today.plusDays(day);
             for (int i = 0; i < startTimes.length; i++) {

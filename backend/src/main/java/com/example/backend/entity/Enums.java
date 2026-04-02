@@ -13,5 +13,6 @@ public class Enums {
     public enum RequestStatus { PENDING, ACCEPTED, REJECTED }
     public enum ConversationType { DIRECT, MATCH_GROUP }
     public enum NotificationType { SYSTEM, BOOKING_UPDATE, MATCH_REQUEST, NEW_MESSAGE }
+    public static Object Role;
 }
 
