@@ -36,6 +36,13 @@ public class MatchRequestServiceImpl implements MatchRequestService {
     @Override
     @Transactional
     public MatchRequestResponse createMatchRequest(MatchRequestCreateRequest request) {
+        MatchPost post = matchPostRepository.findById(request.getPostId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng!"));
+
+        if (post.getUserId().equals(request.getRequesterId())) {
+            throw new RuntimeException("Không thể tự nhận kèo của chính mình!");
+        }
+
         boolean isAlreadyRequested = matchRequestRepository.existsByPostIdAndRequesterId(
                 request.getPostId(),
                 request.getRequesterId()
@@ -44,15 +51,11 @@ public class MatchRequestServiceImpl implements MatchRequestService {
         if (isAlreadyRequested) {
             throw new RuntimeException("Bạn đã gửi yêu cầu nhận kèo cho bài này rồi!");
         }
-        
-        MatchPost post = matchPostRepository.findById(request.getPostId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng!"));
 
         MatchRequest matchRequest = matchRequestMapper.toEntity(request);
         matchRequest.setStatus(Enums.RequestStatus.PENDING);
         MatchRequest savedMatchRequest = matchRequestRepository.save(matchRequest);
 
-        // 🔥 TỰ ĐỘNG TẠO PHÒNG CHAT (DIRECT) NGAY KHI GỬI YÊU CẦU GHÉP TRẬN
         try {
             ConversationCreateRequest chatRequest = new ConversationCreateRequest();
             chatRequest.setType(Enums.ConversationType.DIRECT);
@@ -60,8 +63,8 @@ public class MatchRequestServiceImpl implements MatchRequestService {
 
             conversationService.createDirectConversation(
                     chatRequest,
-                    post.getUserId(),        // Chủ bài đăng
-                    request.getRequesterId() // Người nhận kèo
+                    post.getUserId(),
+                    request.getRequesterId() 
             );
         } catch (Exception e) {
             System.err.println("Lỗi khi auto-create phòng chat: " + e.getMessage());
@@ -87,7 +90,6 @@ public class MatchRequestServiceImpl implements MatchRequestService {
         matchRequestMapper.updateEntityFromDto(requestDTO, request);
         MatchRequest savedRequest = matchRequestRepository.save(request);
 
-        // Việc tạo phòng chat đã chuyển lên hàm createMatchRequest để 2 bên có thể chat thương lượng ngay
         if (requestDTO.getStatus() == Enums.RequestStatus.ACCEPTED) {
             post.setStatus(Enums.PostStatus.CLOSED);
             matchPostRepository.save(post);

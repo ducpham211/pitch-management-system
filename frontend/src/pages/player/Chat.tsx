@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FaPaperPlane, FaUserCircle } from 'react-icons/fa';
+import { FaPaperPlane, FaUserCircle, FaCheck, FaCheckDouble } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import SockJS from 'sockjs-client';
@@ -11,10 +11,11 @@ const Chat = () => {
   const [messages, setMessages] = useState<any[]>([]);
   const [messageText, setMessageText] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [isPartnerTyping, setIsPartnerTyping] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stompClientRef = useRef<Client | null>(null);
-  const navigate = useNavigate();
+const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);  const navigate = useNavigate();
 
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
   const SOCKET_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws';
@@ -67,54 +68,71 @@ const Chat = () => {
     fetchMessages();
   }, [activeConv, API_URL]);
 
-  // Cấu hình WebSocket + STOMP để nhận tin nhắn Real-time
   useEffect(() => {
     if (!activeConv) return;
 
     const client = new Client({
       webSocketFactory: () => new SockJS(SOCKET_URL),
-      debug: (str) => console.log('STOMP: ' + str),
+      debug: () => {},
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
     });
 
     client.onConnect = () => {
-      console.log('✅ Đã kết nối Socket thành công vào phòng:', activeConv);
-      
-      // Đăng ký (Subscribe) vào kênh phòng chat hiện tại
       const topic = `/topic/conversations/${activeConv}`;
       client.subscribe(topic, (message) => {
         const newMsg = JSON.parse(message.body);
         
-        // Cập nhật tin nhắn mới vào mảng
-        setMessages((prev) => {
-          // Kiểm tra để chống lặp tin nhắn nếu BE trả về chậm
-          if (prev.some(m => m.id === newMsg.id)) return prev;
-          return [...prev, newMsg];
-        });
-      });
-    };
+        if (newMsg.type === 'TYPING' && newMsg.senderId !== currentUserId) {
+           setIsPartnerTyping(true);
+           if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+           typingTimeoutRef.current = setTimeout(() => setIsPartnerTyping(false), 2000);
+           return;
+        }
 
-    client.onStompError = (frame) => {
-      console.error('❌ Lỗi Socket: ' + frame.headers['message']);
+        if (!newMsg.type || newMsg.type === 'MESSAGE') {
+            setIsPartnerTyping(false);
+            setMessages((prev) => {
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+            });
+
+            // Update sidebar last message visually
+            setConversations(prevConvs => prevConvs.map(c => 
+                c.id === activeConv ? { ...c, lastMessage: newMsg.content || newMsg.text, updatedAt: new Date() } : c
+            ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
+        }
+      });
     };
 
     client.activate();
     stompClientRef.current = client;
 
-    // Dọn dẹp: Ngắt kết nối khi rời phòng chat
     return () => {
-      if (client.active) {
-        client.deactivate();
-        console.log('🛑 Đã ngắt kết nối Socket phòng:', activeConv);
-      }
+      if (client.active) client.deactivate();
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
-  }, [activeConv, SOCKET_URL]);
+  }, [activeConv, SOCKET_URL, currentUserId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isPartnerTyping]);
+
+  const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessageText(e.target.value);
+    if (stompClientRef.current?.active && activeConv) {
+        stompClientRef.current.publish({
+            destination: `/app/chat/${activeConv}/typing`,
+            body: JSON.stringify({ type: 'TYPING', senderId: currentUserId })
+        });
+        // Fallback for simple broadcast if backend doesn't have /app mapping handled specifically
+        stompClientRef.current.publish({
+            destination: `/topic/conversations/${activeConv}`,
+            body: JSON.stringify({ type: 'TYPING', senderId: currentUserId })
+        });
+    }
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,12 +141,8 @@ const Chat = () => {
     try {
       const token = localStorage.getItem('accessToken');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const payload = {
-        content: messageText
-      };
+      const payload = { content: messageText };
       
-      // Gửi lên server. KHÔNG THÊM VÀO STATE MESSAGES Ở ĐÂY.
-      // Vì WebSocket sẽ tự động "dội" tin nhắn đó về cho mọi người trong phòng (kể cả mình)
       await axios.post(`${API_URL}/conversations/${activeConv}/messages`, payload, config);
       setMessageText('');
       
@@ -149,11 +163,7 @@ const Chat = () => {
   };
 
   const getPartnerName = (conv: any) => {
-    if (conv.title) return conv.title;
-    if (conv.members && Array.isArray(conv.members)) {
-       const partner = conv.members.find((m: any) => m.userId !== currentUserId);
-       return partner ? `User ${partner.userId.substring(0,6)}` : 'Đối tác';
-    }
+    if (conv.partnerName) return conv.partnerName;
     return 'Đối tác giao hữu';
   };
 
@@ -183,7 +193,7 @@ const Chat = () => {
                       <div className="flex justify-between items-baseline">
                         <h3 className="font-bold text-gray-800 truncate">{getPartnerName(conv)}</h3>
                       </div>
-                      <p className="text-sm text-gray-500 truncate">{conv.lastMessage?.content || 'Chưa có tin nhắn'}</p>
+                      <p className="text-sm text-gray-500 truncate">{conv.lastMessage || 'Chưa có tin nhắn'}</p>
                     </div>
                   </div>
                 </div>
@@ -211,19 +221,32 @@ const Chat = () => {
                 {messages.length === 0 ? (
                   <div className="text-center text-gray-400 text-sm mt-10">Hãy bắt đầu cuộc trò chuyện!</div>
                 ) : (
-                  messages.map((msg) => {
+                  messages.map((msg, idx) => {
                     const isMine = msg.senderId === currentUserId;
+                    const isLastMsg = idx === messages.length - 1;
                     return (
                       <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${isMine ? 'bg-green-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'}`}>
                           <p>{msg.content || msg.text}</p>
-                          <span className={`text-[10px] block mt-1 ${isMine ? 'text-green-100 text-right' : 'text-gray-400'}`}>
-                            {formatTime(msg.createdAt || msg.timestamp)}
-                          </span>
+                          <div className={`flex items-center justify-end gap-1 mt-1 ${isMine ? 'text-green-100' : 'text-gray-400'}`}>
+                            <span className="text-[10px]">{formatTime(msg.createdAt || msg.timestamp)}</span>
+                            {isMine && (
+                                <span className="text-[10px]" title={isLastMsg ? "Đã nhận" : "Đã xem"}>
+                                    {isLastMsg ? <FaCheck /> : <FaCheckDouble className="text-blue-200" />}
+                                </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
                   })
+                )}
+                {isPartnerTyping && (
+                  <div className="flex justify-start">
+                    <div className="bg-white text-gray-500 border border-gray-100 rounded-2xl rounded-bl-none px-4 py-2 shadow-sm flex items-center gap-1">
+                      <span className="animate-bounce">.</span><span className="animate-bounce delay-100">.</span><span className="animate-bounce delay-200">.</span>
+                    </div>
+                  </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
@@ -234,7 +257,7 @@ const Chat = () => {
                   placeholder="Nhập tin nhắn..."
                   className="flex-1 bg-gray-100 text-gray-800 px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-green-500 transition"
                   value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
+                  onChange={handleTyping}
                 />
                 <button 
                   type="submit"
