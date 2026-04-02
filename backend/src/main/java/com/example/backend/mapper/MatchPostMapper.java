@@ -6,10 +6,10 @@ import com.example.backend.entity.MatchPost;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = org.mapstruct.ReportingPolicy.IGNORE)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = org.mapstruct.ReportingPolicy.IGNORE, uses = {MatchRequestMapper.class})
 public interface MatchPostMapper {
     @Mapping(target = "id", ignore = true)
-
     MatchPost toEntity(MatchPostCreateRequest request);
+    
     MatchPostResponse toResponse(MatchPost matchPost);
 }
