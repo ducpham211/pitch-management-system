@@ -11,7 +11,7 @@ const MatchBoard = () => {
   const navigate = useNavigate();
   const [matches, setMatches] = useState<any[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [applyingMatchId, setApplyingMatchId] = useState<string | null>(null);
+  const [applyingMatch, setApplyingMatch] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
@@ -46,7 +46,7 @@ const MatchBoard = () => {
   };
 
   const handleConfirmApply = () => {
-    setApplyingMatchId(null);
+    setApplyingMatch(null);
     navigate('/tin-nhan');
   };
 
@@ -76,7 +76,7 @@ const MatchBoard = () => {
             <MatchCard 
               key={match.id || index} 
               match={match} 
-              onApply={() => setApplyingMatchId(match.id)} 
+              onApply={() => setApplyingMatch(match)} 
             />
           ))}
         </div>
@@ -93,9 +93,9 @@ const MatchBoard = () => {
       />
 
       <ConfirmApplyModal 
-        isOpen={!!applyingMatchId} 
-        matchId={applyingMatchId} 
-        onClose={() => setApplyingMatchId(null)} 
+        isOpen={!!applyingMatch} 
+        match={applyingMatch} 
+        onClose={() => setApplyingMatch(null)} 
         onConfirm={handleConfirmApply} 
       />
 

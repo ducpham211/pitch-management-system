@@ -5,23 +5,21 @@ import axios from 'axios';
 
 type ConfirmApplyModalProps = {
   isOpen: boolean;
-  matchId: string | null;
+  match: any;
   onClose: () => void;
   onConfirm: () => void;
 };
 
-const ConfirmApplyModal = ({ isOpen, matchId, onClose, onConfirm }: ConfirmApplyModalProps) => {
+const ConfirmApplyModal = ({ isOpen, match, onClose, onConfirm }: ConfirmApplyModalProps) => {
   const [message, setMessage] = useState('Chào bạn, đội mình muốn nhận kèo này!');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
-  if (!isOpen) return null;
+  if (!isOpen || !match) return null;
 
   const handleApplyMatch = async () => {
-    if (!matchId) return;
-    
     setIsSubmitting(true);
     setError('');
     
@@ -35,24 +33,24 @@ const ConfirmApplyModal = ({ isOpen, matchId, onClose, onConfirm }: ConfirmApply
 
       const payloadBase64 = token.split('.')[1];
       const decodedPayload = JSON.parse(atob(payloadBase64));
-      const userId = decodedPayload.sub || decodedPayload.id || decodedPayload.userId;
+      const currentUserId = decodedPayload.sub || decodedPayload.id || decodedPayload.userId;
 
       const config = {
         headers: { Authorization: `Bearer ${token}` }
       };
 
       await axios.post(`${API_URL}/match-requests`, {
-        postId: matchId,
-        requesterId: userId,
+        postId: match.id,
+        requesterId: currentUserId,
         message: message
       }, config);
 
-      alert('Đã gửi yêu cầu nhận kèo thành công!');
+      alert('Đã gửi yêu cầu nhận kèo và tạo phòng chat thành công!');
       onConfirm();
     } catch (err: any) {
       console.error(err);
-      if (err.response?.status === 403) {
-        setError('Lỗi 403: Backend từ chối Token. Vui lòng kiểm tra lại bảng users trong DB!');
+      if (err.response?.status === 500) {
+         setError('Bạn đã gửi yêu cầu nhận kèo này trước đó rồi! Vui lòng vào mục Tin nhắn để chat.');
       } else {
         setError(err.response?.data?.message || 'Không thể gửi yêu cầu nhận kèo lúc này.');
       }
@@ -90,7 +88,7 @@ const ConfirmApplyModal = ({ isOpen, matchId, onClose, onConfirm }: ConfirmApply
           <Button variant="secondary" className="w-full border border-gray-300" onClick={onClose} disabled={isSubmitting}>Hủy</Button>
           <Button variant="primary" className="w-full !bg-green-600 hover:!bg-green-700" onClick={handleApplyMatch} disabled={isSubmitting}>
             {isSubmitting ? 'Đang gửi...' : 'Gửi Yêu Cầu'}
-          </Button>   
+          </Button>
         </div>
       </div>
     </div>

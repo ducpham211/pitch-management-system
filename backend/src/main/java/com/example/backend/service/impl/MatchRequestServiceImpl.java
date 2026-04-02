@@ -24,7 +24,9 @@ public class MatchRequestServiceImpl implements MatchRequestService {
     private final MatchRequestRepository matchRequestRepository;
     private final MatchRequestMapper matchRequestMapper;
     private final MatchPostRepository matchPostRepository;
-    private final ConversationService conversationService;    public MatchRequestServiceImpl(MatchRequestRepository matchRequestRepository, MatchRequestMapper matchRequestMapper, MatchPostRepository matchPostRepository, ConversationService conversationService) {
+    private final ConversationService conversationService;
+
+    public MatchRequestServiceImpl(MatchRequestRepository matchRequestRepository, MatchRequestMapper matchRequestMapper, MatchPostRepository matchPostRepository, ConversationService conversationService) {
         this.matchRequestRepository = matchRequestRepository;
         this.matchRequestMapper = matchRequestMapper;
         this.matchPostRepository = matchPostRepository;
@@ -32,6 +34,7 @@ public class MatchRequestServiceImpl implements MatchRequestService {
     }
 
     @Override
+    @Transactional
     public MatchRequestResponse createMatchRequest(MatchRequestCreateRequest request) {
         boolean isAlreadyRequested = matchRequestRepository.existsByPostIdAndRequesterId(
                 request.getPostId(),
@@ -41,11 +44,32 @@ public class MatchRequestServiceImpl implements MatchRequestService {
         if (isAlreadyRequested) {
             throw new RuntimeException("Bạn đã gửi yêu cầu nhận kèo cho bài này rồi!");
         }
+        
+        MatchPost post = matchPostRepository.findById(request.getPostId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng!"));
+
         MatchRequest matchRequest = matchRequestMapper.toEntity(request);
         matchRequest.setStatus(Enums.RequestStatus.PENDING);
         MatchRequest savedMatchRequest = matchRequestRepository.save(matchRequest);
+
+        // 🔥 TỰ ĐỘNG TẠO PHÒNG CHAT (DIRECT) NGAY KHI GỬI YÊU CẦU GHÉP TRẬN
+        try {
+            ConversationCreateRequest chatRequest = new ConversationCreateRequest();
+            chatRequest.setType(Enums.ConversationType.DIRECT);
+            chatRequest.setCreatedAt(LocalDateTime.now());
+
+            conversationService.createDirectConversation(
+                    chatRequest,
+                    post.getUserId(),        // Chủ bài đăng
+                    request.getRequesterId() // Người nhận kèo
+            );
+        } catch (Exception e) {
+            System.err.println("Lỗi khi auto-create phòng chat: " + e.getMessage());
+        }
+
         return matchRequestMapper.toResponse(savedMatchRequest);
     }
+
     @Override
     @Transactional
     public MatchRequestStatusResponse updateRequestStatus(String requestId, String currentUserId, MatchRequestStatusCreateRequest requestDTO) {
@@ -60,41 +84,15 @@ public class MatchRequestServiceImpl implements MatchRequestService {
             throw new RuntimeException("Bạn không phải chủ bài đăng, không có quyền duyệt kèo này!");
         }
 
-        // 1. Dùng Mapper để update trạng thái từ DTO vào Entity
         matchRequestMapper.updateEntityFromDto(requestDTO, request);
         MatchRequest savedRequest = matchRequestRepository.save(request);
 
-        String newConversationId = null;
-
-        // 2. Xử lý Side Effect nếu CHẤP NHẬN
+        // Việc tạo phòng chat đã chuyển lên hàm createMatchRequest để 2 bên có thể chat thương lượng ngay
         if (requestDTO.getStatus() == Enums.RequestStatus.ACCEPTED) {
-
-            // Đóng bài đăng
             post.setStatus(Enums.PostStatus.CLOSED);
             matchPostRepository.save(post);
-
-            //  KHỞI TẠO REQUEST DTO CHO CONVERSATION
-            ConversationCreateRequest chatRequest = new ConversationCreateRequest();
-            chatRequest.setType(Enums.ConversationType.DIRECT);
-            chatRequest.setCreatedAt(LocalDateTime.now());
-
-            //  GỌI SERVICE BẰNG DTO VÀ HỨNG RESPONSE DTO
-            ConversationResponse chatResponse = conversationService.createDirectConversation(
-                    chatRequest,
-                    post.getUserId(),
-                    request.getRequesterId()
-            );
-
-            // Lấy ID từ Response
-            newConversationId = chatResponse.getId();
-
-            // (Tùy chọn) Bác có thể gọi hàm từ chối tất cả các request khác ở đây
         }
 
-        // 3. Dùng Mapper biến Entity thành Response DTO
-        MatchRequestStatusResponse response = matchRequestMapper.toStatusResponse(savedRequest);
-        response.setConversationId(newConversationId);
-
-        return response;
+        return matchRequestMapper.toStatusResponse(savedRequest);
     }
 }
