@@ -5,15 +5,16 @@ public class UserResponse {
     private String email;
     private String fullName;
     private String phone;
+    private String role;
 
-    // Constructors, getters, setters
     public UserResponse() {}
 
-    public UserResponse(String id, String email, String fullName, String phone) {
+    public UserResponse(String id, String email, String fullName, String phone, String role) {
         this.id = id;
         this.email = email;
         this.fullName = fullName;
         this.phone = phone;
+        this.role = role;
     }
 
     public String getId() { return id; }
@@ -27,4 +28,7 @@ public class UserResponse {
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 }
