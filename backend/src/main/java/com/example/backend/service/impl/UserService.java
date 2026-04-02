@@ -33,7 +33,13 @@ public class UserService {
     }
 
     private UserResponse convertToDTO(User user) {
-        return new UserResponse(user.getId(), user.getEmail(), user.getFullName(), user.getPhone());
+        return new UserResponse(
+                user.getId(), 
+                user.getEmail(), 
+                user.getFullName(), 
+                user.getPhone(), 
+                user.getRole() != null ? user.getRole().toString() : null
+        );
     }
 
     private User convertToEntity(UserResponse userResponse) {
@@ -41,7 +47,6 @@ public class UserService {
         user.setEmail(userResponse.getEmail());
         user.setFullName(userResponse.getFullName());
         user.setPhone(userResponse.getPhone());
-        // Set other fields as needed
         return user;
     }
 }
