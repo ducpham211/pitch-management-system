@@ -94,6 +94,7 @@ const MatchBoard = () => {
 
       <ConfirmApplyModal 
         isOpen={!!applyingMatchId} 
+        matchId={applyingMatchId} 
         onClose={() => setApplyingMatchId(null)} 
         onConfirm={handleConfirmApply} 
       />
