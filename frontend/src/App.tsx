@@ -12,29 +12,32 @@ import Chat from './pages/player/Chat';
 import Profile from './pages/player/Profile';
 import OwnerDashboard from './pages/owner/Dashboard';
 import AdminDashboard from './pages/admin/Dashboard';
+import { AuthProvider } from './context/AuthContext';
 
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Navbar />
-        <main className="flex-1 w-full mt-4">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/tim-san" element={<FindPitch />} />
-            <Route path="/san/:id" element={<PitchDetail />} />
-            <Route path="/thanh-toan" element={<Checkout />} />
-            <Route path="/ghep-tran" element={<MatchBoard />} />
-            <Route path="/dang-nhap" element={<Login />} />
-            <Route path="/dang-ky" element={<Register />} />
-            <Route path="/tin-nhan" element={<Chat />} />
-            <Route path="/ho-so" element={<Profile />} />
-            <Route path="/chu-san" element={<OwnerDashboard />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
+      <AuthProvider>
+        <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800">
+          <Navbar />
+          <main className="flex-1 w-full mt-4">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/tim-san" element={<FindPitch />} />
+              <Route path="/san/:id" element={<PitchDetail />} />
+              <Route path="/thanh-toan/:id" element={<Checkout />} />
+              <Route path="/ghep-tran" element={<MatchBoard />} />
+              <Route path="/dang-nhap" element={<Login />} />
+              <Route path="/dang-ky" element={<Register />} />
+              <Route path="/tin-nhan" element={<Chat />} />
+              <Route path="/ho-so" element={<Profile />} />
+              <Route path="/chu-san/*" element={<OwnerDashboard />} />
+              <Route path="/admin/*" element={<AdminDashboard />} />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
+      </AuthProvider>
     </Router>
   );
 }
