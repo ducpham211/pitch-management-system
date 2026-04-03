@@ -4,7 +4,6 @@ import { FaSearch, FaFilter } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-
 interface Field {
   id: string;
   name: string;
@@ -16,7 +15,6 @@ interface Field {
 const FindPitch = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('Tất cả');
-  
   
   const [fields, setFields] = useState<Field[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,10 +38,27 @@ const FindPitch = () => {
     fetchFields();
   }, []);
 
-  
+  const translateFieldType = (type: string) => {
+    switch(type) {
+      case 'FIVE_A_SIDE': return 'Sân 5 người';
+      case 'SEVEN_A_SIDE': return 'Sân 7 người';
+      case 'ELEVEN_A_SIDE': return 'Sân 11 người';
+      default: return type;
+    }
+  };
+
+  const mapFilterToEnum = (filter: string) => {
+    switch(filter) {
+      case '5': return 'FIVE_A_SIDE';
+      case '7': return 'SEVEN_A_SIDE';
+      case '11': return 'ELEVEN_A_SIDE';
+      default: return filter;
+    }
+  };
+
   const filteredPitches = fields.filter((pitch) => {
     const matchName = pitch.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchType = filterType === 'Tất cả' || (pitch.type && pitch.type.includes(filterType));
+    const matchType = filterType === 'Tất cả' || pitch.type === mapFilterToEnum(filterType);
     return matchName && matchType;
   });
 
@@ -103,10 +118,9 @@ const FindPitch = () => {
               id={pitch.id}
               name={pitch.name}
               coverImage={pitch.coverImage}
-              // Tạm thời fix cứng location và price vì Entity Field của BE chưa có 2 cột này
               location="Cơ sở chính" 
-              type={`Sân ${pitch.type}`}
-              price="Liên hệ"
+              type={translateFieldType(pitch.type)}
+              price="Theo ca đá"
               onActionClick={() => handleBookClick(pitch.id)}
             />
           ))}
