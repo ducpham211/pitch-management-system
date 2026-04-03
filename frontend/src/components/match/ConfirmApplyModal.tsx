@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FaHandshake } from 'react-icons/fa';
 import Button from '../common/Button';
 import axios from 'axios';
@@ -16,6 +16,13 @@ const ConfirmApplyModal = ({ isOpen, match, onClose, onConfirm }: ConfirmApplyMo
   const [error, setError] = useState('');
 
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+
+  useEffect(() => {
+    if (isOpen) {
+      setError('');
+      setMessage('Chào bạn, đội mình muốn nhận kèo này!');
+    }
+  }, [isOpen]);
 
   if (!isOpen || !match) return null;
 
@@ -35,7 +42,6 @@ const ConfirmApplyModal = ({ isOpen, match, onClose, onConfirm }: ConfirmApplyMo
       const decodedPayload = JSON.parse(atob(payloadBase64));
       const currentUserId = decodedPayload.sub || decodedPayload.id || decodedPayload.userId;
 
-      // Bắt lỗi ngay tại Frontend để báo lỗi tức thì
       if (match.userId === currentUserId) {
         setError('Bạn không thể tự nhận kèo của chính mình!');
         setIsSubmitting(false);
@@ -56,12 +62,13 @@ const ConfirmApplyModal = ({ isOpen, match, onClose, onConfirm }: ConfirmApplyMo
       onConfirm();
     } catch (err: any) {
       console.error(err);
+      
       const backendMessage = err.response?.data?.message || err.response?.data;
       
       if (backendMessage && typeof backendMessage === 'string') {
         setError(backendMessage);
       } else {
-        setError('Không thể gửi yêu cầu nhận kèo lúc này.');
+        setError('Không thể gửi yêu cầu nhận kèo lúc này. Vui lòng thử lại sau.');
       }
     } finally {
       setIsSubmitting(false);
