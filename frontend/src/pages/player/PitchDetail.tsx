@@ -1,212 +1,164 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { FaMapMarkerAlt, FaFutbol, FaArrowLeft, FaCalendarAlt } from 'react-icons/fa';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { FaFutbol, FaArrowLeft, FaCalendarAlt, FaClock, FaCheck, FaTimes } from 'react-icons/fa';
 import Button from '../../components/common/Button';
-import axios from 'axios';
-
-interface Pitch {
-  id: string;
-  name: string;
-  type: string;
-  coverImage: string | null;
-  status: string;
-}
-
-interface TimeSlot {
-  timeSlotId: string;
-  startTime: string;
-  endTime: string;
-  price: number;
-  status: string;
-}
+import axiosClient from '../../api/axiosClient';
 
 const PitchDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
-
-  const today = new Date().toISOString().split('T')[0];
-  const [selectedDate, setSelectedDate] = useState<string>(today);
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
-
-  const [pitch, setPitch] = useState<Pitch | null>(null);
-  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const [pitch, setPitch] = useState<any>(null);
+  
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [availableSlots, setAvailableSlots] = useState<any[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchPitchDetail = async () => {
       try {
-        const response = await axios.get(`${API_URL}/fields/${id}`);
-        setPitch(response.data);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    if (id) {
-      fetchPitchDetail();
-    }
-  }, [id, API_URL]);
-
-  useEffect(() => {
-    const fetchAvailability = async () => {
-      if (!id) return;
-      try {
-        const response = await axios.get(`${API_URL}/fields/${id}/availability?date=${selectedDate}`);
-        setAvailableSlots(response.data);
+        const res = await axiosClient.get(`/fields/${id}`);
+        setPitch(res.data);
       } catch (error) {
         console.error(error);
       } finally {
         setIsLoading(false);
       }
     };
+    fetchPitchDetail();
+  }, [id]);
+
+  useEffect(() => {
+    const fetchAvailability = async () => {
+      if (!id || !selectedDate) return;
+      try {
+        const res = await axiosClient.get(`/fields/${id}/availability?date=${selectedDate}`);
+        const sortedSlots = res.data.sort((a: any, b: any) => {
+           const timeA = new Date(a.startTime || `2000-01-01T${a.startTime}`).getTime();
+           const timeB = new Date(b.startTime || `2000-01-01T${b.startTime}`).getTime();
+           return timeA - timeB;
+        });
+        setAvailableSlots(sortedSlots);
+        setSelectedSlot(null);
+      } catch (error) {
+        console.error(error);
+      }
+    };
     fetchAvailability();
-  }, [id, selectedDate, API_URL]);
+  }, [id, selectedDate]);
 
   const handleBooking = () => {
-    if (!selectedSlot || !pitch) return;
-    navigate('/thanh-toan', {
-      state: {
-        pitch: pitch,
-        slot: selectedSlot,
-      },
+    if (!selectedSlot) return;
+    navigate(`/thanh-toan/${id}`, {
+      state: { pitch, selectedSlot, selectedDate }
     });
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600"></div>
-      </div>
-    );
-  }
+  const formatTime = (isoString: string) => {
+    if (!isoString) return '';
+    return isoString.substring(11, 16);
+  };
 
-  if (!pitch) {
-    return (
-      <div className="container mx-auto px-4 py-20 text-center">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">
-          Không tìm thấy thông tin sân
-        </h2>
-        <Button variant="primary" onClick={() => navigate('/tim-san')}>
-          Quay lại tìm sân
-        </Button>
-      </div>
-    );
-  }
+  const translateFieldType = (type: string) => {
+    if (type === 'FIVE_A_SIDE') return 'Sân 5 người';
+    if (type === 'SEVEN_A_SIDE') return 'Sân 7 người';
+    if (type === 'ELEVEN_A_SIDE') return 'Sân 11 người';
+    return type;
+  };
+
+  if (isLoading) return <div className="text-center py-20">Đang tải thông tin sân...</div>;
+  if (!pitch) return <div className="text-center py-20 text-gray-500">Không tìm thấy thông tin sân bóng!</div>;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <button
-        onClick={() => navigate('/tim-san')}
-        className="flex items-center gap-2 text-gray-600 hover:text-green-600 transition mb-6"
-      >
-        <FaArrowLeft /> Quay lại danh sách
-      </button>
+      <Link to="/tim-san" className="inline-flex items-center text-gray-500 hover:text-green-600 mb-6 transition">
+        <FaArrowLeft className="mr-2" /> Quay lại danh sách
+      </Link>
 
-      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">{pitch.name}</h1>
-        <div className="flex flex-col md:flex-row gap-4 text-gray-600 mb-6">
-          <p className="flex items-center gap-2">
-            <FaMapMarkerAlt className="text-red-500" />
-            <span>Cơ sở chính</span>
-          </p>
-          <p className="flex items-center gap-2">
-            <FaFutbol className="text-black" />
-            <span>Sân {pitch.type}</span>
-          </p>
+      <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col md:flex-row">
+        <div className="md:w-1/2 h-64 md:h-auto bg-gray-200">
+          <img 
+            src={pitch.coverImage || 'https://images.unsplash.com/photo-1459865264687-595d652de67e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80'} 
+            alt={pitch.name} 
+            className="w-full h-full object-cover"
+          />
         </div>
-        <p className="text-gray-600 bg-gray-50 p-4 rounded-lg">
-          * Mô tả chi tiết sân sẽ được hiển thị ở đây. Hệ thống chiếu sáng đạt chuẩn, mặt
-          cỏ nhân tạo chất lượng cao, có khu vực căng tin và bãi giữ xe rộng rãi.
-        </p>
+        
+        <div className="md:w-1/2 p-6 md:p-8 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                {translateFieldType(pitch.type)}
+              </span>
+            </div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-4">{pitch.name}</h1>
+            <p className="text-gray-600 mb-6 flex items-center gap-2">
+              <FaFutbol className="text-gray-400" /> Chất lượng cỏ nhân tạo đạt chuẩn
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <FaCalendarAlt className="text-green-500" /> Chọn lịch trống
-        </h2>
-
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Ngày đặt sân
+      <div className="mt-8 bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b border-gray-100 pb-4">Đặt Sân</h2>
+        
+        <div className="mb-6 max-w-xs">
+          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <FaCalendarAlt className="text-green-600" /> Chọn ngày đá
           </label>
-          <input
-            type="date"
+          <input 
+            type="date" 
+            min={new Date().toISOString().split('T')[0]}
             value={selectedDate}
-            onChange={(e) => {
-              setSelectedDate(e.target.value);
-              setSelectedSlot(null);
-            }}
-            className="border border-gray-300 rounded-lg px-4 py-2 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500"
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none transition"
           />
         </div>
 
-        {availableSlots.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-8">
-            {availableSlots.map((slot) => {
-              const isSelected = selectedSlot?.timeSlotId === slot.timeSlotId;
-              const isBooked = slot.status !== 'AVAILABLE';
-              
-              const formatTime = (timeStr: string) => {
-                if (timeStr.includes('T')) {
-                  return timeStr.split('T')[1].substring(0, 5);
-                }
-                return timeStr.substring(0, 5);
-              };
-
-              return (
-                <button
-                  key={slot.timeSlotId}
-                  disabled={isBooked}
-                  onClick={() => setSelectedSlot(slot)}
-                  className={`
-                    flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all
-                    ${
-                      isBooked
-                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-                        : isSelected
-                          ? 'bg-green-50 border-green-500 text-green-700 shadow-sm'
-                          : 'bg-white border-gray-200 text-gray-700 hover:border-green-300 hover:bg-green-50'
-                    }
-                  `}
-                >
-                  <span className="font-bold text-lg">
-                    {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
-                  </span>
-                  <span
-                    className={`text-sm mt-1 ${isBooked ? 'text-gray-400' : isSelected ? 'text-green-600 font-medium' : 'text-green-600'}`}
+        <div className="mb-8">
+          <label className="block text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+            <FaClock className="text-green-600" /> Chọn ca đá
+          </label>
+          
+          {availableSlots.length === 0 ? (
+            <div className="p-4 bg-gray-50 rounded-xl text-center text-gray-500 italic">
+              Không có ca đá nào được thiết lập cho sân này.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {availableSlots.map((slot) => {
+                const isAvailable = slot.available !== false && slot.isAvailable !== false;
+                return (
+                  <button
+                    key={slot.id}
+                    disabled={!isAvailable}
+                    onClick={() => setSelectedSlot(slot)}
+                    className={`p-3 rounded-xl border text-center transition flex flex-col items-center gap-1
+                      ${!isAvailable 
+                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' 
+                        : selectedSlot?.id === slot.id 
+                          ? 'bg-green-50 border-green-500 text-green-700 ring-2 ring-green-200' 
+                          : 'bg-white border-gray-200 hover:border-green-300 hover:bg-green-50/50 text-gray-700'
+                      }`}
                   >
-                    {isBooked
-                      ? 'Đã đặt'
-                      : `${slot.price.toLocaleString('vi-VN')}đ`}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center py-10 bg-gray-50 rounded-xl mb-8">
-            <p className="text-gray-500">
-              Chưa có lịch trống nào được cập nhật cho ngày này.
-            </p>
-          </div>
-        )}
+                    <span className="font-bold text-lg">{formatTime(slot.startTime)} - {formatTime(slot.endTime)}</span>
+                    <span className="text-xs font-medium">{slot.price.toLocaleString('vi-VN')}đ</span>
+                    {isAvailable ? <FaCheck className="text-green-500 mt-1 text-xs" /> : <FaTimes className="text-red-400 mt-1 text-xs" />}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 border-t border-gray-100">
-          <div className="text-left w-full sm:w-auto">
-            <p className="text-sm text-gray-500 mb-1">Tổng tiền cọc dự kiến (30%)</p>
-            <p className="text-2xl font-bold text-green-600">
-              {selectedSlot
-                ? `${(selectedSlot.price * 0.3).toLocaleString('vi-VN')}đ`
-                : '0đ'}
-            </p>
-          </div>
-          <Button
-            variant="primary"
-            className="w-full sm:w-auto px-8 py-3 text-lg !bg-green-600 hover:!bg-green-700"
-            onClick={handleBooking}
+        <div className="flex justify-end pt-4 border-t border-gray-100">
+          <Button 
+            variant="primary" 
+            className="px-8 py-3 text-lg !bg-green-600 hover:!bg-green-700 shadow-md"
             disabled={!selectedSlot}
+            onClick={handleBooking}
           >
-            Thanh Toán Đặt Cọc
+            Tiếp Tục Đặt Sân
           </Button>
         </div>
       </div>
