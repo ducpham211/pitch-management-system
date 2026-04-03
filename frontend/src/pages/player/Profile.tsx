@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaHistory, FaCheckCircle, FaTimesCircle, FaClock } from 'react-icons/fa';
 import Button from '../../components/common/Button';
-import axios from 'axios';
+import axiosClient from '../../api/axiosClient';
 import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
@@ -11,23 +11,14 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const navigate = useNavigate();
-  const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
   useEffect(() => {
     const fetchProfileAndBookings = async () => {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        navigate('/dang-nhap');
-        return;
-      }
-
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-
       try {
-        const profileRes = await axios.get(`${API_URL}/users/me`, config);
+        const profileRes = await axiosClient.get('/users/me');
         setUserProfile(profileRes.data);
 
-        const bookingsRes = await axios.get(`${API_URL}/bookings`, config);
+        const bookingsRes = await axiosClient.get('/bookings');
         setBookings(bookingsRes.data.content || bookingsRes.data || []);
       } catch (error) {
         console.error('Lỗi tải hồ sơ:', error);
@@ -37,7 +28,7 @@ const Profile = () => {
     };
 
     fetchProfileAndBookings();
-  }, [API_URL, navigate]);
+  }, [navigate]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -49,7 +40,7 @@ const Profile = () => {
       case 'CANCELLED':
         return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FaTimesCircle /> Đã hủy</span>;
       default:
-        return <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
+        return <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold">{status || 'Chưa rõ'}</span>;
     }
   };
 
@@ -57,6 +48,11 @@ const Profile = () => {
      if (!dateStr) return 'Chưa có';
      const parts = dateStr.split('-');
      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+  };
+
+  const safeSubstring = (str: string | undefined | null, length: number) => {
+    if (!str) return 'Không xác định';
+    return str.substring(0, length);
   };
 
   if (isLoading) {
@@ -99,7 +95,6 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Khung Nội dung Chính */}
         <div className="w-full md:w-2/3">
           {activeTab === 'info' && (
             <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
@@ -148,12 +143,12 @@ const Profile = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {bookings.map((booking) => (
-                    <div key={booking.id} className="p-5 border border-gray-100 rounded-xl hover:shadow-md transition">
+                  {bookings.map((booking, index) => (
+                    <div key={booking.bookingId || index} className="p-5 border border-gray-100 rounded-xl hover:shadow-md transition">
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-2">
                         <div>
-                          <span className="text-xs text-gray-500 font-bold mb-1 block uppercase">MÃ ĐƠN: {booking.id.substring(0,8)}</span>
-                          <h3 className="font-bold text-gray-800 text-lg">Sân {booking.fieldId ? booking.fieldId.substring(0,8) : 'Không xác định'}</h3>
+                          <span className="text-xs text-gray-500 font-bold mb-1 block uppercase">MÃ ĐƠN: {safeSubstring(booking.bookingId, 8)}</span>
+                          <h3 className="font-bold text-gray-800 text-lg">Sân {safeSubstring(booking.fieldId, 8)}</h3>
                         </div>
                         {getStatusBadge(booking.status)}
                       </div>
