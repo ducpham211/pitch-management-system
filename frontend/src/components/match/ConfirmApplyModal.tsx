@@ -35,6 +35,13 @@ const ConfirmApplyModal = ({ isOpen, match, onClose, onConfirm }: ConfirmApplyMo
       const decodedPayload = JSON.parse(atob(payloadBase64));
       const currentUserId = decodedPayload.sub || decodedPayload.id || decodedPayload.userId;
 
+      // Bắt lỗi ngay tại Frontend để báo lỗi tức thì
+      if (match.userId === currentUserId) {
+        setError('Bạn không thể tự nhận kèo của chính mình!');
+        setIsSubmitting(false);
+        return;
+      }
+
       const config = {
         headers: { Authorization: `Bearer ${token}` }
       };
@@ -49,10 +56,12 @@ const ConfirmApplyModal = ({ isOpen, match, onClose, onConfirm }: ConfirmApplyMo
       onConfirm();
     } catch (err: any) {
       console.error(err);
-      if (err.response?.status === 500) {
-         setError('Bạn đã gửi yêu cầu nhận kèo này trước đó rồi! Vui lòng vào mục Tin nhắn để chat.');
+      const backendMessage = err.response?.data?.message || err.response?.data;
+      
+      if (backendMessage && typeof backendMessage === 'string') {
+        setError(backendMessage);
       } else {
-        setError(err.response?.data?.message || 'Không thể gửi yêu cầu nhận kèo lúc này.');
+        setError('Không thể gửi yêu cầu nhận kèo lúc này.');
       }
     } finally {
       setIsSubmitting(false);
