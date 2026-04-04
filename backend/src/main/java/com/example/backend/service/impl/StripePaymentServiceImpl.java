@@ -1,5 +1,7 @@
 package com.example.backend.service.impl;
 
+import com.example.backend.dto.request.NotificationCreateRequest;
+import com.example.backend.dto.request.PaymentCreateRequest;
 import com.example.backend.dto.response.PaymentResponse;
 import com.example.backend.entity.Booking;
 import com.example.backend.entity.Enums;
@@ -9,6 +11,7 @@ import com.example.backend.mapper.PaymentMapper;
 import com.example.backend.repository.BookingRepository;
 import com.example.backend.repository.PaymentRepository;
 import com.example.backend.repository.TimeSlotRepository;
+import com.example.backend.service.NotificationService;
 import com.example.backend.service.PaymentService;
 import com.stripe.Stripe;
 import com.stripe.model.checkout.Session;
@@ -21,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Slf4j
 @Service
@@ -32,8 +36,8 @@ public class StripePaymentServiceImpl implements PaymentService {
 
     private final TimeSlotRepository timeSlotRepository;
     private final BookingRepository bookingRepository;
-
-    // 👉 Đã tiêm thêm 2 anh lính mới để xử lý Payment
+    private final NotificationService notificationService;
+    //  Đã tiêm thêm 2 anh lính mới để xử lý Payment
     private final PaymentRepository paymentRepository;
     private final PaymentMapper paymentMapper;
 
@@ -97,6 +101,7 @@ public class StripePaymentServiceImpl implements PaymentService {
         }
     }
     @Transactional
+    @Override
     public void handleStripeWebhook(String payload, String sigHeader) {
         try {
             // 1. Xác thực chữ ký
@@ -140,15 +145,24 @@ public class StripePaymentServiceImpl implements PaymentService {
                         timeSlotRepository.save(slot);
                     }
 
-                    // 3.3  GHI NHẬN LỊCH SỬ DÒNG TIỀN VÀO BẢNG PAYMENT (DÙNG MAPPER)
-                    Payment depositPayment = paymentMapper.createPaymentEntity(
-                            booking,
-                            booking.getDepositAmount(),
-                            Enums.PaymentMethod.STRIPE, // Chuyển khoản qua Stripe
-                            session.getPaymentIntent()
-                    );
+                    // 3.3 GHI NHẬN LỊCH SỬ DÒNG TIỀN VÀO BẢNG PAYMENT
+                    PaymentCreateRequest paymentRequest = new PaymentCreateRequest();
+                    paymentRequest.setAmount(booking.getDepositAmount());
+                    paymentRequest.setPaymentMethod(Enums.PaymentMethod.STRIPE);
+                    paymentRequest.setStripePaymentIntentId(session.getPaymentIntent());
+                    paymentRequest.setBookingId(bookingId);
+                    paymentRequest.setUserId(booking.getUserId());
+                    paymentRequest.setStatus(Enums.PaymentStatus.SUCCESS);
+                    Payment depositPayment = paymentMapper.createPaymentEntity(paymentRequest);
+                    depositPayment.setBooking(booking); // Gán object booking để nối khóa ngoại
+                    depositPayment.setCreatedAt(LocalDateTime.now());
                     paymentRepository.save(depositPayment);
-
+                    NotificationCreateRequest notifRequest = new NotificationCreateRequest();
+                    notifRequest.setTitle("🎉 thanh toán thành công!");
+                    String content = "Bạn đã tạo thanh toán thành công số tiền " + paymentRequest.getAmount() + " VND cho sân " + booking.getFieldId();
+                    notifRequest.setContent(content);
+                    notifRequest.setType(Enums.NotificationType.PAYMENT_UPDATE);
+                    notificationService.createAndSendNotification(booking.getUserId(), notifRequest);
                     log.info("==== KẾ TOÁN ==== Đã lưu DB khoản cọc {} VND qua STRIPE cho Booking {}", booking.getDepositAmount(), bookingId);
                     log.info("==== WEBHOOK ==== Đã chốt sân thành công!");
 
@@ -156,7 +170,6 @@ public class StripePaymentServiceImpl implements PaymentService {
                     log.error("==== WEBHOOK ==== Không tìm thấy hóa đơn {} trong Database", bookingId);
                 }
             }
-
         } catch (com.stripe.exception.SignatureVerificationException e) {
             log.error("==== WEBHOOK ==== Cảnh báo: Chữ ký giả mạo hoặc sai Secret Key!", e);
         } catch (Exception e) {

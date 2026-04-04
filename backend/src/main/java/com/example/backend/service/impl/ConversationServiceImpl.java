@@ -58,12 +58,10 @@ public class ConversationServiceImpl implements ConversationService {
         ConversationMember member1 = new ConversationMember();
         member1.setConversationId(savedConversation.getId()); 
         member1.setUserId(user1Id);
-        conversationMemberRepository.save(member1);
-
         ConversationMember member2 = new ConversationMember();
         member2.setConversationId(savedConversation.getId()); 
         member2.setUserId(user2Id);
-        conversationMemberRepository.save(member2);
+        conversationMemberRepository.saveAll(java.util.List.of(member1, member2));
         
         return conversationMapper.toResponse(savedConversation);
     }

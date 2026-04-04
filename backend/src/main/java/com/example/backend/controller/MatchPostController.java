@@ -27,7 +27,7 @@ public class MatchPostController {
         MatchPostResponse response = matchPostService.createMatchPost(request);
         return ResponseEntity.ok(response);
     }
-    @PatchMapping("/{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<MatchPostResponse> updateMatchPost(
             @PathVariable("id") String postId,
             @RequestBody MatchPostCreateRequest request
