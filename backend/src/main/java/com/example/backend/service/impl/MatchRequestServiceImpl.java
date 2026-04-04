@@ -3,6 +3,7 @@ package com.example.backend.service.impl;
 import com.example.backend.dto.request.ConversationCreateRequest;
 import com.example.backend.dto.request.MatchRequestCreateRequest;
 import com.example.backend.dto.request.MatchRequestStatusCreateRequest;
+import com.example.backend.dto.request.NotificationCreateRequest;
 import com.example.backend.dto.response.ConversationResponse;
 import com.example.backend.dto.response.MatchRequestResponse;
 import com.example.backend.dto.response.MatchRequestStatusResponse;
@@ -14,24 +15,20 @@ import com.example.backend.repository.MatchPostRepository;
 import com.example.backend.repository.MatchRequestRepository;
 import com.example.backend.service.ConversationService;
 import com.example.backend.service.MatchRequestService;
+import com.example.backend.service.NotificationService;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-
+@AllArgsConstructor
 @Service
 public class MatchRequestServiceImpl implements MatchRequestService {
     private final MatchRequestRepository matchRequestRepository;
     private final MatchRequestMapper matchRequestMapper;
     private final MatchPostRepository matchPostRepository;
     private final ConversationService conversationService;
-
-    public MatchRequestServiceImpl(MatchRequestRepository matchRequestRepository, MatchRequestMapper matchRequestMapper, MatchPostRepository matchPostRepository, ConversationService conversationService) {
-        this.matchRequestRepository = matchRequestRepository;
-        this.matchRequestMapper = matchRequestMapper;
-        this.matchPostRepository = matchPostRepository;
-        this.conversationService = conversationService;
-    }
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -55,7 +52,12 @@ public class MatchRequestServiceImpl implements MatchRequestService {
         MatchRequest matchRequest = matchRequestMapper.toEntity(request);
         matchRequest.setStatus(Enums.RequestStatus.PENDING);
         MatchRequest savedMatchRequest = matchRequestRepository.save(matchRequest);
-
+        NotificationCreateRequest notifRequest = new NotificationCreateRequest();
+        notifRequest.setTitle("🎉 gửi yều cầu thành công!");
+        String content = "Bạn đã gửi thành công yêu cầu ghép trận tới người có ID "+post.getUserId();
+        notifRequest.setContent(content);
+        notifRequest.setType(Enums.NotificationType.MATCH_REQUEST);
+        notificationService.createAndSendNotification(post.getUserId(), notifRequest);
         try {
             ConversationCreateRequest chatRequest = new ConversationCreateRequest();
             chatRequest.setType(Enums.ConversationType.DIRECT);

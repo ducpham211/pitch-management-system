@@ -25,8 +25,8 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final MatchPostRepository matchPostRepository;
 
     public DatabaseSeeder(UserRepository userRepository, TeamRepository teamRepository, FieldRepository fieldRepository,
-            TimeSlotRepository timeSlotRepository, BookingRepository bookingRepository,
-            MatchPostRepository matchPostRepository) {
+                          TimeSlotRepository timeSlotRepository, BookingRepository bookingRepository,
+                          MatchPostRepository matchPostRepository) {
         this.userRepository = userRepository;
         this.teamRepository = teamRepository;
         this.fieldRepository = fieldRepository;
@@ -38,6 +38,10 @@ public class DatabaseSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
+
+        // ==========================================
+        // 1. LUỒNG KHỞI TẠO DỮ LIỆU TĨNH (CHỈ CHẠY 1 LẦN)
+        // ==========================================
         if (userRepository.count() == 0) {
             System.out.println("Seeding entire ecosystem database...");
 
@@ -159,28 +163,74 @@ public class DatabaseSeeder implements CommandLineRunner {
 
             System.out.println("Database ecosystem seeding completed successfully!");
         } else {
-            System.out.println("Database already seeded. Skipping...");
+            System.out.println("Database already seeded with core entities. Skipping static seed...");
+        }
+
+        // ==========================================
+        // 2. LUỒNG CUỐN CHIẾU TIME SLOT (CHẠY MỖI LẦN KHỞI ĐỘNG)
+        // ==========================================
+        System.out.println("Kiểm tra và cập nhật Time Slots cho các ngày tới...");
+        seedDynamicTimeSlots(7); // Tạo trước cho 7 ngày tới (bao gồm cả hôm nay)
+    }
+
+    // Hàm tạo slot tự động cuốn chiếu
+    private void seedDynamicTimeSlots(int daysInAdvance) {
+        List<Field> allFields = fieldRepository.findAll();
+        if (allFields.isEmpty()) return;
+
+        LocalDate today = LocalDate.now();
+        LocalTime[] startTimes = {
+                LocalTime.of(16, 0), LocalTime.of(17, 30), LocalTime.of(19, 0), LocalTime.of(20, 30), LocalTime.of(22, 0)
+        };
+        LocalTime[] endTimes = {
+                LocalTime.of(17, 30), LocalTime.of(19, 0), LocalTime.of(20, 30), LocalTime.of(22, 0), LocalTime.of(23, 30)
+        };
+
+        List<TimeSlot> newSlots = new ArrayList<>();
+
+        for (Field field : allFields) {
+            // Setup giá tự động dựa theo loại sân (có thể tinh chỉnh sau)
+            BigDecimal defaultPrice = field.getType() == Enums.FieldType.SEVEN_A_SIDE ? new BigDecimal("300000") : new BigDecimal("150000");
+
+            for (int day = 0; day < daysInAdvance; day++) {
+                LocalDate date = today.plusDays(day);
+
+                for (int i = 0; i < startTimes.length; i++) {
+                    LocalDateTime startTime = LocalDateTime.of(date, startTimes[i]);
+
+                    // Chỉ tạo nếu Time Slot này chưa tồn tại trong database
+                    if (!timeSlotRepository.existsByFieldIdAndStartTime(field.getId(), startTime)) {
+                        TimeSlot slot = new TimeSlot();
+                        slot.setFieldId(field.getId());
+                        slot.setStartTime(startTime);
+                        slot.setEndTime(LocalDateTime.of(date, endTimes[i]));
+                        slot.setPrice(defaultPrice);
+                        slot.setStatus(Enums.TimeSlotStatus.AVAILABLE);
+                        newSlots.add(slot);
+                    }
+                }
+            }
+        }
+
+        if (!newSlots.isEmpty()) {
+            timeSlotRepository.saveAll(newSlots);
+            System.out.println("Thành công: Đã tự động tạo thêm " + newSlots.size() + " Time Slots mới!");
+        } else {
+            System.out.println("Time Slots đã đầy đủ cho " + daysInAdvance + " ngày tới, không cần tạo thêm.");
         }
     }
 
+    // Hàm cũ giữ lại phục vụ cho luồng 1 (cần trả về List<TimeSlot> để lấy ID gán cho Booking)
     private List<TimeSlot> seedTimeSlotsForField(Field field, BigDecimal price) {
         List<TimeSlot> slots = new ArrayList<>();
         LocalDate today = LocalDate.now();
-        
+
         LocalTime[] startTimes = {
-            LocalTime.of(16, 0),
-            LocalTime.of(17, 30),
-            LocalTime.of(19, 0),
-            LocalTime.of(20, 30),
-            LocalTime.of(22, 0)
+                LocalTime.of(16, 0), LocalTime.of(17, 30), LocalTime.of(19, 0), LocalTime.of(20, 30), LocalTime.of(22, 0)
         };
-        
+
         LocalTime[] endTimes = {
-            LocalTime.of(17, 30),
-            LocalTime.of(19, 0),
-            LocalTime.of(20, 30),
-            LocalTime.of(22, 0),
-            LocalTime.of(23, 30)
+                LocalTime.of(17, 30), LocalTime.of(19, 0), LocalTime.of(20, 30), LocalTime.of(22, 0), LocalTime.of(23, 30)
         };
 
         for (int day = 0; day < 2; day++) {

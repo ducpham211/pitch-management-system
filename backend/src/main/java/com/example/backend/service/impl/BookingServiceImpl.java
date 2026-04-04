@@ -1,6 +1,8 @@
 package com.example.backend.service.impl;
 
 import com.example.backend.dto.request.BookingCreateRequest;
+import com.example.backend.dto.request.NotificationCreateRequest;
+import com.example.backend.dto.request.PaymentCreateRequest;
 import com.example.backend.dto.response.BookingResponse;
 import com.example.backend.entity.*;
 import com.example.backend.exception.AppException;
@@ -11,6 +13,7 @@ import com.example.backend.repository.PaymentRepository;
 import com.example.backend.repository.TimeSlotRepository;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.service.BookingService;
+import com.example.backend.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -18,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -35,13 +39,12 @@ public class BookingServiceImpl implements BookingService {
     private final UserRepository userRepository;
     private final PaymentMapper paymentMapper;
     private final PaymentRepository paymentRepository;
-
+    private final NotificationService notificationService;
     @Override
     @Transactional
     public BookingResponse createBooking(String userId, BookingCreateRequest request) {
         String timeSlotId = request.getTimeSlotId();
         String note = request.getNote();
-        
         TimeSlot slot = timeSlotRepository.findById(timeSlotId)
                 .orElseThrow(() -> new AppException(404, "Không tìm thấy khung giờ này"));
 
@@ -64,26 +67,37 @@ public class BookingServiceImpl implements BookingService {
             // Đổi trạng thái sân sang PENDING
             slot.setStatus(Enums.TimeSlotStatus.PENDING);
             timeSlotRepository.save(slot);
-
             // Tạo hóa đơn Booking
-            Booking booking = new Booking();
-            booking.setId(UUID.randomUUID().toString());
-            booking.setUserId(userId);
-            booking.setTimeSlotId(timeSlotId);
-            booking.setFieldId(slot.getFieldId()); 
-            booking.setStatus(Enums.BookingStatus.PENDING);
-            booking.setTotalAmount(slot.getPrice());
-            booking.setCreatedAt(LocalDateTime.now());
-            booking.setUpdatedAt(LocalDateTime.now());
-            booking.setBookingDate(LocalDateTime.now().toLocalDate());
-            booking.setNote(note);
-            Booking savedBooking = bookingRepository.save(booking);
+            Booking bookingSaved = bookingMapper.toEntity(request);
+            bookingSaved.setUserId(userId);
+            bookingSaved.setFieldId(slot.getFieldId());
+            bookingSaved.setTotalAmount(slot.getPrice());
+            bookingSaved.setStatus(Enums.BookingStatus.PENDING);
+            if (bookingSaved.getTotalAmount() != null) {
+                BigDecimal deposit = bookingSaved.getTotalAmount().multiply(BigDecimal.valueOf(0.3));
+                bookingSaved.setDepositAmount(deposit);
+            } else {
+                // Đề phòng trường hợp totalAmount bị null
+                bookingSaved.setDepositAmount(BigDecimal.ZERO);
+            }
+            bookingSaved.setBookingDate(LocalDate.now());
+            bookingSaved.setUpdatedAt(LocalDateTime.now());
+            bookingSaved.setCreatedAt(LocalDateTime.now());
+            Booking savedBooking = bookingRepository.save(bookingSaved);
+            NotificationCreateRequest notifRequest = new NotificationCreateRequest();
+            notifRequest.setTitle("🎉 Đặt sân thành công (Chờ thanh toán)!");
+            String content = String.format("Bạn vừa giữ chỗ thành công ca %s - %s. Vui lòng thanh toán cọc trong vòng 5 phút để chốt sân nhé!",
+                    slot.getStartTime(),
+                    slot.getEndTime());
 
+            notifRequest.setContent(content);
+            notifRequest.setType(Enums.NotificationType.BOOKING_UPDATE);
+
+            notificationService.createAndSendNotification(userId, notifRequest);
             log.info("Khóa slot thành công trong 5 phút. Booking ID: {}", savedBooking.getId());
             return bookingMapper.toResponse(savedBooking, "Vui lòng thanh toán trong 5 phút!");
 
         } catch (Exception e) {
-            // Nếu có lỗi thì phải tự tay tháo ổ khóa ra
             redisTemplate.delete(lockKey);
             log.error("Lỗi khi tạo booking: ", e);
             throw new AppException(500, "Lỗi hệ thống khi tạo booking");
@@ -119,15 +133,24 @@ public class BookingServiceImpl implements BookingService {
 
         booking.setStatus(Enums.BookingStatus.COMPLETED);
         bookingRepository.save(booking);
-        
+
         if(remainingAmount > 0){
-            Payment restOfAmount = paymentMapper.createPaymentEntity(
-                    booking,
-                    BigDecimal.valueOf(remainingAmount),
-                    method,
-                    null
-            );
+            // BƯỚC 1: Khởi tạo DTO Request
+            PaymentCreateRequest paymentRequest = new PaymentCreateRequest();
+            paymentRequest.setAmount(BigDecimal.valueOf(remainingAmount));
+            paymentRequest.setPaymentMethod(method);
+            // paymentRequest.setTransactionId(null); // Không bắt buộc nếu mặc định là null
+
+            // BƯỚC 2: Dùng Mapper chuyển DTO thành Entity
+            Payment restOfAmount = paymentMapper.createPaymentEntity(paymentRequest);
+
+            // Lưu ý: MapStruct thường không tự map được Object 'Booking' từ DTO.
+            // Ta nên gán thủ công quan hệ (Relationship) ở đây để Hibernate hiểu.
+            restOfAmount.setBookingId(booking.getId());
+            restOfAmount.setCreatedAt(LocalDateTime.now()); // Set thời gian thanh toán (nếu DB yêu cầu)
+
             paymentRepository.save(restOfAmount);
+
             log.info("==== KẾ TOÁN ==== Đã thu thêm {} VND qua hình thức {} cho đơn {}",
                     remainingAmount, method, bookingId);
         }
@@ -136,7 +159,6 @@ public class BookingServiceImpl implements BookingService {
 
         return "Check-out thành công. Khách cần thanh toán thêm: " + remainingAmount + " VND";
     }
-    
     @Transactional
     public void markAsNoShow(String bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
