@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaHistory, FaCheckCircle, FaTimesCircle, FaClock } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import axiosClient from '../../api/axiosClient';
+import { reviewApi } from '../../api/reviewApi';
 import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
@@ -9,6 +10,9 @@ const Profile = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [reviewModal, setReviewModal] = useState<{isOpen: boolean, matchRequestId: string, revieweeId: string}>({isOpen: false, matchRequestId: '', revieweeId: ''});
+  const [reviewData, setReviewData] = useState({reason: ''});
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const navigate = useNavigate();
 
@@ -17,30 +21,46 @@ const Profile = () => {
       try {
         const profileRes = await axiosClient.get('/users/me');
         setUserProfile(profileRes.data);
-
         const bookingsRes = await axiosClient.get('/bookings');
         setBookings(bookingsRes.data.content || bookingsRes.data || []);
       } catch (error) {
-        console.error('Lỗi tải hồ sơ:', error);
+        console.error(error);
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchProfileAndBookings();
   }, [navigate]);
+
+  const handleSubmitReview = async () => {
+    setIsSubmittingReview(true);
+    try {
+      const res = await reviewApi.createReview(reviewModal.revieweeId, reviewModal.matchRequestId, reviewData.reason);
+      
+      if (res.data?.status === 'AUTO_PASSED') {
+        alert('Cảm ơn bạn đã gửi đánh giá! Chúc bạn có những trận bóng vui vẻ.');
+      } else if (res.data?.status === 'PENDING_ADMIN_REVIEW') {
+        alert('Đánh giá của bạn đã được AI ghi nhận có chứa báo cáo vi phạm phi thể thao. Quản trị viên sẽ xem xét và xử lý đội đối thủ sớm nhất!');
+      } else {
+        alert('Đã gửi đánh giá thành công!');
+      }
+
+      setReviewModal({isOpen: false, matchRequestId: '', revieweeId: ''});
+      setReviewData({reason: ''});
+    } catch (error: any) {
+      alert(error.response?.data?.message || error.response?.data || 'Có lỗi xảy ra khi gửi đánh giá');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
-      case 'DEPOSIT_PAID':
-        return <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FaClock /> Sắp tới</span>;
-      case 'COMPLETED':
-        return <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FaCheckCircle /> Hoàn thành</span>;
-      case 'CANCELLED':
-        return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FaTimesCircle /> Đã hủy</span>;
-      default:
-        return <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold">{status || 'Chưa rõ'}</span>;
+      case 'DEPOSIT_PAID': return <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FaClock /> Sắp tới</span>;
+      case 'COMPLETED': return <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FaCheckCircle /> Hoàn thành</span>;
+      case 'CANCELLED': return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FaTimesCircle /> Đã hủy</span>;
+      default: return <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold">{status || 'Chưa rõ'}</span>;
     }
   };
 
@@ -55,18 +75,11 @@ const Profile = () => {
     return str.substring(0, length);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600"></div>
-      </div>
-    );
-  }
+  if (isLoading) return <div className="flex justify-center items-center h-[60vh]"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600"></div></div>;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl h-full">
       <div className="flex flex-col md:flex-row gap-8">
-        
         <div className="w-full md:w-1/3">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-center sticky top-24">
             <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl font-bold mb-4">
@@ -74,22 +87,14 @@ const Profile = () => {
             </div>
             <h2 className="text-2xl font-bold text-gray-800">{userProfile?.fullName || 'Chưa cập nhật tên'}</h2>
             <p className="text-gray-500 mb-2">{userProfile?.email}</p>
-            <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold mb-6">
-              Vai trò: {userProfile?.role || 'PLAYER'}
-            </span>
+            <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold mb-6">Vai trò: {userProfile?.role || 'PLAYER'}</span>
             
             <div className="w-full flex flex-col gap-2">
-              <button 
-                onClick={() => setActiveTab('info')}
-                className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition ${activeTab === 'info' ? 'bg-green-50 text-green-600' : 'text-gray-600 hover:bg-gray-50'}`}
-              >
+              <button onClick={() => setActiveTab('info')} className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition ${activeTab === 'info' ? 'bg-green-50 text-green-600' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <FaUser /> Thông tin cá nhân
               </button>
-              <button 
-                onClick={() => setActiveTab('history')}
-                className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition ${activeTab === 'history' ? 'bg-green-50 text-green-600' : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                <FaHistory /> Lịch sử đặt sân
+              <button onClick={() => setActiveTab('history')} className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition ${activeTab === 'history' ? 'bg-green-50 text-green-600' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <FaHistory /> Lịch sử giao dịch
               </button>
             </div>
           </div>
@@ -118,17 +123,10 @@ const Profile = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><FaPhone /></div>
-                    <input type="text" defaultValue={userProfile?.phone || ''} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="Chưa cập nhật số điện thoại" />
+                    <input type="text" defaultValue={userProfile?.phone || ''} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Khu vực (Đang phát triển)</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><FaMapMarkerAlt /></div>
-                    <input type="text" disabled defaultValue="Hồ Chí Minh, Việt Nam" className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 outline-none cursor-not-allowed" />
-                  </div>
-                </div>
-                <Button type="button" variant="primary" className="mt-4 px-6 py-2 !bg-green-600 hover:!bg-green-700" onClick={() => alert('Chức năng cập nhật đang được phát triển!')}>Lưu thay đổi</Button>
+                <Button type="button" variant="primary" className="mt-4 px-6 py-2 !bg-green-600 hover:!bg-green-700" onClick={() => alert('Chức năng đang phát triển!')}>Lưu thay đổi</Button>
               </form>
             </div>
           )}
@@ -136,11 +134,8 @@ const Profile = () => {
           {activeTab === 'history' && (
             <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
               <h2 className="text-2xl font-bold text-gray-800 mb-6">Lịch sử giao dịch</h2>
-              
               {bookings.length === 0 ? (
-                <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                   <p className="text-gray-500 text-lg">Bạn chưa có lịch sử đặt sân nào.</p>
-                </div>
+                <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300"><p className="text-gray-500 text-lg">Bạn chưa có đơn nào.</p></div>
               ) : (
                 <div className="space-y-4">
                   {bookings.map((booking, index) => (
@@ -155,11 +150,14 @@ const Profile = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 text-sm text-gray-600">
                         <div>
                           <p className="mb-1">Ngày đá: <span className="font-bold text-gray-800">{formatDate(booking.bookingDate)}</span></p>
-                          <p>Ghi chú: <span className="italic">{booking.note || 'Không có'}</span></p>
+                          <p>Tổng tiền: <span className="font-bold text-gray-800">{(booking.totalAmount || 0).toLocaleString('vi-VN')}đ</span></p>
                         </div>
-                        <div className="sm:text-right bg-gray-50 p-3 rounded-lg border border-gray-100">
-                          <p className="mb-1">Đã cọc: <span className="font-bold text-blue-600">{(booking.depositAmount || 0).toLocaleString('vi-VN')}đ</span></p>
-                          <p>Tổng tiền sân: <span className="font-bold text-gray-800">{(booking.totalAmount || 0).toLocaleString('vi-VN')}đ</span></p>
+                        <div className="sm:text-right">
+                          {booking.status === 'COMPLETED' && (
+                            <Button variant="outline" className="text-xs py-1.5 px-3 border-green-500 text-green-600 hover:bg-green-50" onClick={() => setReviewModal({isOpen: true, matchRequestId: booking.bookingId, revieweeId: 'opponent-placeholder-id'})}>
+                              Đánh giá Đối thủ (Fair-Play)
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -169,8 +167,27 @@ const Profile = () => {
             </div>
           )}
         </div>
-
       </div>
+
+      {reviewModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in-up">
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Đánh Giá Đối Thủ (Fair-Play)</h3>
+            <p className="text-sm text-gray-500 mb-6 leading-relaxed">Trọng tài AI sẽ phân tích nội dung đánh giá để trừ điểm Uy Tín (Trust Score) nếu phát hiện hành vi phi thể thao.</p>
+            
+            <textarea 
+              className="w-full border border-gray-300 rounded-lg p-4 text-sm focus:ring-2 focus:ring-green-500 outline-none mb-6 resize-none h-32" 
+              placeholder="Ví dụ: Trận đấu rất hay / Đội kia đá quá thô bạo, chửi thề..." 
+              value={reviewData.reason} 
+              onChange={(e) => setReviewData({reason: e.target.value})} 
+            />
+            <div className="flex gap-3">
+              <Button variant="secondary" className="w-full border border-gray-300" onClick={() => setReviewModal({isOpen: false, matchRequestId: '', revieweeId: ''})} disabled={isSubmittingReview}>Hủy</Button>
+              <Button variant="primary" className="w-full !bg-green-600 hover:!bg-green-700" onClick={handleSubmitReview} disabled={isSubmittingReview}>{isSubmittingReview ? 'AI Đang Phân Tích...' : 'Gửi Đánh Giá'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
