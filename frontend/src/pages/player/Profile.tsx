@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaHistory, FaCheckCircle, FaTimesCircle, FaClock, FaStar } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import axiosClient from '../../api/axiosClient';
-import { reviewApi } from '../../api/reviewApi';
 import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
@@ -10,10 +9,8 @@ const Profile = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [reviewModal, setReviewModal] = useState<{isOpen: boolean, matchRequestId: string, revieweeId: string}>({isOpen: false, matchRequestId: '', revieweeId: ''});
-  const [reviewData, setReviewData] = useState({reason: ''});
-  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   
+  // State quản lý dữ liệu cập nhật
   const [updateData, setUpdateData] = useState({ fullName: '', phone: '' });
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -55,26 +52,6 @@ const Profile = () => {
     }
   };
 
-  const handleSubmitReview = async () => {
-    setIsSubmittingReview(true);
-    try {
-      const res = await reviewApi.createReview(reviewModal.revieweeId, reviewModal.matchRequestId, reviewData.reason);
-      if (res.data?.status === 'AUTO_PASSED') {
-        alert('Cảm ơn bạn đã gửi đánh giá! Chúc bạn có những trận bóng vui vẻ.');
-      } else if (res.data?.status === 'PENDING_ADMIN_REVIEW') {
-        alert('Đánh giá của bạn đã được AI ghi nhận có chứa báo cáo vi phạm phi thể thao. Admin sẽ xem xét và xử lý!');
-      } else {
-        alert('Đã gửi đánh giá thành công!');
-      }
-      setReviewModal({isOpen: false, matchRequestId: '', revieweeId: ''});
-      setReviewData({reason: ''});
-    } catch (error: any) {
-      alert(error.response?.data?.message || 'Có lỗi xảy ra khi gửi đánh giá');
-    } finally {
-      setIsSubmittingReview(false);
-    }
-  };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
@@ -85,10 +62,24 @@ const Profile = () => {
     }
   };
 
+  // Format ngày đá (YYYY-MM-DD)
   const formatDate = (dateStr: string) => {
      if (!dateStr) return 'Chưa có';
      const parts = dateStr.split('-');
      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+  };
+
+  // Format ngày giờ chi tiết (Thời điểm đặt)
+  const formatDateTime = (dateStr: string) => {
+    if (!dateStr) return 'Chưa có';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    const hours = date.getHours().toString().padStart(2, '0');
+    const mins = date.getMinutes().toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${hours}:${mins} - ${day}/${month}/${year}`;
   };
 
   const safeSubstring = (str: string | undefined | null) => {
@@ -115,7 +106,7 @@ const Profile = () => {
                 <FaUser /> Thông tin cá nhân
               </button>
               <button onClick={() => setActiveTab('history')} className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition ${activeTab === 'history' ? 'bg-green-50 text-green-600' : 'text-gray-600 hover:bg-gray-50'}`}>
-                <FaHistory /> Lịch sử giao dịch
+                <FaHistory /> Lịch sử Đặt Sân
               </button>
             </div>
           </div>
@@ -163,7 +154,7 @@ const Profile = () => {
 
           {activeTab === 'history' && (
             <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">Lịch sử giao dịch</h2>
+              <h2 className="text-2xl font-bold text-gray-800 mb-6">Lịch sử Tìm Sân</h2>
               {bookings.length === 0 ? (
                 <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300"><p className="text-gray-500 text-lg">Bạn chưa có đơn nào.</p></div>
               ) : (
@@ -172,22 +163,28 @@ const Profile = () => {
                     <div key={booking.bookingId || index} className="p-5 border border-gray-100 rounded-xl hover:shadow-md transition">
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-2">
                         <div>
-                          <span className="text-xs text-gray-500 font-bold mb-1 block uppercase">MÃ ĐƠN: {safeSubstring(booking.bookingId)}</span>
+                          <span className="text-xs text-gray-500 font-bold mb-1 block uppercase">MÃ ĐƠN: {safeSubstring(booking.bookingId || booking.id)}</span>
                           <h3 className="font-bold text-gray-800 text-lg">Sân {safeSubstring(booking.fieldId)}</h3>
                         </div>
                         {getStatusBadge(booking.status)}
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 text-sm text-gray-600">
                         <div>
-                          <p className="mb-1">Ngày đá: <span className="font-bold text-gray-800">{formatDate(booking.bookingDate)}</span></p>
-                          <p>Tổng tiền: <span className="font-bold text-gray-800">{(booking.totalAmount || 0).toLocaleString('vi-VN')}đ</span></p>
+                          <p className="mb-1 text-gray-500">Giờ đặt sân: <span className="font-bold text-gray-800">{formatDateTime(booking.createdAt)}</span></p>
+                          <p className="mb-1 text-gray-500">Ngày ra sân: <span className="font-bold text-gray-800">{formatDate(booking.bookingDate)}</span></p>
+                          <p className="text-gray-500">Tổng chi phí: <span className="font-bold text-gray-800">{(booking.totalAmount || 0).toLocaleString('vi-VN')}đ</span></p>
                         </div>
-                        <div className="sm:text-right">
-                          {booking.status === 'COMPLETED' && (
-                            <Button variant="outline" className="text-xs py-1.5 px-3 border-green-500 text-green-600 hover:bg-green-50" onClick={() => setReviewModal({isOpen: true, matchRequestId: booking.bookingId, revieweeId: 'opponent-placeholder-id'})}>
-                              Đánh giá Đối thủ (Fair-Play)
-                            </Button>
-                          )}
+                        <div className="sm:text-right flex flex-col justify-end items-start sm:items-end">
+                           {booking.status === 'COMPLETED' && (
+                              <span className="text-green-600 font-bold flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
+                                <FaCheckCircle /> Ca đá đã kết thúc
+                              </span>
+                           )}
+                           {booking.status === 'CANCELLED' && (
+                              <span className="text-red-600 font-bold flex items-center gap-1 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">
+                                <FaTimesCircle /> Đã hủy cọc
+                              </span>
+                           )}
                         </div>
                       </div>
                     </div>
@@ -198,25 +195,6 @@ const Profile = () => {
           )}
         </div>
       </div>
-
-      {reviewModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in-up">
-            <h3 className="text-xl font-bold text-gray-800 mb-2">Đánh Giá Đối Thủ (Fair-Play)</h3>
-            <p className="text-sm text-gray-500 mb-6 leading-relaxed">Trọng tài AI sẽ phân tích nội dung đánh giá để trừ điểm Uy Tín (Trust Score) nếu phát hiện hành vi phi thể thao.</p>
-            <textarea 
-              className="w-full border border-gray-300 rounded-lg p-4 text-sm focus:ring-2 focus:ring-green-500 outline-none mb-6 resize-none h-32" 
-              placeholder="Ví dụ: Trận đấu rất hay / Đội kia đá quá thô bạo, chửi thề..." 
-              value={reviewData.reason} 
-              onChange={(e) => setReviewData({reason: e.target.value})} 
-            />
-            <div className="flex gap-3">
-              <Button variant="secondary" className="w-full border border-gray-300" onClick={() => setReviewModal({isOpen: false, matchRequestId: '', revieweeId: ''})} disabled={isSubmittingReview}>Hủy</Button>
-              <Button variant="primary" className="w-full !bg-green-600 hover:!bg-green-700" onClick={handleSubmitReview} disabled={isSubmittingReview}>{isSubmittingReview ? 'AI Đang Phân Tích...' : 'Gửi Đánh Giá'}</Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
