@@ -13,7 +13,7 @@ import org.mapstruct.ReportingPolicy;
         unmappedTargetPolicy = ReportingPolicy.IGNORE,
         nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE
 )
-public interface userMapper {
+public interface UserMapper {
     void updateEntityFromRequest(UserCreateRequest request, @MappingTarget User user);
     User toEntity(UserCreateRequest request);
     UserResponse toResponse(User user);

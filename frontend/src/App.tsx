@@ -12,6 +12,8 @@ import Chat from './pages/player/Chat';
 import Profile from './pages/player/Profile';
 import OwnerDashboard from './pages/owner/Dashboard';
 import AdminDashboard from './pages/admin/Dashboard';
+import PaymentSuccess from './pages/payment/PaymentSuccess';
+import PaymentCancel from './pages/payment/PaymentCancel';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
@@ -33,6 +35,8 @@ function App() {
               <Route path="/ho-so" element={<Profile />} />
               <Route path="/chu-san/*" element={<OwnerDashboard />} />
               <Route path="/admin/*" element={<AdminDashboard />} />
+              <Route path="/payment/success" element={<PaymentSuccess />} />
+              <Route path="/payment/cancel" element={<PaymentCancel />} />
             </Routes>
           </main>
           <Footer />
