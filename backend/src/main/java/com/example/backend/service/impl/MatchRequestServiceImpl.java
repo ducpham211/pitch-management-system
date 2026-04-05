@@ -4,7 +4,6 @@ import com.example.backend.dto.request.ConversationCreateRequest;
 import com.example.backend.dto.request.MatchRequestCreateRequest;
 import com.example.backend.dto.request.MatchRequestStatusCreateRequest;
 import com.example.backend.dto.request.NotificationCreateRequest;
-import com.example.backend.dto.response.ConversationResponse;
 import com.example.backend.dto.response.MatchRequestResponse;
 import com.example.backend.dto.response.MatchRequestStatusResponse;
 import com.example.backend.entity.Enums;
@@ -23,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @AllArgsConstructor
 @Service
@@ -33,9 +33,8 @@ public class MatchRequestServiceImpl implements MatchRequestService {
     private final MatchPostRepository matchPostRepository;
     private final ConversationService conversationService;
     private final NotificationService notificationService;
-    private final UserRepository userRepository; // Thêm repo này để lấy tên user
+    private final UserRepository userRepository;
 
-    // Hàm tiện ích để cắt ngắn ID còn 6 ký tự hiển thị cho đẹp
     private String truncateId(String id) {
         if (id == null || id.isEmpty()) return "Chưa xác định";
         return id.length() >= 6 ? id.substring(0, 6).toUpperCase() : id.toUpperCase();
@@ -51,6 +50,11 @@ public class MatchRequestServiceImpl implements MatchRequestService {
             throw new RuntimeException("Không thể tự nhận kèo của chính mình!");
         }
 
+        // Chặn người chơi gửi yêu cầu vào bài đăng đã đóng
+        if (post.getStatus() == Enums.PostStatus.CLOSED) {
+            throw new RuntimeException("Bài đăng này đã đóng, không thể gửi yêu cầu ghép trận!");
+        }
+
         boolean isAlreadyRequested = matchRequestRepository.existsByPostIdAndRequesterId(
                 request.getPostId(),
                 request.getRequesterId()
@@ -64,7 +68,6 @@ public class MatchRequestServiceImpl implements MatchRequestService {
         matchRequest.setStatus(Enums.RequestStatus.PENDING);
         MatchRequest savedMatchRequest = matchRequestRepository.save(matchRequest);
 
-        // --- BẮT ĐẦU LOGIC GỬI THÔNG BÁO HIỂN THỊ TÊN MỚI ---
         User requester = userRepository.findById(request.getRequesterId()).orElse(null);
         String requesterName = requester != null ? requester.getFullName() : "Một người chơi";
         String fieldCode = truncateId(post.getFieldId());
@@ -74,7 +77,6 @@ public class MatchRequestServiceImpl implements MatchRequestService {
         notifRequest.setContent(requesterName + " đã gửi yêu cầu nhận kèo của bạn tại sân " + fieldCode);
         notifRequest.setType(Enums.NotificationType.MATCH_REQUEST);
         notificationService.createAndSendNotification(post.getUserId(), notifRequest);
-        // --- KẾT THÚC ---
 
         try {
             ConversationCreateRequest chatRequest = new ConversationCreateRequest();
@@ -107,11 +109,21 @@ public class MatchRequestServiceImpl implements MatchRequestService {
             throw new RuntimeException("Bạn không phải chủ bài đăng, không có quyền duyệt kèo này!");
         }
 
+        // Lỗ hổng 3: Chặn duyệt lại yêu cầu đã xử lý
+        if (request.getStatus() != Enums.RequestStatus.PENDING) {
+            throw new RuntimeException("Yêu cầu này đã được xử lý trước đó!");
+        }
+
+        // Lỗ hổng 1: Chặn "bắt cá 2 tay", nếu bài đăng đã đóng thì không cho Accept nữa
+        if (requestDTO.getStatus() == Enums.RequestStatus.ACCEPTED && post.getStatus() == Enums.PostStatus.CLOSED) {
+            throw new RuntimeException("Bài đăng đã được chốt kèo với người khác!");
+        }
+
         matchRequestMapper.updateEntityFromDto(requestDTO, request);
         MatchRequest savedRequest = matchRequestRepository.save(request);
 
-        // --- BẮT ĐẦU LOGIC BẮN THÔNG BÁO KHI CHỐT HOẶC TỪ CHỐI KÈO ---
         if (requestDTO.getStatus() == Enums.RequestStatus.ACCEPTED) {
+            // Đóng bài đăng
             post.setStatus(Enums.PostStatus.CLOSED);
             matchPostRepository.save(post);
 
@@ -119,11 +131,28 @@ public class MatchRequestServiceImpl implements MatchRequestService {
             String hostName = host != null ? host.getFullName() : "Chủ bài đăng";
             String fieldCode = truncateId(post.getFieldId());
 
+            // Thông báo cho người được nhận kèo
             NotificationCreateRequest notifReq = new NotificationCreateRequest();
             notifReq.setTitle("Kèo giao hữu đã được chốt!");
             notifReq.setContent("Tin vui! " + hostName + " đã CHỐT KÈO giao hữu với đội của bạn tại sân " + fieldCode + "!");
             notifReq.setType(Enums.NotificationType.MATCH_REQUEST);
             notificationService.createAndSendNotification(request.getRequesterId(), notifReq);
+
+            // Lỗ hổng 2: TỰ ĐỘNG TỪ CHỐI (REJECT) các đối thủ khác đang chờ
+            List<MatchRequest> otherRequests = matchRequestRepository.findByPostId(post.getId());
+            for (MatchRequest other : otherRequests) {
+                if (!other.getId().equals(requestId) && other.getStatus() == Enums.RequestStatus.PENDING) {
+                    other.setStatus(Enums.RequestStatus.REJECTED);
+                    matchRequestRepository.save(other);
+
+                    // Bắn thông báo xin lỗi
+                    NotificationCreateRequest rejectNotif = new NotificationCreateRequest();
+                    rejectNotif.setTitle("Kèo giao hữu đã đóng");
+                    rejectNotif.setContent("Rất tiếc, bài đăng tìm đối thủ tại sân " + fieldCode + " đã được chủ bài đăng chốt kèo với đội khác.");
+                    rejectNotif.setType(Enums.NotificationType.MATCH_REQUEST);
+                    notificationService.createAndSendNotification(other.getRequesterId(), rejectNotif);
+                }
+            }
 
         } else if (requestDTO.getStatus() == Enums.RequestStatus.REJECTED) {
             NotificationCreateRequest notifReq = new NotificationCreateRequest();
@@ -132,7 +161,6 @@ public class MatchRequestServiceImpl implements MatchRequestService {
             notifReq.setType(Enums.NotificationType.MATCH_REQUEST);
             notificationService.createAndSendNotification(request.getRequesterId(), notifReq);
         }
-        // --- KẾT THÚC ---
 
         return matchRequestMapper.toStatusResponse(savedRequest);
     }
