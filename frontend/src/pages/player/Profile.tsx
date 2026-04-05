@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaHistory, FaCheckCircle, FaTimesCircle, FaClock } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaHistory, FaCheckCircle, FaTimesCircle, FaClock, FaStar } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import axiosClient from '../../api/axiosClient';
 import { reviewApi } from '../../api/reviewApi';
@@ -13,6 +13,9 @@ const Profile = () => {
   const [reviewModal, setReviewModal] = useState<{isOpen: boolean, matchRequestId: string, revieweeId: string}>({isOpen: false, matchRequestId: '', revieweeId: ''});
   const [reviewData, setReviewData] = useState({reason: ''});
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  
+  const [updateData, setUpdateData] = useState({ fullName: '', phone: '' });
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const navigate = useNavigate();
 
@@ -21,10 +24,12 @@ const Profile = () => {
       try {
         const profileRes = await axiosClient.get('/users/me');
         setUserProfile(profileRes.data);
+        setUpdateData({ fullName: profileRes.data.fullName || '', phone: profileRes.data.phone || '' });
+        
         const bookingsRes = await axiosClient.get('/bookings');
         setBookings(bookingsRes.data.content || bookingsRes.data || []);
       } catch (error) {
-        console.error(error);
+        console.error('Lỗi tải hồ sơ:', error);
       } finally {
         setIsLoading(false);
       }
@@ -32,23 +37,39 @@ const Profile = () => {
     fetchProfileAndBookings();
   }, [navigate]);
 
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userProfile?.id) return;
+    setIsUpdating(true);
+    try {
+      await axiosClient.put(`/users/${userProfile.id}`, { 
+        fullName: updateData.fullName, 
+        phone: updateData.phone,
+      });
+      alert('🎉 Đã cập nhật thông tin cá nhân thành công!');
+      setUserProfile({ ...userProfile, ...updateData });
+    } catch (error: any) {
+      alert('Cập nhật thất bại: ' + (error.response?.data?.message || 'Có lỗi xảy ra.'));
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const handleSubmitReview = async () => {
     setIsSubmittingReview(true);
     try {
       const res = await reviewApi.createReview(reviewModal.revieweeId, reviewModal.matchRequestId, reviewData.reason);
-      
       if (res.data?.status === 'AUTO_PASSED') {
         alert('Cảm ơn bạn đã gửi đánh giá! Chúc bạn có những trận bóng vui vẻ.');
       } else if (res.data?.status === 'PENDING_ADMIN_REVIEW') {
-        alert('Đánh giá của bạn đã được AI ghi nhận có chứa báo cáo vi phạm phi thể thao. Quản trị viên sẽ xem xét và xử lý đội đối thủ sớm nhất!');
+        alert('Đánh giá của bạn đã được AI ghi nhận có chứa báo cáo vi phạm phi thể thao. Admin sẽ xem xét và xử lý!');
       } else {
         alert('Đã gửi đánh giá thành công!');
       }
-
       setReviewModal({isOpen: false, matchRequestId: '', revieweeId: ''});
       setReviewData({reason: ''});
     } catch (error: any) {
-      alert(error.response?.data?.message || error.response?.data || 'Có lỗi xảy ra khi gửi đánh giá');
+      alert(error.response?.data?.message || 'Có lỗi xảy ra khi gửi đánh giá');
     } finally {
       setIsSubmittingReview(false);
     }
@@ -70,9 +91,9 @@ const Profile = () => {
      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
   };
 
-  const safeSubstring = (str: string | undefined | null, length: number) => {
+  const safeSubstring = (str: string | undefined | null) => {
     if (!str) return 'Không xác định';
-    return str.substring(0, length);
+    return str.substring(0, 6).toUpperCase();
   };
 
   if (isLoading) return <div className="flex justify-center items-center h-[60vh]"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600"></div></div>;
@@ -104,12 +125,12 @@ const Profile = () => {
           {activeTab === 'info' && (
             <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
               <h2 className="text-2xl font-bold text-gray-800 mb-6">Thông tin chi tiết</h2>
-              <form className="space-y-4">
+              <form className="space-y-4" onSubmit={handleUpdateProfile}>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><FaUser /></div>
-                    <input type="text" defaultValue={userProfile?.fullName || ''} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" />
+                    <input type="text" value={updateData.fullName} onChange={e => setUpdateData({...updateData, fullName: e.target.value})} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required />
                   </div>
                 </div>
                 <div>
@@ -123,10 +144,19 @@ const Profile = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><FaPhone /></div>
-                    <input type="text" defaultValue={userProfile?.phone || ''} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" />
+                    <input type="text" value={updateData.phone} onChange={e => setUpdateData({...updateData, phone: e.target.value})} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required />
                   </div>
                 </div>
-                <Button type="button" variant="primary" className="mt-4 px-6 py-2 !bg-green-600 hover:!bg-green-700" onClick={() => alert('Chức năng đang phát triển!')}>Lưu thay đổi</Button>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Khu vực (Đang phát triển)</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><FaMapMarkerAlt /></div>
+                    <input type="text" disabled defaultValue="Hồ Chí Minh, Việt Nam" className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 outline-none cursor-not-allowed" />
+                  </div>
+                </div>
+                <Button type="submit" variant="primary" className="mt-4 px-6 py-2 !bg-green-600 hover:!bg-green-700" disabled={isUpdating}>
+                  {isUpdating ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </Button>
               </form>
             </div>
           )}
@@ -142,8 +172,8 @@ const Profile = () => {
                     <div key={booking.bookingId || index} className="p-5 border border-gray-100 rounded-xl hover:shadow-md transition">
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-2">
                         <div>
-                          <span className="text-xs text-gray-500 font-bold mb-1 block uppercase">MÃ ĐƠN: {safeSubstring(booking.bookingId, 8)}</span>
-                          <h3 className="font-bold text-gray-800 text-lg">Sân {safeSubstring(booking.fieldId, 8)}</h3>
+                          <span className="text-xs text-gray-500 font-bold mb-1 block uppercase">MÃ ĐƠN: {safeSubstring(booking.bookingId)}</span>
+                          <h3 className="font-bold text-gray-800 text-lg">Sân {safeSubstring(booking.fieldId)}</h3>
                         </div>
                         {getStatusBadge(booking.status)}
                       </div>
@@ -174,7 +204,6 @@ const Profile = () => {
           <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in-up">
             <h3 className="text-xl font-bold text-gray-800 mb-2">Đánh Giá Đối Thủ (Fair-Play)</h3>
             <p className="text-sm text-gray-500 mb-6 leading-relaxed">Trọng tài AI sẽ phân tích nội dung đánh giá để trừ điểm Uy Tín (Trust Score) nếu phát hiện hành vi phi thể thao.</p>
-            
             <textarea 
               className="w-full border border-gray-300 rounded-lg p-4 text-sm focus:ring-2 focus:ring-green-500 outline-none mb-6 resize-none h-32" 
               placeholder="Ví dụ: Trận đấu rất hay / Đội kia đá quá thô bạo, chửi thề..." 

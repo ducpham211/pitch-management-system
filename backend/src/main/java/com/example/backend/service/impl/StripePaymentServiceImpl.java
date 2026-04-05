@@ -7,10 +7,12 @@ import com.example.backend.entity.Booking;
 import com.example.backend.entity.Enums;
 import com.example.backend.entity.Payment;
 import com.example.backend.entity.TimeSlot;
+import com.example.backend.entity.User;
 import com.example.backend.mapper.PaymentMapper;
 import com.example.backend.repository.BookingRepository;
 import com.example.backend.repository.PaymentRepository;
 import com.example.backend.repository.TimeSlotRepository;
+import com.example.backend.repository.UserRepository;
 import com.example.backend.service.NotificationService;
 import com.example.backend.service.PaymentService;
 import com.stripe.Stripe;
@@ -37,9 +39,9 @@ public class StripePaymentServiceImpl implements PaymentService {
     private final TimeSlotRepository timeSlotRepository;
     private final BookingRepository bookingRepository;
     private final NotificationService notificationService;
-    //  Đã tiêm thêm 2 anh lính mới để xử lý Payment
     private final PaymentRepository paymentRepository;
     private final PaymentMapper paymentMapper;
+    private final UserRepository userRepository; // Tiêm thêm repo để lấy tên user
 
     @Value("${stripe.api.key}")
     private String stripeApiKey;
@@ -54,6 +56,13 @@ public class StripePaymentServiceImpl implements PaymentService {
     public void init() {
         Stripe.apiKey = stripeApiKey;
     }
+
+    // Hàm tiện ích để cắt ngắn ID còn 6 ký tự hiển thị cho đẹp
+    private String truncateId(String id) {
+        if (id == null || id.isEmpty()) return "Chưa xác định";
+        return id.length() >= 6 ? id.substring(0, 6).toUpperCase() : id.toUpperCase();
+    }
+
     @Transactional
     @Override
     public PaymentResponse createCheckoutSession(String bookingId) {
@@ -88,8 +97,6 @@ public class StripePaymentServiceImpl implements PaymentService {
             booking.setDepositAmount(BigDecimal.valueOf(depositAmount));
             bookingRepository.save(booking);
 
-            // 👉 Đã dùng Builder để tránh lỗi Constructor.
-            // Bác nhớ thêm private String url; và private String message; vào file PaymentResponse.java nhé!
             return PaymentResponse.builder()
                     .url(session.getUrl())
                     .message("Tạo link thanh toán Stripe thành công")
@@ -100,6 +107,7 @@ public class StripePaymentServiceImpl implements PaymentService {
             throw new RuntimeException("Không thể tạo phiên thanh toán");
         }
     }
+
     @Transactional
     @Override
     public void handleStripeWebhook(String payload, String sigHeader) {
@@ -157,12 +165,24 @@ public class StripePaymentServiceImpl implements PaymentService {
                     depositPayment.setBooking(booking); // Gán object booking để nối khóa ngoại
                     depositPayment.setCreatedAt(LocalDateTime.now());
                     paymentRepository.save(depositPayment);
+
+                    // --- BẮT ĐẦU LOGIC GỬI THÔNG BÁO HIỂN THỊ TÊN MỚI ---
+                    User player = userRepository.findById(booking.getUserId()).orElse(null);
+                    String playerName = player != null ? player.getFullName() : "Bạn";
+                    String fieldCode = truncateId(booking.getFieldId());
+                    String bookingCode = truncateId(bookingId);
+
                     NotificationCreateRequest notifRequest = new NotificationCreateRequest();
-                    notifRequest.setTitle("🎉 thanh toán thành công!");
-                    String content = "Bạn đã tạo thanh toán thành công số tiền " + paymentRequest.getAmount() + " VND cho sân " + booking.getFieldId();
+                    notifRequest.setTitle("🎉 Thanh toán thành công!");
+                    String content = "Hệ thống xác nhận " + playerName + " đã thanh toán thành công số tiền " 
+                                    + String.format("%,.0f", paymentRequest.getAmount()) 
+                                    + " VND tiền cọc cho sân " + fieldCode 
+                                    + " (Mã đơn: " + bookingCode + "). Chúc bạn có trận đấu vui vẻ!";
                     notifRequest.setContent(content);
                     notifRequest.setType(Enums.NotificationType.PAYMENT_UPDATE);
                     notificationService.createAndSendNotification(booking.getUserId(), notifRequest);
+                    // --- KẾT THÚC ---
+
                     log.info("==== KẾ TOÁN ==== Đã lưu DB khoản cọc {} VND qua STRIPE cho Booking {}", booking.getDepositAmount(), bookingId);
                     log.info("==== WEBHOOK ==== Đã chốt sân thành công!");
 
