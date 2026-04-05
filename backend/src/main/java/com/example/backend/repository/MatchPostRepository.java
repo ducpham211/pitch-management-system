@@ -19,5 +19,7 @@ public interface MatchPostRepository extends JpaRepository<MatchPost, String> {
             @Param("skillLevel") Enums.TeamLevel skillLevel,
             @Param("postType") Enums.PostType postType
     );
+    @Query("SELECT m FROM MatchPost m WHERE m.status = 'OPEN' AND m.userId != :currentUserId ORDER BY m.createdAt DESC")
+    List<MatchPost> findPotentialMatches(@Param("currentUserId") String currentUserId);
 }
 

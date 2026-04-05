@@ -1,6 +1,9 @@
 package com.example.backend.controller;
 
 import com.example.backend.dto.request.AdminCreateRequest;
+import com.example.backend.dto.response.DashboardOverviewResponse;
+import com.example.backend.dto.response.DashboardTransactionResponse;
+import com.example.backend.dto.response.FieldResponse;
 import com.example.backend.entity.Enums;
 import com.example.backend.entity.Review;
 import com.example.backend.entity.User;
@@ -60,5 +63,21 @@ public class AdminController {
 
         String message = adminService.adjudicateReview(reviewId, request);
         return ResponseEntity.ok(message);
+    }
+    @GetMapping("/fields")
+    public ResponseEntity<List<FieldResponse>> getAllFields() {
+        return ResponseEntity.ok(adminService.getAllFields());
+    }
+
+    // 5. GET: Thống kê tổng quan (Dashboard Overview)
+    @GetMapping("/dashboard/overview")
+    public ResponseEntity<DashboardOverviewResponse> getOverviewMetrics() {
+        return ResponseEntity.ok(adminService.getOverviewMetrics());
+    }
+
+    // 6. GET: Thống kê dòng tiền (Dashboard Transactions)
+    @GetMapping("/dashboard/transactions")
+    public ResponseEntity<DashboardTransactionResponse> getTransactionMetrics() {
+        return ResponseEntity.ok(adminService.getTransactionMetrics());
     }
 }

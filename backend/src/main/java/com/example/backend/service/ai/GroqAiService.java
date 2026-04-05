@@ -1,7 +1,13 @@
 package com.example.backend.service.ai;
 
+import com.example.backend.dto.aiChatBot.request.ChatCreateRequest;
+import com.example.backend.dto.aiChatBot.response.ChatResponse;
+import com.example.backend.dto.aiOpponentRecommendation.AiOpponentDto;
+import com.example.backend.dto.aiOpponentRecommendation.AiRecommendationResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,7 +16,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
+import java.util.List;
+import com.fasterxml.jackson.core.type.TypeReference;
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -29,7 +36,8 @@ public class GroqAiService {
     private final ObjectMapper objectMapper; // Dùng để bóc tách JSON
 
     // Record tĩnh để lưu kết quả phân tích
-    public record AiAnalysisResult(boolean isToxic, int penaltyScore, String aiReason) {}
+    public record AiAnalysisResult(boolean isToxic, int penaltyScore, String aiReason) {
+    }
 
     public AiAnalysisResult analyzeReview(String content) {
         try {
@@ -45,17 +53,17 @@ public class GroqAiService {
 
             // 2. Build Request Body theo chuẩn OpenAI/Groq
             String requestBody = """
-                {
-                  "model": "%s",
-                  "messages": [
                     {
-                      "role": "user",
-                      "content": "%s"
+                      "model": "%s",
+                      "messages": [
+                        {
+                          "role": "user",
+                          "content": "%s"
+                        }
+                      ],
+                      "temperature": 0.2
                     }
-                  ],
-                  "temperature": 0.2
-                }
-                """.formatted(model, prompt);
+                    """.formatted(model, prompt);
 
             // 3. Setup Headers (Truyền API Key vào Bearer Token)
             HttpHeaders headers = new HttpHeaders();
@@ -89,6 +97,122 @@ public class GroqAiService {
             log.error("==== LỖI GỌI GROQ AI ====", e);
             // Fallback an toàn nếu Groq bị sập hoặc quá tải
             return new AiAnalysisResult(false, 0, "Không thể phân tích do lỗi kết nối AI");
+        }
+    }
+
+    public List<AiRecommendationResult> recommendOpponents(
+            String currentTeamPlaystyle,
+            int currentTrustScore,
+            List<AiOpponentDto> potentialOpponents) {
+
+        try {
+            // Chuyển danh sách đội tiềm năng thành chuỗi JSON
+            String opponentsJson = objectMapper.writeValueAsString(potentialOpponents);
+
+            // Prompt thép: Ép AI chỉ nhả JSON
+            String prompt = String.format(
+                    "Bạn là một hệ thống AI ghép kèo bóng đá. Tuyệt đối KHÔNG giao tiếp như con người. " +
+                            "Thông tin đội chủ nhà: Lối đá: '%s', Uy tín: %d/100. " +
+                            "Danh sách đối thủ (JSON): %s. " +
+                            "Nhiệm vụ: Chọn 3 đội phù hợp nhất. " +
+                            "QUY TẮC BẮT BUỘC: Chỉ trả về duy nhất một mảng JSON có định dạng [{\"matchId\": \"...\", \"aiReason\": \"...\"}]. " +
+                            "Tuyệt đối không thêm bất kỳ từ ngữ nào ngoài JSON. Nếu danh sách đối thủ trống, trả về [].",
+                    currentTeamPlaystyle, currentTrustScore, opponentsJson
+            ).replace("\"", "\\\"");
+
+            String requestBody = """
+                    {
+                      "model": "%s",
+                      "messages": [
+                        {
+                          "role": "user",
+                          "content": "%s"
+                        }
+                      ],
+                      "temperature": 0.4
+                    }
+                    """.formatted(model, prompt);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(apiKey);
+            HttpEntity<String> requestEntity = new HttpEntity<>(requestBody, headers);
+
+            // Bắn Request lên Groq
+            String response = restTemplate.postForObject(apiUrl, requestEntity, String.class);
+
+            JsonNode rootNode = objectMapper.readTree(response);
+            String aiTextResponse = rootNode.path("choices").get(0).path("message").path("content").asText();
+
+            // Lọc lấy đúng phần JSON (từ [ đến ])
+            int startIndex = aiTextResponse.indexOf('[');
+            int endIndex = aiTextResponse.lastIndexOf(']');
+
+            if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
+                String cleanJson = aiTextResponse.substring(startIndex, endIndex + 1);
+                return objectMapper.readValue(cleanJson, new TypeReference<List<AiRecommendationResult>>() {
+                });
+            } else {
+                System.out.println("LỖI AI TRẢ VỀ RÁC: " + aiTextResponse);
+                return List.of(); // Trả về list rỗng, không làm sập server
+            }
+
+        } catch (Exception e) {
+            // Nhớ import org.slf4j.Logger và LoggerFactory ở đầu class nếu log báo đỏ nhé
+            log.error("==== LỖI GỌI GROQ AI GỢI Ý ====", e);
+            return List.of();
+        }
+    }
+    public ChatResponse askChatbot(ChatCreateRequest request) {
+        try {
+            // 1. Định nghĩa Tri thức Hệ thống (System Context)
+            String systemContext = "Bạn là trợ lý ảo hỗ trợ khách hàng của Hệ thống Quản lý Sân bóng PitchSyn. " +
+                    "Nhiệm vụ của bạn là giải đáp thắc mắc dựa trên các thông tin sau: " +
+                    "- Hệ thống có 3 loại sân chính: Sân 5 người, Sân 7 người và Sân 11 người. " +
+                    "- Cách tính điểm trust_score" +
+                    "- Quy trình thanh toán tiền sân" +
+                    "- Quy trình tìm kiếm đối thủ hoặc cầu đá thuê" +
+                    "- Khung giờ hoạt động: Từ 06:00 đến 23:30 hàng ngày. " +
+                    "- Chính sách hủy sân: Hủy trước 24 giờ được hoàn 100% tiền cọc. Hủy trước 12 giờ hoàn 50%. Hủy sát giờ không được hoàn tiền. " +
+                    "- Dịch vụ đi kèm: Miễn phí trà đá, nước và áo bíp. " +
+                    "- Địa chỉ các sân cơ bản: Sân Mỹ Đình nằm ở Nam Từ Liêm, Sân Bách Khoa nằm ở Hai Bà Trưng, Sân Dĩ An nằm ở Bình Dương. " +
+                    "Yêu cầu giao tiếp: Trả lời ngắn gọn, lịch sự, chuyên nghiệp. Không tự bịa đặt thông tin ngoài tài liệu được cung cấp.";
+
+            // 2. Xây dựng cấu trúc JSON Payload sử dụng Jackson ObjectNode để tránh lỗi escape chuỗi
+            ObjectNode requestBodyNode = objectMapper.createObjectNode();
+            requestBodyNode.put("model", model);
+
+            ArrayNode messagesArray = requestBodyNode.putArray("messages");
+
+            ObjectNode systemMessage = messagesArray.addObject();
+            systemMessage.put("role", "system");
+            systemMessage.put("content", systemContext);
+
+            ObjectNode userMessage = messagesArray.addObject();
+            userMessage.put("role", "user");
+            userMessage.put("content", request.getMessage());
+
+            requestBodyNode.put("temperature", 0.5); // Độ sáng tạo trung bình
+
+            String requestBody = objectMapper.writeValueAsString(requestBodyNode);
+
+            // 3. Thiết lập Header và gọi API
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(apiKey);
+            HttpEntity<String> requestEntity = new HttpEntity<>(requestBody, headers);
+
+            String response = restTemplate.postForObject(apiUrl, requestEntity, String.class);
+
+            // 4. Trích xuất câu trả lời từ Groq
+            JsonNode rootNode = objectMapper.readTree(response);
+            String aiReply = rootNode.path("choices").get(0).path("message").path("content").asText();
+
+            return new ChatResponse(aiReply);
+
+        } catch (Exception e) {
+            log.error("Lỗi hệ thống khi xử lý Chatbot: ", e);
+            return new ChatResponse("Hệ thống trợ lý ảo đang bảo trì hoặc gặp sự cố kết nối. Vui lòng thử lại sau.");
         }
     }
 }

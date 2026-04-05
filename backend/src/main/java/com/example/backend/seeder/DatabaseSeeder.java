@@ -38,80 +38,83 @@ public class DatabaseSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-
         // ==========================================
         // 1. LUỒNG KHỞI TẠO DỮ LIỆU TĨNH (CHỈ CHẠY 1 LẦN)
         // ==========================================
         if (userRepository.count() == 0) {
             System.out.println("Seeding entire ecosystem database...");
 
-            User admin = userRepository
-                    .save(new User(UUID.randomUUID().toString(), "admin@system.com", "123456", Enums.UserRole.ADMIN, "System Admin", "0123456780"));
-            User owner1 = userRepository
-                    .save(new User(UUID.randomUUID().toString(), "owner1@gmail.com", "123456", Enums.UserRole.OWNER, "Trần Văn Chủ B", "0123456781"));
-            User owner2 = userRepository.save(
-                    new User(UUID.randomUUID().toString(), "owner2@gmail.com", "123456", Enums.UserRole.OWNER, "Nguyễn Văn Chủ A", "0123456782"));
-            User player1 = userRepository.save(
-                    new User(UUID.randomUUID().toString(), "player1@gmail.com", "123456", Enums.UserRole.PLAYER, "Nguyễn Cầu Thủ 1", "0123456783"));
-            User player2 = userRepository
-                    .save(new User(UUID.randomUUID().toString(), "player2@gmail.com", "123456", Enums.UserRole.PLAYER, "Lê Cầu Thủ 2", "0123456784"));
-            User player3 = userRepository.save(
-                    new User(UUID.randomUUID().toString(), "player3@gmail.com", "123456", Enums.UserRole.PLAYER, "Phạm Cầu Thủ 3", "0123456785"));
-            User player4 = userRepository.save(
-                    new User(UUID.randomUUID().toString(), "player4@gmail.com", "123456", Enums.UserRole.PLAYER, "Trần Cầu Thủ 4", "0123456786"));
-            User player5 = userRepository.save(
-                    new User(UUID.randomUUID().toString(), "player5@gmail.com", "123456", Enums.UserRole.PLAYER, "Hoàng Cầu Thủ 5", "0123456787"));
+            // --- TẠO 14 USERS (1 ADMIN, 3 OWNERS, 10 PLAYERS) ---
+            User admin = userRepository.save(new User(UUID.randomUUID().toString(), "admin@system.com", "123456", Enums.UserRole.ADMIN, "System Admin", "0123456780"));
+            User owner1 = userRepository.save(new User(UUID.randomUUID().toString(), "owner1@gmail.com", "123456", Enums.UserRole.OWNER, "Trần Văn Chủ B", "0123456781"));
+            User owner2 = userRepository.save(new User(UUID.randomUUID().toString(), "owner2@gmail.com", "123456", Enums.UserRole.OWNER, "Nguyễn Văn Chủ A", "0123456782"));
+            User owner3 = userRepository.save(new User(UUID.randomUUID().toString(), "owner3@gmail.com", "123456", Enums.UserRole.OWNER, "Lê Văn Chủ C", "0123456783"));
 
-            Team team1 = new Team();
-            team1.setName("Team Alpha");
-            team1.setCaptainId(player1.getId());
-            team1.setLevel(Enums.TeamLevel.INTERMEDIATE);
-            team1.setCreatedAt(LocalDateTime.now());
-            team1 = teamRepository.save(team1);
+            List<User> players = new ArrayList<>();
+            for (int i = 1; i <= 10; i++) {
+                User player = new User(
+                        UUID.randomUUID().toString(),
+                        "player" + i + "@gmail.com",
+                        "123456",
+                        Enums.UserRole.PLAYER,
+                        "Cầu Thủ " + i,
+                        "09876543" + String.format("%02d", i)
+                );
+                players.add(userRepository.save(player));
+            }
 
-            Team team2 = new Team();
-            team2.setName("Team Beta");
-            team2.setCaptainId(player2.getId());
-            team2.setLevel(Enums.TeamLevel.ADVANCED);
-            team2.setCreatedAt(LocalDateTime.now());
-            team2 = teamRepository.save(team2);
+            // --- TẠO 10 TEAMS TƯƠNG ỨNG VỚI 10 PLAYERS ---
+            String[] teamDescriptions = {
+                    "Tập thể sinh viên đại học, thể lực sung mãn, lối đá pressing tầm cao.",
+                    "Câu lạc bộ kỹ sư công nghệ, ưu tiên ban bật nhỏ, tránh va chạm mạnh.",
+                    "Đội bóng phong trào địa phương, kỹ thuật cá nhân xuất sắc, tính kỷ luật cao.",
+                    "Nhóm bạn đồng nghiệp xả stress cuối tuần, không quan trọng thắng thua.",
+                    "Đội hình cựu chiến binh, nhịp độ thi đấu chậm, chú trọng kiểm soát bóng.",
+                    "Tập thể nhân viên tài chính, phong cách fair-play, tôn trọng đối thủ tuyệt đối.",
+                    "Câu lạc bộ thể thao bán chuyên, tìm kiếm đối thủ xứng tầm để cọ xát.",
+                    "Đội bóng nòng cốt chuẩn bị thi đấu giải, cần rèn luyện chiến thuật phòng ngự phản công.",
+                    "Hội anh em đồng hương, lấy giao lưu học hỏi và kết nối làm mục tiêu chính.",
+                    "Tập thể yêu thích bóng đá nghệ thuật, thường xuyên thử nghiệm các kỹ thuật cá nhân khó."
+            };
 
-            Team team3 = new Team();
-            team3.setName("Team Gamma");
-            team3.setCaptainId(player3.getId());
-            team3.setLevel(Enums.TeamLevel.BEGINNER);
-            team3.setCreatedAt(LocalDateTime.now());
-            team3 = teamRepository.save(team3);
+            List<Team> allTeams = new ArrayList<>();
+            for (int i = 0; i < 10; i++) {
+                Team team = new Team();
+                team.setName("FC Cầu Thủ " + (i + 1));
+                team.setCaptainId(players.get(i).getId());
+                // Phân bổ trình độ đồng đều để AI có đa dạng dữ liệu phân tích
+                team.setLevel(i % 3 == 0 ? Enums.TeamLevel.BEGINNER : (i % 2 == 0 ? Enums.TeamLevel.ADVANCED : Enums.TeamLevel.INTERMEDIATE));
+                team.setDescription(teamDescriptions[i]); // Thiết lập mô tả chi tiết cho Đội bóng
+                team.setCreatedAt(LocalDateTime.now());
+                allTeams.add(teamRepository.save(team));
+            }
 
-            Field field1 = new Field();
-            field1.setName("Sân bóng Mỹ Đình 1");
-            field1.setType(Enums.FieldType.FIVE_A_SIDE);
-            field1.setCoverImage("https://example.com/san1.jpg");
-            field1.setCreatedAt(LocalDateTime.now());
-            field1.setUpdatedAt(LocalDateTime.now());
-            field1 = fieldRepository.save(field1);
-            TimeSlot slot1 = seedTimeSlotsForField(field1, new BigDecimal("200000")).get(0);
+            // --- TẠO 10 SÂN BÓNG ---
+            String[] fieldNames = {
+                    "Sân bóng Mỹ Đình 1", "Sân bóng Mỹ Đình 2", "Sân bóng Bách Khoa", "Sân bóng Tao Đàn",
+                    "Sân bóng Chảo Lửa", "Sân bóng Phú Nhuận", "Sân bóng Dĩ An 1", "Sân bóng Dĩ An 2",
+                    "Sân bóng Thống Nhất", "Sân bóng Quân Khu 7"
+            };
 
-            Field field2 = new Field();
-            field2.setName("Sân bóng Mỹ Đình 2");
-            field2.setType(Enums.FieldType.SEVEN_A_SIDE);
-            field2.setCoverImage("https://example.com/san2.jpg");
-            field2.setCreatedAt(LocalDateTime.now());
-            field2.setUpdatedAt(LocalDateTime.now());
-            field2 = fieldRepository.save(field2);
+            List<Field> allFields = new ArrayList<>();
+            for (int i = 0; i < 10; i++) {
+                Field field = new Field();
+                field.setName(fieldNames[i]);
+                field.setType(i % 3 == 0 ? Enums.FieldType.SEVEN_A_SIDE : Enums.FieldType.FIVE_A_SIDE);
+                field.setCoverImage("https://example.com/san" + (i + 1) + ".jpg");
+                field.setCreatedAt(LocalDateTime.now());
+                field.setUpdatedAt(LocalDateTime.now());
+                allFields.add(fieldRepository.save(field));
+            }
 
-            Field field3 = new Field();
-            field3.setName("Sân bóng Bách Khoa");
-            field3.setType(Enums.FieldType.FIVE_A_SIDE);
-            field3.setCoverImage("https://example.com/san3.jpg");
-            field3.setCreatedAt(LocalDateTime.now());
-            field3.setUpdatedAt(LocalDateTime.now());
-            field3 = fieldRepository.save(field3);
-            TimeSlot slot3 = seedTimeSlotsForField(field3, new BigDecimal("150000")).get(2);
+            // Khởi tạo một số khung giờ (TimeSlot) cho các sân đầu tiên để phục vụ Booking tĩnh
+            TimeSlot slot1 = seedTimeSlotsForField(allFields.get(0), new BigDecimal("200000")).get(0);
+            TimeSlot slot3 = seedTimeSlotsForField(allFields.get(2), new BigDecimal("150000")).get(2);
 
+            // --- TẠO GIAO DỊCH ĐẶT SÂN (BOOKINGS) ---
             Booking booking1 = new Booking();
-            booking1.setUserId(player4.getId());
-            booking1.setFieldId(field1.getId());
+            booking1.setUserId(players.get(3).getId()); // Player 4
+            booking1.setFieldId(allFields.get(0).getId());
             booking1.setTimeSlotId(slot1.getId());
             booking1.setBookingDate(LocalDate.now());
             booking1.setStatus(Enums.BookingStatus.CONFIRMED);
@@ -120,46 +123,44 @@ public class DatabaseSeeder implements CommandLineRunner {
             booking1.setUpdatedAt(LocalDateTime.now());
             booking1 = bookingRepository.save(booking1);
 
-            Booking booking2 = new Booking();
-            booking2.setUserId(player5.getId());
-            booking2.setFieldId(field3.getId());
-            booking2.setTimeSlotId(slot3.getId());
-            booking2.setBookingDate(LocalDate.now().plusDays(1));
-            booking2.setStatus(Enums.BookingStatus.CONFIRMED);
-            booking2.setTotalAmount(slot3.getPrice());
-            booking2.setCreatedAt(LocalDateTime.now());
-            booking2.setUpdatedAt(LocalDateTime.now());
-            booking2 = bookingRepository.save(booking2);
+            // --- TẠO BÀI ĐĂNG TÌM ĐỐI THỦ (MATCH POSTS) MẪU CHO TRÍ TUỆ NHÂN TẠO ---
+            System.out.println("Đang tạo 10 dữ liệu MatchPost giả lập phục vụ quá trình huấn luyện AI...");
 
-            MatchPost post1 = new MatchPost();
-            post1.setUserId(player1.getId());
-            post1.setTeamId(team1.getId());
-            post1.setFieldId(field2.getId());
-            post1.setDate(LocalDate.now().plusDays(2));
-            post1.setTimeStart(LocalDateTime.of(LocalDate.now().plusDays(2), LocalTime.of(19, 0)));
-            post1.setTimeEnd(LocalDateTime.of(LocalDate.now().plusDays(2), LocalTime.of(20, 30)));
-            post1.setPostType(Enums.PostType.FIND_OPPONENT);
-            post1.setSkillLevel(Enums.TeamLevel.INTERMEDIATE);
-            post1.setCostSharing("50-50");
-            post1.setMessage("Giao lưu vui vẻ, không quạu.");
-            post1.setStatus(Enums.PostStatus.OPEN);
-            post1.setCreatedAt(LocalDateTime.now());
-            matchPostRepository.save(post1);
+            String[] aiMessages = {
+                    "Cần tìm đối thủ giao lưu thể lực nhẹ nhàng, không sử dụng tiểu xảo.",
+                    "Đội đang trong giai đoạn thử nghiệm đội hình, hoan nghênh các đội có lối đá ban bật.",
+                    "Thi đấu chuyên môn cao, có trọng tài điều khiển, tính cạnh tranh quyết liệt.",
+                    "Giao hữu mang tính chất rèn luyện sức khỏe, ưu tiên đối tác khu vực nội thành.",
+                    "Đội chú trọng kiểm soát bóng, không đá rắn, mong muốn tìm đối tác tương đồng về tư duy.",
+                    "Sẵn sàng thi đấu dưới áp lực cao, cần cọ xát với các đội có tổ chức chiến thuật tốt.",
+                    "Trận đấu mang tính chất dưỡng sinh, tuyệt đối tránh các tình huống tranh chấp nguy hiểm.",
+                    "Đội bóng tập hợp dân văn phòng, thể lực hạn chế, mong đối tác nhường nhịn ở những phút cuối.",
+                    "Yêu cầu đối tác tuân thủ nghiêm ngặt tinh thần thể thao, đội hình đồng đều.",
+                    "Tìm kiếm đối thủ mạnh để giao lưu kỹ năng, sẵn sàng chi trả toàn bộ phí sân bãi nếu thua."
+            };
 
-            MatchPost post2 = new MatchPost();
-            post2.setUserId(player4.getId());
-            post2.setFieldId(field1.getId());
-            post2.setBookingId(booking1.getId());
-            post2.setDate(LocalDate.now());
-            post2.setTimeStart(slot1.getStartTime());
-            post2.setTimeEnd(slot1.getEndTime());
-            post2.setPostType(Enums.PostType.FIND_MEMBER);
-            post2.setSkillLevel(Enums.TeamLevel.BEGINNER);
-            post2.setCostSharing("Share đều tiền sân 30k/người");
-            post2.setMessage("Đội mình còn thiếu 2 người đá cánh, anh em nào rảnh vào đá cùng cho vui nhé.");
-            post2.setStatus(Enums.PostStatus.OPEN);
-            post2.setCreatedAt(LocalDateTime.now());
-            matchPostRepository.save(post2);
+            List<MatchPost> aiPosts = new ArrayList<>();
+            for (int i = 0; i < 10; i++) {
+                MatchPost post = new MatchPost();
+                post.setUserId(players.get(i).getId());
+                post.setTeamId(allTeams.get(i).getId());
+                post.setFieldId(allFields.get(i).getId());
+
+                post.setDate(LocalDate.now().plusDays(i % 5));
+                int hour = 16 + (i % 5);
+                post.setTimeStart(LocalDateTime.of(post.getDate(), LocalTime.of(hour, 0)));
+                post.setTimeEnd(LocalDateTime.of(post.getDate(), LocalTime.of(hour + 1, 30)));
+
+                post.setPostType(Enums.PostType.FIND_OPPONENT);
+                post.setSkillLevel(allTeams.get(i).getLevel());
+                post.setCostSharing(i % 2 == 0 ? "50-50" : "Đội thua thanh toán 100%");
+                post.setMessage(aiMessages[i]);
+                post.setStatus(Enums.PostStatus.OPEN);
+                post.setCreatedAt(LocalDateTime.now().minusDays(i));
+
+                aiPosts.add(post);
+            }
+            matchPostRepository.saveAll(aiPosts);
 
             System.out.println("Database ecosystem seeding completed successfully!");
         } else {

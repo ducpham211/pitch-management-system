@@ -1,15 +1,21 @@
 package com.example.backend.service.impl;
 
 import com.example.backend.dto.request.AdminCreateRequest;
+import com.example.backend.dto.response.DashboardOverviewResponse;
+import com.example.backend.dto.response.DashboardTransactionResponse;
+import com.example.backend.dto.response.FieldResponse;
 import com.example.backend.entity.Enums;
 import com.example.backend.entity.Review;
 import com.example.backend.entity.User;
-import com.example.backend.repository.ReviewRepository;
-import com.example.backend.repository.UserRepository;
+import com.example.backend.mapper.FieldMapper;
+import com.example.backend.repository.*;
 import com.example.backend.service.AdminService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Transactional
 @Service
@@ -17,8 +23,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdminServiceImpl implements AdminService {
     private final ReviewRepository reviewRepository;
     private final UserRepository userRepository;
-
-
+    private final FieldRepository fieldRepository;
+    private final BookingRepository bookingRepository;
+    private final MatchRequestRepository matchRequestRepository;
+    private final FieldMapper fieldMapper;
     public String adjudicateReview(String reviewId, AdminCreateRequest request) {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đánh giá này"));
@@ -57,5 +65,31 @@ public class AdminServiceImpl implements AdminService {
 
             return "Đã bác bỏ đánh giá. Không có điểm uy tín nào bị trừ.";
         }
+    }
+    // Nhớ Inject thêm FieldRepository, BookingRepository, MatchRequestRepository, FieldMapper vào đây
+
+    @Override
+    public List<FieldResponse> getAllFields() {
+        // Có thể nâng cấp phân trang (Pageable) sau nếu danh sách sân quá dài
+        return fieldRepository.findAll().stream()
+                .map(fieldMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public DashboardOverviewResponse getOverviewMetrics() {
+        long totalUsers = userRepository.count();
+        long totalFields = fieldRepository.count();
+        long totalMatches = matchRequestRepository.countSuccessfulMatches();
+
+        return new DashboardOverviewResponse(totalUsers, totalFields, totalMatches);
+    }
+
+    @Override
+    public DashboardTransactionResponse getTransactionMetrics() {
+        var totalRevenue = bookingRepository.calculateTotalSystemRevenue();
+        var totalBookings = bookingRepository.countSuccessfulBookings();
+
+        return new DashboardTransactionResponse(totalRevenue, totalBookings);
     }
 }
