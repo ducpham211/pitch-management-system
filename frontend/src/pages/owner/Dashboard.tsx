@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { FaChartLine, FaList, FaCalendarCheck, FaPlus, FaCheck, FaTimes, FaEdit, FaTrash, FaMoneyBillWave } from 'react-icons/fa';
-import { OWNER_STATS } from '../../mocks/ownerData';
+import { FaChartLine, FaList, FaCalendarCheck, FaTimes, FaCalendarCheck as FaCalendarIcon } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import PitchFormModal from '../../components/owner/PitchFormModal';
+import OverviewTab from '../../components/owner/OverviewTab';
+import PitchesTab from '../../components/owner/PitchesTab';
+import BookingsTab from '../../components/owner/BookingsTab';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -15,6 +17,9 @@ const OwnerDashboard = () => {
   const [isPitchModalOpen, setIsPitchModalOpen] = useState(false);
   const [editingPitch, setEditingPitch] = useState<any | null>(null);
   
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedPitch, setSelectedPitch] = useState<any | null>(null);
+
   const [isLoadingPitches, setIsLoadingPitches] = useState(false);
   const [isLoadingBookings, setIsLoadingBookings] = useState(false);
 
@@ -23,10 +28,12 @@ const OwnerDashboard = () => {
 
   useEffect(() => {
     if (activeTab === 'pitches') fetchPitches();
-    if (activeTab === 'bookings') fetchBookings();
+    if (activeTab === 'bookings') {
+      fetchPitches();
+      fetchBookings();
+    }
   }, [activeTab]);
 
-  // ================= API QUẢN LÝ SÂN =================
   const fetchPitches = async () => {
     setIsLoadingPitches(true);
     try {
@@ -41,12 +48,28 @@ const OwnerDashboard = () => {
     }
   };
 
-  const translateFieldType = (type: string) => {
-    switch(type) {
-      case 'FIVE_A_SIDE': return 'Sân 5 người';
-      case 'SEVEN_A_SIDE': return 'Sân 7 người';
-      case 'ELEVEN_A_SIDE': return 'Sân 11 người';
-      default: return type;
+  const fetchBookings = async () => {
+    setIsLoadingBookings(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) return navigate('/dang-nhap');
+      const res = await axios.get(`${API_URL}/bookings`, { headers: { Authorization: `Bearer ${token}` } });
+      setBookings(res.data.content || res.data || []);
+    } catch (error) {
+      console.error("Lỗi khi tải danh sách đơn:", error);
+    } finally {
+      setIsLoadingBookings(false);
+    }
+  };
+
+  const handleViewPitchDetails = async (id: string) => {
+    try {
+      const res = await axios.get(`${API_URL}/fields/${id}`);
+      setSelectedPitch(res.data);
+      setIsDetailModalOpen(true);
+    } catch (error) {
+      console.error('Lỗi khi lấy thông tin chi tiết sân:', error);
+      alert('Không thể tải thông tin sân');
     }
   };
 
@@ -77,7 +100,6 @@ const OwnerDashboard = () => {
     }
   };
 
-  // Cập nhật hàm Save để xử lý cả thông tin sân và mảng TimeSlots
   const handleSavePitch = async (pitchData: any, deletedSlotIds: string[]) => {
     try {
       const token = localStorage.getItem('accessToken');
@@ -91,7 +113,6 @@ const OwnerDashboard = () => {
 
       let savedFieldId = '';
 
-      // 1. Lưu thông tin Sân
       if (editingPitch && editingPitch.id) {
         await axios.put(`${API_URL}/fields/${editingPitch.id}`, fieldPayload, config);
         savedFieldId = editingPitch.id;
@@ -100,18 +121,15 @@ const OwnerDashboard = () => {
         savedFieldId = res.data.id;
       }
 
-      // 2. Xóa các ca bị bỏ đi
       if (deletedSlotIds && deletedSlotIds.length > 0) {
         for (const slotId of deletedSlotIds) {
           await axios.delete(`${API_URL}/fields/${savedFieldId}/time-slots/${slotId}`, config);
         }
       }
 
-      // 3. Thêm hoặc Cập nhật các ca đá (Convert HH:mm sang LocalDateTime ảo)
       if (pitchData.timeSlots && pitchData.timeSlots.length > 0) {
         for (const slot of pitchData.timeSlots) {
           const slotPayload = {
-            // Chèn ngày ảo 2000-01-01 để map chuẩn với LocalDateTime của Backend
             startTime: `2000-01-01T${slot.startTime}:00`,
             endTime: `2000-01-01T${slot.endTime}:00`,
             price: Number(slot.price),
@@ -133,30 +151,6 @@ const OwnerDashboard = () => {
     } catch (error: any) {
       console.error('Lỗi lưu sân:', error);
       alert(error.response?.data?.message || error.response?.data || 'Lỗi khi lưu sân. Vui lòng thử lại.');
-    }
-  };
-
-  const fetchBookings = async () => {
-    setIsLoadingBookings(true);
-    try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) return navigate('/dang-nhap');
-      const res = await axios.get(`${API_URL}/bookings`, { headers: { Authorization: `Bearer ${token}` } });
-      setBookings(res.data.content || res.data || []);
-    } catch (error) {
-      console.error("Lỗi khi tải danh sách đơn:", error);
-    } finally {
-      setIsLoadingBookings(false);
-    }
-  };
-
-  const getBookingStatusBadge = (status: string) => {
-    switch (status) {
-      case 'PENDING': return <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">Chờ thanh toán</span>;
-      case 'DEPOSIT_PAID': return <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">Đã nhận cọc (Chờ đá)</span>;
-      case 'COMPLETED': return <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">Hoàn thành</span>;
-      case 'CANCELLED': return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold">Bùng kèo / Hủy</span>;
-      default: return <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
     }
   };
 
@@ -196,6 +190,15 @@ const OwnerDashboard = () => {
     }
   };
 
+  const translateFieldType = (type: string) => {
+    switch(type) {
+      case 'FIVE_A_SIDE': return 'Sân 5 người';
+      case 'SEVEN_A_SIDE': return 'Sân 7 người';
+      case 'ELEVEN_A_SIDE': return 'Sân 11 người';
+      default: return type;
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl flex flex-col md:flex-row gap-6 h-full">
       <div className="w-full md:w-1/4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit sticky top-24">
@@ -214,134 +217,29 @@ const OwnerDashboard = () => {
       </div>
 
       <div className="w-full md:w-3/4">
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800">Báo cáo doanh thu (Dữ liệu mẫu)</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-blue-500">
-                <p className="text-sm text-gray-500 font-medium">Tổng doanh thu</p>
-                <p className="text-2xl font-bold text-gray-800 mt-2">{OWNER_STATS.totalRevenue.toLocaleString('vi-VN')}đ</p>
-              </div>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-green-500">
-                <p className="text-sm text-gray-500 font-medium">Đơn hoàn thành</p>
-                <p className="text-2xl font-bold text-gray-800 mt-2">{OWNER_STATS.completedMatches}</p>
-              </div>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-orange-500">
-                <p className="text-sm text-gray-500 font-medium">Chờ duyệt cọc</p>
-                <p className="text-2xl font-bold text-gray-800 mt-2">{OWNER_STATS.pendingDeposits}</p>
-              </div>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-purple-500">
-                <p className="text-sm text-gray-500 font-medium">Tổng lượt đặt</p>
-                <p className="text-2xl font-bold text-gray-800 mt-2">{OWNER_STATS.totalBookings}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
+        {activeTab === 'overview' && <OverviewTab />}
+        
         {activeTab === 'pitches' && (
-          <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Danh sách Sân con</h2>
-              <Button variant="primary" className="flex items-center gap-2 !bg-blue-600" onClick={handleOpenAddModal}>
-                <FaPlus /> Thêm sân
-              </Button>
-            </div>
-            
-            {isLoadingPitches ? (
-               <div className="text-center py-10 text-gray-500">Đang tải dữ liệu sân...</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50 text-gray-600 border-b border-gray-200">
-                      <th className="p-4 font-medium rounded-tl-lg">Tên sân</th>
-                      <th className="p-4 font-medium">Loại sân</th>
-                      <th className="p-4 font-medium">Khung giá (Tạm)</th>
-                      <th className="p-4 font-medium rounded-tr-lg text-center">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pitches.length > 0 ? (
-                      pitches.map((pitch) => (
-                        <tr key={pitch.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="p-4 font-bold text-gray-800">{pitch.name}</td>
-                          <td className="p-4 text-gray-600">{translateFieldType(pitch.type)}</td>
-                          <td className="p-4 text-blue-600 font-medium">Theo Ca Đá</td>
-                          <td className="p-4 flex items-center justify-center gap-3">
-                            <button onClick={() => handleOpenEditModal(pitch)} className="text-blue-500 hover:text-blue-700 transition">
-                              <FaEdit className="text-lg" />
-                            </button>
-                            <button onClick={() => handleDeletePitch(pitch.id)} className="text-red-400 hover:text-red-600 transition">
-                              <FaTrash className="text-lg" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={4} className="p-8 text-center text-gray-500">Chưa có sân nào. Hãy thêm sân mới!</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <PitchesTab 
+            pitches={pitches} 
+            isLoadingPitches={isLoadingPitches} 
+            handleOpenAddModal={handleOpenAddModal} 
+            handleViewPitchDetails={handleViewPitchDetails} 
+            handleOpenEditModal={handleOpenEditModal} 
+            handleDeletePitch={handleDeletePitch} 
+            translateFieldType={translateFieldType} 
+          />
         )}
 
         {activeTab === 'bookings' && (
-          <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Quản lý Đơn đặt sân</h2>
-              <Button variant="secondary" className="flex items-center gap-2 border border-gray-300"><FaPlus /> Khách vãng lai</Button>
-            </div>
-            
-            {isLoadingBookings ? (
-               <div className="text-center py-10 text-gray-500">Đang tải danh sách đơn...</div>
-            ) : bookings.length === 0 ? (
-               <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300 text-gray-500">Chưa có đơn đặt sân nào.</div>
-            ) : (
-              <div className="space-y-4">
-                {bookings.map((bk) => (
-                  <div key={bk.id} className="p-5 border border-gray-100 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center hover:shadow-sm transition gap-4">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-xs font-bold text-gray-500">#{bk.id.substring(0,8)}</span>
-                        {getBookingStatusBadge(bk.status)}
-                      </div>
-                      <h3 className="font-bold text-gray-800 text-lg">Khách ID: {bk.userId.substring(0,8)}</h3>
-                      <p className="text-gray-600 text-sm mt-1">Ghi chú: {bk.note || 'Không có'}</p>
-                    </div>
-                    
-                    <div className="flex flex-col items-end w-full md:w-auto">
-                      <div className="text-right mb-3">
-                         <p className="text-sm text-gray-500">Tổng tiền: <span className="font-bold text-gray-800">{bk.totalAmount ? bk.totalAmount.toLocaleString('vi-VN') : 0}đ</span></p>
-                         <p className="text-sm text-blue-600">Đã cọc: <span className="font-bold">{bk.depositAmount ? bk.depositAmount.toLocaleString('vi-VN') : 0}đ</span></p>
-                      </div>
-
-                      {bk.status === 'DEPOSIT_PAID' && (
-                        <div className="flex gap-2">
-                          <Button variant="primary" className="!bg-green-600 px-3 py-1 flex items-center gap-1 text-sm" onClick={() => handleCheckIn(bk.id)}>
-                            <FaCheck /> Nhận Sân
-                          </Button>
-                          <Button variant="danger" className="px-3 py-1 flex items-center gap-1 text-sm" onClick={() => handleNoShow(bk.id)}>
-                            <FaTimes /> Bùng Kèo
-                          </Button>
-                        </div>
-                      )}
-
-                      {bk.status === 'COMPLETED' && (
-                         <Button variant="secondary" className="!bg-blue-600 text-white px-3 py-1 flex items-center gap-1 text-sm" onClick={() => handleCheckOut(bk.id)}>
-                            <FaMoneyBillWave /> Thu nốt tiền
-                         </Button>
-                      )}
-
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <BookingsTab 
+            bookings={bookings} 
+            pitches={pitches} 
+            isLoadingBookings={isLoadingBookings} 
+            handleCheckIn={handleCheckIn} 
+            handleNoShow={handleNoShow} 
+            handleCheckOut={handleCheckOut} 
+          />
         )}
       </div>
 
@@ -351,6 +249,59 @@ const OwnerDashboard = () => {
         onSave={handleSavePitch} 
         initialData={editingPitch} 
       />
+
+      {isDetailModalOpen && selectedPitch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-3xl p-6 md:p-8 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold text-gray-800">Chi tiết sân: {selectedPitch.name}</h3>
+              <button onClick={() => setIsDetailModalOpen(false)} className="text-gray-400 hover:text-gray-800 transition bg-gray-100 hover:bg-gray-200 p-2 rounded-full">
+                <FaTimes className="text-xl" />
+              </button>
+            </div>
+            
+            <div className="mb-6 bg-blue-50 border border-blue-100 p-4 rounded-xl">
+              <p className="text-blue-800"><span className="font-bold">Phân loại sân:</span> {translateFieldType(selectedPitch.type)}</p>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-lg mb-4 text-gray-800 flex items-center gap-2">
+                <FaCalendarIcon className="text-blue-500" /> Trạng thái các ca đá
+              </h4>
+              
+              {selectedPitch.timeSlots && selectedPitch.timeSlots.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {selectedPitch.timeSlots.map((slot: any) => {
+                    const startTime = new Date(slot.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                    const endTime = new Date(slot.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                    const isBooked = slot.status !== 'AVAILABLE';
+                    
+                    return (
+                      <div key={slot.id} className={`p-4 rounded-xl border-2 transition ${isBooked ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-extrabold text-gray-800 text-lg">{startTime} - {endTime}</span>
+                          <span className={`text-xs font-bold px-3 py-1 rounded-full ${isBooked ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                            {isBooked ? 'Đã được đặt' : 'Đang trống'}
+                          </span>
+                        </div>
+                        <p className="text-sm font-medium text-gray-600 mt-2">Giá thuê: <span className="text-blue-600 font-bold">{slot.price ? Number(slot.price).toLocaleString('vi-VN') : 0}đ</span></p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                  <p className="text-gray-500 font-medium">Chưa có ca đá nào được cấu hình cho sân này.</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="mt-8 flex justify-end">
+              <Button variant="secondary" className="px-6" onClick={() => setIsDetailModalOpen(false)}>Đóng</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

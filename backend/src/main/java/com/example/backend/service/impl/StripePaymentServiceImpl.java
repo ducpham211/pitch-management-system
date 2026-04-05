@@ -41,7 +41,7 @@ public class StripePaymentServiceImpl implements PaymentService {
     private final NotificationService notificationService;
     private final PaymentRepository paymentRepository;
     private final PaymentMapper paymentMapper;
-    private final UserRepository userRepository; // Tiêm thêm repo để lấy tên user
+    private final UserRepository userRepository; 
 
     @Value("${stripe.api.key}")
     private String stripeApiKey;
@@ -57,7 +57,6 @@ public class StripePaymentServiceImpl implements PaymentService {
         Stripe.apiKey = stripeApiKey;
     }
 
-    // Hàm tiện ích để cắt ngắn ID còn 6 ký tự hiển thị cho đẹp
     private String truncateId(String id) {
         if (id == null || id.isEmpty()) return "Chưa xác định";
         return id.length() >= 6 ? id.substring(0, 6).toUpperCase() : id.toUpperCase();
@@ -112,12 +111,10 @@ public class StripePaymentServiceImpl implements PaymentService {
     @Override
     public void handleStripeWebhook(String payload, String sigHeader) {
         try {
-            // 1. Xác thực chữ ký
             com.stripe.model.Event event = com.stripe.net.Webhook.constructEvent(
                     payload, sigHeader, endpointSecret
             );
 
-            // 2. Chỉ quan tâm đến sự kiện thanh toán thành công
             if ("checkout.session.completed".equals(event.getType())) {
 
                 com.stripe.model.checkout.Session session;
@@ -142,18 +139,18 @@ public class StripePaymentServiceImpl implements PaymentService {
                 Booking booking = bookingRepository.findById(bookingId).orElse(null);
                 if (booking != null) {
 
-                    // 3.1 Đổi trạng thái Hóa đơn
+                    // Cập nhật trạng thái Hóa đơn
                     booking.setStatus(Enums.BookingStatus.DEPOSIT_PAID);
                     bookingRepository.save(booking);
 
-                    // 3.2 Khóa sân lại
+                    // Khóa ca sân
                     TimeSlot slot = timeSlotRepository.findById(booking.getTimeSlotId()).orElse(null);
                     if (slot != null) {
                         slot.setStatus(Enums.TimeSlotStatus.BOOKED);
                         timeSlotRepository.save(slot);
                     }
 
-                    // 3.3 GHI NHẬN LỊCH SỬ DÒNG TIỀN VÀO BẢNG PAYMENT
+                    // Ghi nhận dòng tiền
                     PaymentCreateRequest paymentRequest = new PaymentCreateRequest();
                     paymentRequest.setAmount(booking.getDepositAmount());
                     paymentRequest.setPaymentMethod(Enums.PaymentMethod.STRIPE);
@@ -161,12 +158,13 @@ public class StripePaymentServiceImpl implements PaymentService {
                     paymentRequest.setBookingId(bookingId);
                     paymentRequest.setUserId(booking.getUserId());
                     paymentRequest.setStatus(Enums.PaymentStatus.SUCCESS);
+                    
                     Payment depositPayment = paymentMapper.createPaymentEntity(paymentRequest);
-                    depositPayment.setBooking(booking); // Gán object booking để nối khóa ngoại
+                    depositPayment.setBooking(booking); 
                     depositPayment.setCreatedAt(LocalDateTime.now());
                     paymentRepository.save(depositPayment);
 
-                    // --- BẮT ĐẦU LOGIC GỬI THÔNG BÁO HIỂN THỊ TÊN MỚI ---
+                    // Bắn thông báo về hệ thống
                     User player = userRepository.findById(booking.getUserId()).orElse(null);
                     String playerName = player != null ? player.getFullName() : "Bạn";
                     String fieldCode = truncateId(booking.getFieldId());
@@ -174,14 +172,15 @@ public class StripePaymentServiceImpl implements PaymentService {
 
                     NotificationCreateRequest notifRequest = new NotificationCreateRequest();
                     notifRequest.setTitle("🎉 Thanh toán thành công!");
+                    
+                    // Sử dụng .doubleValue() để tránh văng lỗi khi format BigDecimal
                     String content = "Hệ thống xác nhận " + playerName + " đã thanh toán thành công số tiền " 
-                                    + String.format("%,.0f", paymentRequest.getAmount()) 
+                                    + String.format("%,.0f", booking.getDepositAmount().doubleValue()) 
                                     + " VND tiền cọc cho sân " + fieldCode 
                                     + " (Mã đơn: " + bookingCode + "). Chúc bạn có trận đấu vui vẻ!";
                     notifRequest.setContent(content);
                     notifRequest.setType(Enums.NotificationType.PAYMENT_UPDATE);
                     notificationService.createAndSendNotification(booking.getUserId(), notifRequest);
-                    // --- KẾT THÚC ---
 
                     log.info("==== KẾ TOÁN ==== Đã lưu DB khoản cọc {} VND qua STRIPE cho Booking {}", booking.getDepositAmount(), bookingId);
                     log.info("==== WEBHOOK ==== Đã chốt sân thành công!");
