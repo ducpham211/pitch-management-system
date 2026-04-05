@@ -14,4 +14,5 @@ public interface BookingService {
     void checkInBooking (String bookingId);
     String checkOutBooking (String bookingId, Enums.PaymentMethod method);
     void markAsNoShow (String bookingId);
+    void completeBooking(String bookingId);
 }

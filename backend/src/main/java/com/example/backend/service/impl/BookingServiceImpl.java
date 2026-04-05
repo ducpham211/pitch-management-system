@@ -40,6 +40,7 @@ public class BookingServiceImpl implements BookingService {
     private final PaymentMapper paymentMapper;
     private final PaymentRepository paymentRepository;
     private final NotificationService notificationService;
+
     @Override
     @Transactional
     public BookingResponse createBooking(String userId, BookingCreateRequest request) {
@@ -135,30 +136,24 @@ public class BookingServiceImpl implements BookingService {
         bookingRepository.save(booking);
 
         if(remainingAmount > 0){
-            // BƯỚC 1: Khởi tạo DTO Request
             PaymentCreateRequest paymentRequest = new PaymentCreateRequest();
             paymentRequest.setAmount(BigDecimal.valueOf(remainingAmount));
             paymentRequest.setPaymentMethod(method);
-            // paymentRequest.setTransactionId(null); // Không bắt buộc nếu mặc định là null
 
-            // BƯỚC 2: Dùng Mapper chuyển DTO thành Entity
             Payment restOfAmount = paymentMapper.createPaymentEntity(paymentRequest);
-
-            // Lưu ý: MapStruct thường không tự map được Object 'Booking' từ DTO.
-            // Ta nên gán thủ công quan hệ (Relationship) ở đây để Hibernate hiểu.
             restOfAmount.setBookingId(booking.getId());
-            restOfAmount.setCreatedAt(LocalDateTime.now()); // Set thời gian thanh toán (nếu DB yêu cầu)
+            restOfAmount.setCreatedAt(LocalDateTime.now());
 
             paymentRepository.save(restOfAmount);
 
-            log.info("==== KẾ TOÁN ==== Đã thu thêm {} VND qua hình thức {} cho đơn {}",
-                    remainingAmount, method, bookingId);
+            log.info("==== KẾ TOÁN ==== Đã thu thêm {} VND qua hình thức {} cho đơn {}", remainingAmount, method, bookingId);
         }
 
         log.info("==== CHỦ SÂN ==== Đã Check-out đơn: {}. Thu thêm: {} VND", bookingId, remainingAmount);
 
         return "Check-out thành công. Khách cần thanh toán thêm: " + remainingAmount + " VND";
     }
+
     @Transactional
     public void markAsNoShow(String bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
@@ -185,5 +180,57 @@ public class BookingServiceImpl implements BookingService {
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
         List<Booking> result =  bookingRepository.findByUserId(userId);
         return result.stream().map(booking->bookingMapper.toResponse(booking, null)).toList();
+    }
+
+    // ====================================================================================
+    // HÀM MỚI: Xử lý khi Chủ Sân bấm "Thu Nốt Tiền" trên giao diện Web
+    // ====================================================================================
+    @Override
+    @Transactional
+    public void completeBooking(String bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn đặt sân"));
+
+        if (booking.getStatus() != Enums.BookingStatus.DEPOSIT_PAID) {
+            throw new RuntimeException("Đơn đặt sân chưa đặt cọc hoặc đã được xử lý!");
+        }
+
+        // 1. Cập nhật trạng thái Booking thành COMPLETED
+        booking.setStatus(Enums.BookingStatus.COMPLETED);
+        bookingRepository.save(booking);
+
+        // 2. Kế toán: Lưu dòng tiền phần còn lại (Chủ sân thu tiền mặt / chuyển khoản ngoài)
+        long totalAmount = booking.getTotalAmount() != null ? booking.getTotalAmount().longValue() : 0;
+        long depositAmount = booking.getDepositAmount() != null ? booking.getDepositAmount().longValue() : 0;
+        long remainingAmount = totalAmount - depositAmount;
+
+        if (remainingAmount > 0) {
+            try {
+                PaymentCreateRequest paymentRequest = new PaymentCreateRequest();
+                paymentRequest.setAmount(BigDecimal.valueOf(remainingAmount));
+                
+                Payment restOfAmount = paymentMapper.createPaymentEntity(paymentRequest);
+                restOfAmount.setBookingId(booking.getId());
+                restOfAmount.setUserId(booking.getUserId());
+                restOfAmount.setStatus(Enums.PaymentStatus.SUCCESS);
+                restOfAmount.setCreatedAt(LocalDateTime.now());
+                paymentRepository.save(restOfAmount);
+                log.info("==== KẾ TOÁN ==== Đã thu thêm tiền ngoài {} VND cho đơn {}", remainingAmount, bookingId);
+            } catch (Exception e) {
+                log.error("Lỗi khi lưu lịch sử thu tiền: ", e);
+            }
+        }
+
+        // 3. Gửi thông báo cho người đặt sân
+        try {
+            NotificationCreateRequest notif = new NotificationCreateRequest();
+            notif.setTitle("✅ Ca đá đã hoàn tất!");
+            String shortId = bookingId.length() >= 6 ? bookingId.substring(0, 6).toUpperCase() : bookingId;
+            notif.setContent("Chủ sân đã xác nhận thu đủ tiền và hoàn tất ca đá mã " + shortId + " của bạn. Cảm ơn bạn!");
+            notif.setType(Enums.NotificationType.SYSTEM);
+            notificationService.createAndSendNotification(booking.getUserId(), notif);
+        } catch (Exception e) {
+            log.error("Lỗi khi gửi thông báo hoàn tất đơn: ", e);
+        }
     }
 }

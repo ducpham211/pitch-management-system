@@ -17,7 +17,7 @@ const BookingsTab = ({ bookings, pitches, isLoadingBookings, handleCheckIn, hand
   const getBookingStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING': return <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">Chờ thanh toán</span>;
-      case 'DEPOSIT_PAID': return <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">Đã nhận cọc (Chờ đá)</span>;
+      case 'DEPOSIT_PAID': return <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">Đã nhận cọc</span>;
       case 'COMPLETED': return <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">Hoàn thành</span>;
       case 'CANCELLED': return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold">Bùng kèo / Hủy</span>;
       default: return <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
@@ -63,6 +63,9 @@ const BookingsTab = ({ bookings, pitches, isLoadingBookings, handleCheckIn, hand
           {filteredBookings.map((bk) => {
             const pitchName = pitches.find(p => p.id === bk.fieldId)?.name || bk.fieldId || 'Không xác định';
             const bookingIdToDisplay = bk.id || bk.bookingId || 'N/A';
+            const total = bk.totalAmount || 0;
+            const deposit = bk.depositAmount || 0;
+            const remaining = total - deposit;
             
             return (
             <div key={bookingIdToDisplay} className="p-5 border border-gray-100 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center hover:shadow-sm transition gap-4">
@@ -83,25 +86,43 @@ const BookingsTab = ({ bookings, pitches, isLoadingBookings, handleCheckIn, hand
               
               <div className="flex flex-col items-end w-full md:w-auto mt-4 md:mt-0">
                 <div className="text-right mb-4 bg-blue-50 p-3 rounded-lg border border-blue-100 w-full md:w-auto">
-                   <p className="text-sm text-gray-600">Tổng tiền: <span className="font-bold text-gray-800 text-base">{bk.totalAmount ? bk.totalAmount.toLocaleString('vi-VN') : 0}đ</span></p>
-                   <p className="text-sm text-gray-600 mt-1">Đã cọc: <span className="font-bold text-green-600 text-base">{bk.depositAmount ? bk.depositAmount.toLocaleString('vi-VN') : 0}đ</span></p>
+                   <p className="text-sm text-gray-600">Tổng tiền: <span className="font-bold text-gray-800 text-base">{total.toLocaleString('vi-VN')}đ</span></p>
+                   <p className="text-sm text-gray-600 mt-1">Đã cọc: <span className="font-bold text-green-600 text-base">{deposit.toLocaleString('vi-VN')}đ</span></p>
+                   {remaining > 0 && bk.status === 'DEPOSIT_PAID' && (
+                     <p className="text-sm text-gray-600 mt-1 pt-1 border-t border-blue-200">
+                       Cần thu nốt: <span className="font-bold text-red-600 text-lg">{remaining.toLocaleString('vi-VN')}đ</span>
+                     </p>
+                   )}
                 </div>
 
                 {bk.status === 'DEPOSIT_PAID' && (
-                  <div className="flex gap-2 w-full md:w-auto">
-                    <Button variant="primary" className="!bg-green-600 flex-1 md:flex-none px-4 py-2 flex items-center justify-center gap-2 text-sm" onClick={() => handleCheckIn(bookingIdToDisplay)}>
-                      <FaCheck /> Nhận Sân
+                  <div className="flex flex-col gap-2 w-full md:w-auto">
+                    <Button variant="secondary" className="!bg-blue-600 text-white w-full px-4 py-2 flex items-center justify-center gap-2 text-sm" onClick={() => handleCheckOut(bookingIdToDisplay)}>
+                      <FaMoneyBillWave /> Thu nốt tiền (Check-out)
                     </Button>
-                    <Button variant="danger" className="flex-1 md:flex-none px-4 py-2 flex items-center justify-center gap-2 text-sm" onClick={() => handleNoShow(bookingIdToDisplay)}>
-                      <FaTimes /> Bùng Kèo
-                    </Button>
+                    <div className="flex gap-2 w-full md:w-auto">
+                      <Button variant="primary" className="!bg-green-600 flex-1 md:flex-none px-4 py-2 flex items-center justify-center gap-2 text-sm" onClick={() => handleCheckIn(bookingIdToDisplay)}>
+                        <FaCheck /> Nhận Sân
+                      </Button>
+                      <Button variant="danger" className="flex-1 md:flex-none px-4 py-2 flex items-center justify-center gap-2 text-sm" onClick={() => handleNoShow(bookingIdToDisplay)}>
+                        <FaTimes /> Bùng Kèo
+                      </Button>
+                    </div>
                   </div>
                 )}
 
                 {bk.status === 'COMPLETED' && (
-                   <Button variant="secondary" className="!bg-blue-600 text-white w-full md:w-auto px-4 py-2 flex items-center justify-center gap-2 text-sm" onClick={() => handleCheckOut(bookingIdToDisplay)}>
-                      <FaMoneyBillWave /> Thu nốt tiền
-                   </Button>
+                  <div className="text-green-600 flex flex-col items-end">
+                    <FaCheck className="text-3xl mb-1" />
+                    <span className="font-bold text-sm">Đã Hoàn Thành</span>
+                  </div>
+                )}
+
+                {bk.status === 'CANCELLED' && (
+                  <div className="text-red-600 flex flex-col items-end">
+                    <FaTimes className="text-3xl mb-1" />
+                    <span className="font-bold text-sm">Đã Hủy Cọc</span>
+                  </div>
                 )}
 
               </div>

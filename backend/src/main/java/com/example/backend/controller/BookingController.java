@@ -66,4 +66,10 @@ public class BookingController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+    // Nút "Thu nốt tiền": Chủ sân xác nhận thu tiền và hoàn tất đơn
+    @PutMapping("/{id}/complete")
+    public ResponseEntity<String> completeBooking(@PathVariable String id) {
+        bookingService.completeBooking(id);
+        return ResponseEntity.ok("Xác nhận thu nốt tiền và hoàn thành đơn thành công!");
+    }
 }
