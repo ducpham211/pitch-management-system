@@ -4,6 +4,7 @@ import com.example.backend.dto.aiChatBot.request.ChatCreateRequest;
 import com.example.backend.dto.aiChatBot.response.ChatResponse;
 import com.example.backend.dto.aiOpponentRecommendation.AiOpponentDto;
 import com.example.backend.dto.aiOpponentRecommendation.AiRecommendationResult;
+import com.example.backend.repository.redis.ChatSessionRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -16,11 +17,16 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import com.example.backend.entity.redis.ChatSession;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+
 public class GroqAiService {
 
     @Value("${groq.api.key}")
@@ -34,6 +40,7 @@ public class GroqAiService {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper; // Dùng để bóc tách JSON
+    private final ChatSessionRepository chatSessionRepository; // Khai báo Repository Redis
 
     // Record tĩnh để lưu kết quả phân tích
     public record AiAnalysisResult(boolean isToxic, int penaltyScore, String aiReason) {
@@ -165,54 +172,69 @@ public class GroqAiService {
     }
     public ChatResponse askChatbot(ChatCreateRequest request) {
         try {
-            // 1. Định nghĩa Tri thức Hệ thống (System Context)
-            String systemContext = "Bạn là trợ lý ảo hỗ trợ khách hàng của Hệ thống Quản lý Sân bóng PitchSyn. " +
-                    "Nhiệm vụ của bạn là giải đáp thắc mắc dựa trên các thông tin sau: " +
-                    "- Hệ thống có 3 loại sân chính: Sân 5 người, Sân 7 người và Sân 11 người. " +
-                    "- Cách tính điểm trust_score" +
-                    "- Quy trình thanh toán tiền sân" +
-                    "- Quy trình tìm kiếm đối thủ hoặc cầu đá thuê" +
-                    "- Khung giờ hoạt động: Từ 06:00 đến 23:30 hàng ngày. " +
-                    "- Chính sách hủy sân: Hủy trước 24 giờ được hoàn 100% tiền cọc. Hủy trước 12 giờ hoàn 50%. Hủy sát giờ không được hoàn tiền. " +
-                    "- Dịch vụ đi kèm: Miễn phí trà đá, nước và áo bíp. " +
-                    "- Địa chỉ các sân cơ bản: Sân Mỹ Đình nằm ở Nam Từ Liêm, Sân Bách Khoa nằm ở Hai Bà Trưng, Sân Dĩ An nằm ở Bình Dương. " +
-                    "Yêu cầu giao tiếp: Trả lời ngắn gọn, lịch sự, chuyên nghiệp. Không tự bịa đặt thông tin ngoài tài liệu được cung cấp.";
+            // 1. Quản lý Mã định danh Phiên làm việc
+            String currentSessionId = request.getSessionId();
+            if (currentSessionId == null || currentSessionId.trim().isEmpty()) {
+                currentSessionId = UUID.randomUUID().toString();
+            }
 
-            // 2. Xây dựng cấu trúc JSON Payload sử dụng Jackson ObjectNode để tránh lỗi escape chuỗi
+            // 2. Truy xuất hoặc Khởi tạo Phiên hội thoại từ Redis
+          ChatSession session = chatSessionRepository.findById(currentSessionId)
+                    .orElse(new ChatSession(currentSessionId, new ArrayList<>()));
+
+            // Nếu là phiên hoàn toàn mới, đính kèm tri thức hệ thống vào vị trí đầu tiên
+            if (session.getMessages().isEmpty()) {
+                String systemContext = "Bạn là trợ lý ảo hỗ trợ khách hàng của Hệ thống Quản lý Sân bóng PitchSyn. " +
+                        "Nhiệm vụ của bạn là giải đáp thắc mắc dựa trên các thông tin sau: " +
+                        "- Hệ thống có 3 loại sân chính: Sân 5 người, Sân 7 người và Sân 11 người. " +
+                        "- Cách tính điểm trust_score" +
+                        "- Quy trình thanh toán tiền sân" +
+                        "- Quy trình tìm kiếm đối thủ hoặc cầu đá thuê" +
+                        "- Khung giờ hoạt động: Từ 06:00 đến 23:30 hàng ngày. " +
+                        "- Chính sách hủy sân: Hủy trước 24 giờ được hoàn 100% tiền cọc. Hủy trước 12 giờ hoàn 50%. Hủy sát giờ không được hoàn tiền. " +
+                        "- Dịch vụ đi kèm: Miễn phí trà đá, nước và áo bíp. " +
+                        "- Địa chỉ các sân cơ bản: Sân Mỹ Đình nằm ở Nam Từ Liêm, Sân Bách Khoa nằm ở Hai Bà Trưng, Sân Dĩ An nằm ở Bình Dương. " +
+                        "Yêu cầu giao tiếp: Trả lời ngắn gọn, lịch sự, chuyên nghiệp. Không tự bịa đặt thông tin ngoài tài liệu được cung cấp.";
+                session.getMessages().add(new ChatSession.MessageNode("system", systemContext));
+            }
+
+            // 3. Cập nhật thông điệp mới của người dùng vào mảng lịch sử
+            session.getMessages().add(new ChatSession.MessageNode("user", request.getMessage()));
+
+            // 4. Xây dựng Payload truyền tải
             ObjectNode requestBodyNode = objectMapper.createObjectNode();
             requestBodyNode.put("model", model);
-
             ArrayNode messagesArray = requestBodyNode.putArray("messages");
 
-            ObjectNode systemMessage = messagesArray.addObject();
-            systemMessage.put("role", "system");
-            systemMessage.put("content", systemContext);
-
-            ObjectNode userMessage = messagesArray.addObject();
-            userMessage.put("role", "user");
-            userMessage.put("content", request.getMessage());
-
-            requestBodyNode.put("temperature", 0.5); // Độ sáng tạo trung bình
+            // Đưa toàn bộ lịch sử hội thoại vào Payload gửi lên Groq
+            for (ChatSession.MessageNode msg : session.getMessages()) {
+                ObjectNode msgNode = messagesArray.addObject();
+                msgNode.put("role", msg.getRole());
+                msgNode.put("content", msg.getContent());
+            }
+            requestBodyNode.put("temperature", 0.5);
 
             String requestBody = objectMapper.writeValueAsString(requestBodyNode);
 
-            // 3. Thiết lập Header và gọi API
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(apiKey);
             HttpEntity<String> requestEntity = new HttpEntity<>(requestBody, headers);
 
+            // 5. Gửi yêu cầu và tiếp nhận phản hồi
             String response = restTemplate.postForObject(apiUrl, requestEntity, String.class);
-
-            // 4. Trích xuất câu trả lời từ Groq
             JsonNode rootNode = objectMapper.readTree(response);
             String aiReply = rootNode.path("choices").get(0).path("message").path("content").asText();
 
-            return new ChatResponse(aiReply);
+            // 6. Lưu trữ thông điệp của hệ thống vào mảng và cập nhật Redis
+            session.getMessages().add(new com.example.backend.entity.redis.ChatSession.MessageNode("assistant", aiReply));
+            chatSessionRepository.save(session);
+
+            return new ChatResponse(aiReply, currentSessionId);
 
         } catch (Exception e) {
             log.error("Lỗi hệ thống khi xử lý Chatbot: ", e);
-            return new ChatResponse("Hệ thống trợ lý ảo đang bảo trì hoặc gặp sự cố kết nối. Vui lòng thử lại sau.");
+            return new ChatResponse("Hệ thống trợ lý ảo đang bảo trì. Vui lòng thử lại sau.", null);
         }
     }
 }

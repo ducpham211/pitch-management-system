@@ -17,7 +17,7 @@ public class ChatController {
     @PostMapping("/ask")
     public ResponseEntity<ChatResponse> askChatbot(@RequestBody ChatCreateRequest request) {
         if (request.getMessage() == null || request.getMessage().trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(new ChatResponse("Nội dung tin nhắn không hợp lệ."));
+            return ResponseEntity.badRequest().body(new ChatResponse("Nội dung tin nhắn không hợp lệ.", null));
         }
 
         ChatResponse response = groqAiService.askChatbot(request);
