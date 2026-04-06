@@ -2,6 +2,7 @@ package com.example.backend.controller;
 
 import com.example.backend.dto.request.MatchPostCreateRequest;
 import com.example.backend.dto.response.MatchPostResponse;
+import com.example.backend.dto.response.RecommendedMatchResponse;
 import com.example.backend.entity.Enums;
 import com.example.backend.service.MatchPostService;
 import lombok.Getter;
@@ -9,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/match-posts")
@@ -41,5 +44,18 @@ public class MatchPostController {
         String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
         matchPostService.deleteMatchPost(postId, currentUserId);
         return ResponseEntity.noContent().build();
+    }
+    @GetMapping("/recommendations")
+    public ResponseEntity<List<RecommendedMatchResponse>> getSmartRecommendations(
+            // Lấy tham số playstyle từ trên URL (VD: ?playstyle=đá vui vẻ)
+            @RequestParam String playstyle) {
+
+        // 👉 Tuyệt chiêu bảo mật: Tự động trích xuất ID người dùng từ JWT Token
+        String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        // Gọi Service nhờ AI phán xử
+        List<RecommendedMatchResponse> recommendations = matchPostService.getSmartRecommendations(currentUserId, playstyle);
+
+        return ResponseEntity.ok(recommendations);
     }
 }
