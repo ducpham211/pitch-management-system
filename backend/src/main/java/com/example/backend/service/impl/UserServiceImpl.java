@@ -3,7 +3,7 @@ package com.example.backend.service.impl;
 import com.example.backend.dto.request.NotificationCreateRequest;
 import com.example.backend.dto.request.UserCreateRequest;
 import com.example.backend.dto.response.UserResponse;
-import com.example.backend.entity.Enums;
+import com.example.backend.utils.Enums;
 import com.example.backend.entity.User;
 import com.example.backend.mapper.UserMapper;
 import com.example.backend.repository.UserRepository;

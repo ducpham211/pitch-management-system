@@ -1,12 +1,10 @@
 package com.example.backend.dto.request;
 
-import com.example.backend.entity.Enums;
+import com.example.backend.utils.Enums;
 import lombok.Data;
-import org.antlr.v4.runtime.misc.NotNull;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 
 @Data
 public class MatchPostCreateRequest {

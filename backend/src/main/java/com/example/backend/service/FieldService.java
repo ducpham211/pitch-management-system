@@ -8,9 +8,7 @@ import com.example.backend.dto.response.FieldDetailResponse;
 import com.example.backend.dto.response.FieldResponse;
 import com.example.backend.dto.response.TimeSlotAvailabilityResponse;
 import com.example.backend.dto.response.TimeSlotResponse;
-import com.example.backend.entity.Enums;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
+import com.example.backend.utils.Enums;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

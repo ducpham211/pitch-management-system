@@ -3,8 +3,7 @@ package com.example.backend.service;
 
 import com.example.backend.dto.request.BookingCreateRequest;
 import com.example.backend.dto.response.BookingResponse;
-import com.example.backend.entity.Booking;
-import com.example.backend.entity.Enums;
+import com.example.backend.utils.Enums;
 
 import java.util.List;
 

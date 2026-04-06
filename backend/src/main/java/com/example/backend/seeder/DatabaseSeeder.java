@@ -2,6 +2,7 @@ package com.example.backend.seeder;
 
 import com.example.backend.entity.*;
 import com.example.backend.repository.*;
+import com.example.backend.utils.Enums;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;

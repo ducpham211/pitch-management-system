@@ -3,7 +3,7 @@ package com.example.backend.service.impl;
 
 import com.example.backend.dto.request.ReviewCreateRequest;
 import com.example.backend.dto.response.ReviewResponse;
-import com.example.backend.entity.Enums;
+import com.example.backend.utils.Enums;
 import com.example.backend.entity.Review;
 import com.example.backend.mapper.ReviewMapper;
 import com.example.backend.repository.ReviewRepository;

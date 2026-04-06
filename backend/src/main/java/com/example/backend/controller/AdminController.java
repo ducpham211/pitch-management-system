@@ -4,7 +4,7 @@ import com.example.backend.dto.request.AdminCreateRequest;
 import com.example.backend.dto.response.DashboardOverviewResponse;
 import com.example.backend.dto.response.DashboardTransactionResponse;
 import com.example.backend.dto.response.FieldResponse;
-import com.example.backend.entity.Enums;
+import com.example.backend.utils.Enums;
 import com.example.backend.entity.Review;
 import com.example.backend.entity.User;
 import com.example.backend.repository.ReviewRepository;

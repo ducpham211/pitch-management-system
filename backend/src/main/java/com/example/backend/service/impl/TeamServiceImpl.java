@@ -3,7 +3,7 @@ package com.example.backend.service.impl;
 import com.example.backend.dto.request.NotificationCreateRequest;
 import com.example.backend.dto.request.TeamCreateRequest;
 import com.example.backend.dto.response.TeamResponse;
-import com.example.backend.entity.Enums;
+import com.example.backend.utils.Enums;
 import com.example.backend.entity.Team;
 import com.example.backend.mapper.TeamMapper;
 import com.example.backend.repository.TeamRepository;
@@ -23,7 +23,7 @@ public class TeamServiceImpl implements TeamService {
         Team team = teamMapper.toEntity(request);
         team = teamRepository.save(team);
         NotificationCreateRequest notifRequest = new NotificationCreateRequest();
-        notifRequest.setTitle("🎉 Đặt sân thành công (Chờ thanh toán)!");
+        notifRequest.setTitle("🎉 Tạo đội bóng thành công");
         String content = "Bạn đã tạo thành công đội bóng "+team.getName();
         notifRequest.setContent(content);
         notifRequest.setType(Enums.NotificationType.BOOKING_UPDATE);

@@ -2,7 +2,7 @@ package com.example.backend.controller;
 
 import com.example.backend.dto.request.BookingCreateRequest;
 import com.example.backend.dto.response.BookingResponse;
-import com.example.backend.entity.Enums;
+import com.example.backend.utils.Enums;
 import com.example.backend.service.BookingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,7 +17,6 @@ import java.util.List;
 @RequestMapping("/api/bookings")
 @RequiredArgsConstructor
 public class BookingController {
-
     private final BookingService bookingService;
     @GetMapping
     public ResponseEntity<List<BookingResponse>> getBookings(@AuthenticationPrincipal String userId){

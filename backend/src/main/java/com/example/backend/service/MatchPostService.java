@@ -3,7 +3,7 @@ package com.example.backend.service;
 import com.example.backend.dto.request.MatchPostCreateRequest;
 import com.example.backend.dto.response.MatchPostResponse;
 import com.example.backend.dto.response.RecommendedMatchResponse;
-import com.example.backend.entity.Enums;
+import com.example.backend.utils.Enums;
 
 import java.util.List;
 

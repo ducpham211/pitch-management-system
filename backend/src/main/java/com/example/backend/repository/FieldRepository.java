@@ -1,6 +1,7 @@
 package com.example.backend.repository;
 
 import com.example.backend.entity.Field;
+import com.example.backend.utils.Enums;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -16,7 +17,7 @@ public interface FieldRepository extends JpaRepository<Field, String> {
            "(:#{#type == null ? 1 : 0} = 1 OR f.type = :type) AND " +
            "(:#{#minPrice == null ? 1 : 0} = 1 OR ts.price >= :minPrice) AND " +
            "(:#{#maxPrice == null ? 1 : 0} = 1 OR ts.price <= :maxPrice)")
-    List<Field> findFieldsWithFilters(@Param("type") com.example.backend.entity.Enums.FieldType type,
+    List<Field> findFieldsWithFilters(@Param("type") Enums.FieldType type,
                                       @Param("minPrice") BigDecimal minPrice,
                                       @Param("maxPrice") BigDecimal maxPrice);
 }

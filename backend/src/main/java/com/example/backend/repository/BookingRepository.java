@@ -1,8 +1,7 @@
 package com.example.backend.repository;
 
-import com.example.backend.dto.response.BookingResponse;
 import com.example.backend.entity.Booking;
-import com.example.backend.entity.Enums;
+import com.example.backend.utils.Enums;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;

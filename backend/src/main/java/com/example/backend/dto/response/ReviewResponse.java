@@ -1,7 +1,7 @@
 // dto/response/ReviewResponse.java
 package com.example.backend.dto.response;
 
-import com.example.backend.entity.Enums.ReviewStatus;
+import com.example.backend.utils.Enums.ReviewStatus;
 import lombok.Data;
 import java.time.LocalDateTime;
 

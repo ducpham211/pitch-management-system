@@ -6,7 +6,7 @@ import com.example.backend.dto.response.FieldResponse;
 import com.example.backend.dto.response.TimeSlotAvailabilityResponse;
 import com.example.backend.dto.response.TimeSlotResponse;
 import com.example.backend.entity.Booking;
-import com.example.backend.entity.Enums;
+import com.example.backend.utils.Enums;
 import com.example.backend.entity.Field;
 import com.example.backend.mapper.FieldMapper;
 import com.example.backend.mapper.TimeSlotMapper;
@@ -19,14 +19,12 @@ import com.example.backend.dto.request.TimeSlotCreateRequest;
 import com.example.backend.dto.request.TimeSlotUpdateRequest;
 import com.example.backend.entity.TimeSlot;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 @Service

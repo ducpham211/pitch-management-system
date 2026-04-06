@@ -1,4 +1,4 @@
-package com.example.backend.entity;
+package com.example.backend.utils;
 
 public class Enums {
     public enum UserRole { PLAYER, OWNER, ADMIN }
