@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FaPaperPlane, FaUserCircle, FaCheck, FaCheckDouble } from 'react-icons/fa';
+import { FaPaperPlane, FaUserCircle, FaCheck, FaCheckDouble, FaRobot } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import SockJS from 'sockjs-client';
@@ -13,9 +13,14 @@ const Chat = () => {
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [isPartnerTyping, setIsPartnerTyping] = useState(false);
   
+  const [botMessages, setBotMessages] = useState<any[]>([
+    { id: 'init-bot', content: 'Xin chào! Tôi là trợ lý AI. Bạn cần hỗ trợ gì?', senderId: 'bot', createdAt: new Date().toISOString() }
+  ]);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stompClientRef = useRef<Client | null>(null);
-const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);  const navigate = useNavigate();
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);  
+  const navigate = useNavigate();
 
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
   const SOCKET_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws';
@@ -42,20 +47,34 @@ const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);  co
         const config = { headers: { Authorization: `Bearer ${token}` } };
         const res = await axios.get(`${API_URL}/conversations`, config);
         const convs = res.data.content || res.data || [];
-        setConversations(convs);
+        
+        const botConversation = { id: 'bot', partnerName: 'Trợ lý AI (Bot)', lastMessage: 'Tôi có thể giúp gì cho bạn?', isBot: true, updatedAt: new Date() };
+        setConversations([botConversation, ...convs]);
+        
         if (convs.length > 0 && !activeConv) {
           setActiveConv(convs[0].id);
+        } else if (!activeConv) {
+          setActiveConv('bot');
         }
       } catch (err) {
         console.error(err);
+        const botConversation = { id: 'bot', partnerName: 'Trợ lý AI (Bot)', lastMessage: 'Tôi có thể giúp gì cho bạn?', isBot: true, updatedAt: new Date() };
+        setConversations([botConversation]);
+        if (!activeConv) setActiveConv('bot');
       }
     };
     fetchConversations();
   }, [API_URL, activeConv]);
 
   useEffect(() => {
+    if (activeConv === 'bot') {
+      setMessages(botMessages);
+    }
+  }, [botMessages, activeConv]);
+
+  useEffect(() => {
     const fetchMessages = async () => {
-      if (!activeConv) return;
+      if (!activeConv || activeConv === 'bot') return;
       try {
         const token = localStorage.getItem('accessToken');
         const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -69,7 +88,7 @@ const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);  co
   }, [activeConv, API_URL]);
 
   useEffect(() => {
-    if (!activeConv) return;
+    if (!activeConv || activeConv === 'bot') return;
 
     const client = new Client({
       webSocketFactory: () => new SockJS(SOCKET_URL),
@@ -98,7 +117,6 @@ const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);  co
             return [...prev, newMsg];
             });
 
-            // Update sidebar last message visually
             setConversations(prevConvs => prevConvs.map(c => 
                 c.id === activeConv ? { ...c, lastMessage: newMsg.content || newMsg.text, updatedAt: new Date() } : c
             ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
@@ -121,12 +139,12 @@ const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);  co
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessageText(e.target.value);
+    if (activeConv === 'bot') return;
     if (stompClientRef.current?.active && activeConv) {
         stompClientRef.current.publish({
             destination: `/app/chat/${activeConv}/typing`,
             body: JSON.stringify({ type: 'TYPING', senderId: currentUserId })
         });
-        // Fallback for simple broadcast if backend doesn't have /app mapping handled specifically
         stompClientRef.current.publish({
             destination: `/topic/conversations/${activeConv}`,
             body: JSON.stringify({ type: 'TYPING', senderId: currentUserId })
@@ -137,6 +155,34 @@ const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);  co
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageText.trim() || !activeConv) return;
+
+    if (activeConv === 'bot') {
+        const newUserMsg = { id: Date.now().toString(), content: messageText, senderId: currentUserId, createdAt: new Date().toISOString() };
+        setBotMessages(prev => [...prev, newUserMsg]);
+        const currentMessage = messageText;
+        setMessageText('');
+        setIsPartnerTyping(true);
+
+        try {
+            const token = localStorage.getItem('accessToken');
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+            const payload = { message: currentMessage, sessionId: currentUserId };
+            const res = await axios.post(`${API_URL}/chat/ask`, payload, config);
+            const botMsg = { id: Date.now().toString() + 'bot', content: res.data.reply, senderId: 'bot', createdAt: new Date().toISOString() };
+            
+            setBotMessages(prev => [...prev, botMsg]);
+            setConversations(prevConvs => prevConvs.map(c => 
+                c.id === 'bot' ? { ...c, lastMessage: res.data.reply, updatedAt: new Date() } : c
+            ));
+        } catch (err) {
+            console.error(err);
+            const errorMsg = { id: Date.now().toString() + 'bot', content: 'Xin lỗi, tôi đang gặp sự cố kết nối. Vui lòng thử lại sau.', senderId: 'bot', createdAt: new Date().toISOString() };
+            setBotMessages(prev => [...prev, errorMsg]);
+        } finally {
+            setIsPartnerTyping(false);
+        }
+        return;
+    }
 
     try {
       const token = localStorage.getItem('accessToken');
@@ -186,8 +232,8 @@ const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);  co
                   className={`p-4 border-b border-gray-100 cursor-pointer transition-colors ${activeConv === conv.id ? 'bg-green-50 border-l-4 border-l-green-500' : 'hover:bg-gray-100'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center font-bold text-gray-600">
-                      {getPartnerName(conv).charAt(0).toUpperCase()}
+                    <div className={`w-12 h-12 ${conv.isBot ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'} rounded-full flex items-center justify-center font-bold`}>
+                      {conv.isBot ? <FaRobot size={24} /> : getPartnerName(conv).charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline">
@@ -207,7 +253,7 @@ const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);  co
             <>
               <div className="p-4 border-b border-gray-100 bg-white flex items-center justify-between shadow-sm z-10">
                 <div className="flex items-center gap-3">
-                  <FaUserCircle className="text-4xl text-gray-400" />
+                  {activeConv === 'bot' ? <FaRobot className="text-4xl text-blue-500" /> : <FaUserCircle className="text-4xl text-gray-400" />}
                   <div>
                     <h3 className="font-bold text-gray-800">
                       {getPartnerName(conversations.find(c => c.id === activeConv) || {})}
@@ -227,7 +273,7 @@ const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);  co
                     return (
                       <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${isMine ? 'bg-green-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'}`}>
-                          <p>{msg.content || msg.text}</p>
+                          <p className="whitespace-pre-wrap">{msg.content || msg.text}</p>
                           <div className={`flex items-center justify-end gap-1 mt-1 ${isMine ? 'text-green-100' : 'text-gray-400'}`}>
                             <span className="text-[10px]">{formatTime(msg.createdAt || msg.timestamp)}</span>
                             {isMine && (

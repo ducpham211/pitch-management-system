@@ -15,6 +15,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import PaymentSuccess from './pages/payment/PaymentSuccess';
 import PaymentCancel from './pages/payment/PaymentCancel';
 import { AuthProvider } from './context/AuthContext';
+import FloatingChatbot from './components/common/FloatingChatbot';
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
             </Routes>
           </main>
           <Footer />
+          <FloatingChatbot />
         </div>
       </AuthProvider>
     </Router>
