@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FaTimes } from 'react-icons/fa';
 import Button from '../common/Button';
+import axiosClient from '../../api/axiosClient';
 
 type CreateMatchModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (postData: any) => void;
+  fields: any[];
 };
 
-const CreateMatchModal = ({ isOpen, onClose, onSubmit }: CreateMatchModalProps) => {
+const CreateMatchModal = ({ isOpen, onClose, onSubmit, fields }: CreateMatchModalProps) => {
   const [newPost, setNewPost] = useState({
     message: '', 
     date: '', 
@@ -16,13 +18,100 @@ const CreateMatchModal = ({ isOpen, onClose, onSubmit }: CreateMatchModalProps) 
     timeEndStr: '19:30',   
     skillLevel: 'BEGINNER', 
     costSharing: '50-50',
-    postType: 'FIND_OPPONENT' 
+    postType: 'FIND_OPPONENT',
+    fieldId: ''
   });
+
+  const [availableSlots, setAvailableSlots] = useState<any[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+
+  const standardSlots = [
+    { start: '06:00', end: '07:30' },
+    { start: '07:30', end: '09:00' },
+    { start: '09:00', end: '10:30' },
+    { start: '10:30', end: '12:00' },
+    { start: '12:00', end: '13:30' },
+    { start: '13:30', end: '15:00' },
+    { start: '15:00', end: '16:30' },
+    { start: '16:30', end: '18:00' },
+    { start: '18:00', end: '19:30' },
+    { start: '19:30', end: '21:00' },
+    { start: '21:00', end: '22:30' },
+    { start: '22:00', end: '23:30' }
+  ];
+
+  const extractTime = (dateTime: any) => {
+    if (!dateTime) return '';
+    if (Array.isArray(dateTime)) {
+        const hour = (dateTime[3] || 0).toString().padStart(2, '0');
+        const minute = (dateTime[4] || 0).toString().padStart(2, '0');
+        return `${hour}:${minute}`;
+    }
+    const str = String(dateTime);
+    if (str.includes('T')) return str.split('T')[1].substring(0, 5);
+    if (str.includes(' ')) return str.split(' ')[1].substring(0, 5);
+    if (str.includes(':')) {
+        const parts = str.split(':');
+        return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+    }
+    return str.substring(0, 5);
+  };
+
+  const isSlotAvailable = (s: any) => {
+    if (s.available !== undefined) return s.available === true;
+    if (s.isAvailable !== undefined) return s.isAvailable === true;
+    return s.status === 'AVAILABLE';
+  };
+
+  useEffect(() => {
+    if (newPost.fieldId && newPost.date) {
+      setIsLoadingSlots(true);
+      axiosClient.get(`/fields/${newPost.fieldId}/availability?date=${newPost.date}`)
+        .then(res => {
+          const data = res.data;
+          const slotsArray = Array.isArray(data) ? data : (data.availableTimeSlots || data.timeSlots || []);
+          setAvailableSlots(slotsArray);
+          
+          const availableOnly = slotsArray.filter(isSlotAvailable);
+          
+          if (availableOnly.length > 0) {
+            const firstAvail = availableOnly[0];
+            setNewPost(prev => ({
+              ...prev,
+              timeStartStr: extractTime(firstAvail.startTime),
+              timeEndStr: extractTime(firstAvail.endTime)
+            }));
+          } else {
+            setNewPost(prev => ({ ...prev, timeStartStr: '', timeEndStr: '' }));
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          setAvailableSlots([]);
+          setNewPost(prev => ({ ...prev, timeStartStr: '', timeEndStr: '' }));
+        })
+        .finally(() => setIsLoadingSlots(false));
+    } else {
+      setAvailableSlots([]);
+      if (!newPost.timeStartStr && standardSlots.length > 0) {
+        setNewPost(prev => ({
+          ...prev,
+          timeStartStr: '18:00',
+          timeEndStr: '19:30'
+        }));
+      }
+    }
+  }, [newPost.fieldId, newPost.date]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!newPost.timeStartStr || !newPost.timeEndStr) {
+        alert('Vui lòng chọn khung giờ hợp lệ!');
+        return;
+    }
 
     let finalTimeStart = null;
     let finalTimeEnd = null;
@@ -40,14 +129,50 @@ const CreateMatchModal = ({ isOpen, onClose, onSubmit }: CreateMatchModalProps) 
         skillLevel: newPost.skillLevel,
         costSharing: newPost.costSharing,
         postType: newPost.postType,
+        fieldId: newPost.fieldId || null
     };
 
     onSubmit(formattedPost);
 
     setNewPost({ 
       message: '', date: '', timeStartStr: '18:00', timeEndStr: '19:30', 
-      skillLevel: 'BEGINNER', costSharing: '50-50', postType: 'FIND_OPPONENT' 
+      skillLevel: 'BEGINNER', costSharing: '50-50', postType: 'FIND_OPPONENT', fieldId: '' 
     });
+  };
+
+  const renderTimeOptions = () => {
+    if (newPost.fieldId) {
+      if (!newPost.date) return <option value="">Vui lòng chọn ngày trước</option>;
+      if (isLoadingSlots) return <option value="">Đang tải...</option>;
+      
+      const availableOnly = availableSlots.filter(isSlotAvailable);
+      
+      const uniqueSlots: any[] = [];
+      const seen = new Set();
+      
+      availableOnly.forEach((slot: any) => {
+          const startStr = extractTime(slot.startTime);
+          const endStr = extractTime(slot.endTime);
+          const timeKey = `${startStr}|${endStr}`;
+          
+          if (!seen.has(timeKey)) {
+              seen.add(timeKey);
+              uniqueSlots.push({ ...slot, startStr, endStr, timeKey });
+          }
+      });
+
+      if (uniqueSlots.length === 0) return <option value="">Không có ca trống nào</option>;
+      
+      return uniqueSlots.map((slot: any) => (
+        <option key={slot.id || slot.timeKey} value={slot.timeKey}>
+          {slot.startStr} - {slot.endStr}
+        </option>
+      ));
+    } else {
+      return standardSlots.map(s => (
+        <option key={`${s.start}|${s.end}`} value={`${s.start}|${s.end}`}>{s.start} - {s.end}</option>
+      ));
+    }
   };
 
   return (
@@ -71,21 +196,43 @@ const CreateMatchModal = ({ isOpen, onClose, onSubmit }: CreateMatchModalProps) 
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tiêu đề / Lời nhắn</label>
-            <input required type="text" placeholder="VD: Sân Chảo Lửa, đá vui vẻ..." className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 outline-none" value={newPost.message} onChange={e => setNewPost({...newPost, message: e.target.value})} />
+            <input required type="text" placeholder="VD: Giao lưu nhẹ nhàng, đá vui vẻ..." className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 outline-none" value={newPost.message} onChange={e => setNewPost({...newPost, message: e.target.value})} />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="col-span-1">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Chọn Sân (Không bắt buộc)</label>
+            <select className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 outline-none bg-white" value={newPost.fieldId} onChange={e => setNewPost({...newPost, fieldId: e.target.value})}>
+              <option value="">-- Đá sân tự do / Chưa quyết định --</option>
+              {fields.map(f => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ngày đá</label>
               <input required type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 outline-none text-sm" value={newPost.date} onChange={e => setNewPost({...newPost, date: e.target.value})} />
             </div>
-            <div className="col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Giờ bắt đầu</label>
-              <input required type="time" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 outline-none text-sm" value={newPost.timeStartStr} onChange={e => setNewPost({...newPost, timeStartStr: e.target.value})} />
-            </div>
-            <div className="col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Giờ kết thúc</label>
-              <input required type="time" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 outline-none text-sm" value={newPost.timeEndStr} onChange={e => setNewPost({...newPost, timeEndStr: e.target.value})} />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Khung giờ</label>
+              <select 
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 outline-none text-sm bg-white" 
+                onChange={e => {
+                  const val = e.target.value;
+                  if (!val) {
+                    setNewPost({...newPost, timeStartStr: '', timeEndStr: ''});
+                    return;
+                  }
+                  const [start, end] = val.split('|');
+                  setNewPost({...newPost, timeStartStr: start, timeEndStr: end});
+                }} 
+                value={newPost.timeStartStr && newPost.timeEndStr ? `${newPost.timeStartStr}|${newPost.timeEndStr}` : ""}
+                disabled={!!newPost.fieldId && !newPost.date}
+                required
+              >
+                {renderTimeOptions()}
+              </select>
             </div>
           </div>
 
@@ -110,7 +257,7 @@ const CreateMatchModal = ({ isOpen, onClose, onSubmit }: CreateMatchModalProps) 
           </div>
           <div className="pt-4 flex gap-3">
             <Button type="button" variant="secondary" className="w-full" onClick={onClose}>Hủy</Button>
-            <Button type="submit" variant="primary" className="w-full !bg-green-600 hover:!bg-green-700">Đăng Tin Ngay</Button>
+            <Button type="submit" variant="primary" className="w-full !bg-green-600 hover:!bg-green-700" disabled={isLoadingSlots || (!!newPost.fieldId && availableSlots.filter(isSlotAvailable).length === 0)}>Đăng Tin Ngay</Button>
           </div>
         </form>
       </div>

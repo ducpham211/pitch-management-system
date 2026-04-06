@@ -182,10 +182,16 @@ public class DatabaseSeeder implements CommandLineRunner {
 
         LocalDate today = LocalDate.now();
         LocalTime[] startTimes = {
-                LocalTime.of(16, 0), LocalTime.of(17, 30), LocalTime.of(19, 0), LocalTime.of(20, 30), LocalTime.of(22, 0)
+                LocalTime.of(6, 0), LocalTime.of(7, 30), LocalTime.of(9, 0), 
+                LocalTime.of(10, 30), LocalTime.of(12, 0), LocalTime.of(13, 30),
+                LocalTime.of(15, 0), LocalTime.of(16, 30), LocalTime.of(18, 0), 
+                LocalTime.of(19, 30), LocalTime.of(21, 0), LocalTime.of(22, 0)
         };
         LocalTime[] endTimes = {
-                LocalTime.of(17, 30), LocalTime.of(19, 0), LocalTime.of(20, 30), LocalTime.of(22, 0), LocalTime.of(23, 30)
+                LocalTime.of(7, 30), LocalTime.of(9, 0), LocalTime.of(10, 30), 
+                LocalTime.of(12, 0), LocalTime.of(13, 30), LocalTime.of(15, 0),
+                LocalTime.of(16, 30), LocalTime.of(18, 0), LocalTime.of(19, 30), 
+                LocalTime.of(21, 0), LocalTime.of(22, 30), LocalTime.of(23, 30)
         };
 
         List<TimeSlot> newSlots = new ArrayList<>();
@@ -228,11 +234,17 @@ public class DatabaseSeeder implements CommandLineRunner {
         LocalDate today = LocalDate.now();
 
         LocalTime[] startTimes = {
-                LocalTime.of(16, 0), LocalTime.of(17, 30), LocalTime.of(19, 0), LocalTime.of(20, 30), LocalTime.of(22, 0)
+                LocalTime.of(6, 0), LocalTime.of(7, 30), LocalTime.of(9, 0), 
+                LocalTime.of(10, 30), LocalTime.of(12, 0), LocalTime.of(13, 30),
+                LocalTime.of(15, 0), LocalTime.of(16, 30), LocalTime.of(18, 0), 
+                LocalTime.of(19, 30), LocalTime.of(21, 0), LocalTime.of(22, 0)
         };
 
         LocalTime[] endTimes = {
-                LocalTime.of(17, 30), LocalTime.of(19, 0), LocalTime.of(20, 30), LocalTime.of(22, 0), LocalTime.of(23, 30)
+                LocalTime.of(7, 30), LocalTime.of(9, 0), LocalTime.of(10, 30), 
+                LocalTime.of(12, 0), LocalTime.of(13, 30), LocalTime.of(15, 0),
+                LocalTime.of(16, 30), LocalTime.of(18, 0), LocalTime.of(19, 30), 
+                LocalTime.of(21, 0), LocalTime.of(22, 30), LocalTime.of(23, 30)
         };
 
         for (int day = 0; day < 2; day++) {

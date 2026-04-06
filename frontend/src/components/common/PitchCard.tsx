@@ -11,7 +11,12 @@ type PitchCardProps = {
   onActionClick?: () => void;
 };
 
-const PitchCard = ({ name, location, type, price, coverImage, onActionClick }: PitchCardProps) => {
+const PitchCard = ({ id, name, location, type, price, coverImage, onActionClick }: PitchCardProps) => {
+  const formatId = (pitchId: number | string) => {
+    if (!pitchId) return 'Không xác định';
+    return String(pitchId).substring(0, 6).toUpperCase();
+  };
+
   return (
     <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col">
       {coverImage ? (
@@ -25,6 +30,7 @@ const PitchCard = ({ name, location, type, price, coverImage, onActionClick }: P
         </div>
       )}
       
+      <span className="text-xs text-gray-500 font-bold mb-1 block uppercase">MÃ SÂN: {formatId(id)}</span>
       <h3 className="text-xl font-semibold text-gray-800">{name}</h3>
       <div className="mt-3 flex flex-col gap-2 text-sm text-gray-600 flex-1">
         <p className="flex items-center gap-2">

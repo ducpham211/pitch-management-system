@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MatchCard from '../../components/common/MatchCard';
 import Button from '../../components/common/Button';
-import { FaPlus, FaGlobe, FaListAlt, FaCheckCircle } from 'react-icons/fa';
+import { FaPlus, FaGlobe, FaListAlt, FaCheckCircle, FaClock, FaCalendarAlt } from 'react-icons/fa';
 import CreateMatchModal from '../../components/match/CreateMatchModal';
 import ConfirmApplyModal from '../../components/match/ConfirmApplyModal';
 import axios from 'axios';
@@ -10,6 +10,7 @@ import axios from 'axios';
 const MatchBoard = () => {
   const navigate = useNavigate();
   const [matches, setMatches] = useState<any[]>([]);
+  const [fields, setFields] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<'all' | 'my'>('all');
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -43,8 +44,18 @@ const MatchBoard = () => {
     }
   };
 
+  const fetchFields = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/fields`);
+      setFields(response.data.content || response.data || []);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     fetchMatches();
+    fetchFields();
   }, [API_URL]);
 
   const handleCreatePostSubmit = async (postData: any) => {
@@ -82,6 +93,35 @@ const MatchBoard = () => {
     } catch (error: any) {
       console.error(error);
       alert(error.response?.data?.message || 'Có lỗi xảy ra khi chốt kèo!');
+    }
+  };
+
+  const formatTimeStr = (timeStr: any) => {
+    if (!timeStr) return '';
+    if (Array.isArray(timeStr)) return `${timeStr[0].toString().padStart(2, '0')}:${(timeStr[1] || 0).toString().padStart(2, '0')}`;
+    const str = String(timeStr);
+    if (str.includes('T')) return str.split('T')[1].substring(0, 5);
+    if (str.includes(' ')) return str.split(' ')[1].substring(0, 5);
+    if (str.includes(':')) return str.substring(0, 5);
+    return str;
+  };
+
+  const formatDateStr = (dateStr: any) => {
+    if (!dateStr) return 'Chưa rõ';
+    if (Array.isArray(dateStr)) return `${dateStr[2].toString().padStart(2, '0')}/${dateStr[1].toString().padStart(2, '0')}/${dateStr[0]}`;
+    let str = String(dateStr);
+    if (str.includes('T')) str = str.split('T')[0];
+    else if (str.includes(' ')) str = str.split(' ')[0];
+    const parts = str.split('-');
+    return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : str;
+  };
+
+  const translateSkillLevel = (level: string) => {
+    switch(level) {
+      case 'BEGINNER': return 'Yếu / Vui vẻ';
+      case 'INTERMEDIATE': return 'Trung bình / Khá';
+      case 'ADVANCED': return 'Tốt / Chuyên nghiệp';
+      default: return level || 'Mọi trình độ';
     }
   };
 
@@ -131,6 +171,7 @@ const MatchBoard = () => {
               <MatchCard 
                 key={match.id || index} 
                 match={match} 
+                fieldName={fields.find(f => f.id === match.fieldId)?.name}
                 onApply={() => setApplyingMatch(match)} 
               />
             ))}
@@ -152,9 +193,13 @@ const MatchBoard = () => {
                       {match.status}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600 mb-1">Ngày đá: {match.date ? match.date.split('T')[0] : 'Chưa rõ'}</p>
-                  <p className="text-sm text-gray-600 mb-1">Trình độ: <span className="font-medium text-blue-600">{match.skillLevel}</span></p>
-                  <p className="text-sm text-gray-600">Kiểu chia: <span className="font-medium text-green-600">{match.costSharing}</span></p>
+                  <div className="flex flex-col gap-1.5 mt-3">
+                    <p className="text-sm text-gray-600 flex items-center gap-2"><FaCalendarAlt className="text-red-500"/> Ngày đá: <span className="font-medium text-gray-800">{formatDateStr(match.date)}</span></p>
+                    <p className="text-sm text-gray-600 flex items-center gap-2"><FaClock className="text-orange-500"/> Khung giờ: <span className="font-medium text-gray-800">{formatTimeStr(match.timeStart)} - {formatTimeStr(match.timeEnd)}</span></p>
+                    <p className="text-sm text-gray-600">Trình độ: <span className="font-medium text-blue-600">{translateSkillLevel(match.skillLevel)}</span></p>
+                    <p className="text-sm text-gray-600">Sân: <span className="font-medium text-green-600">{fields.find(f => f.id === match.fieldId)?.name || 'Chưa chọn'}</span></p>
+                    <p className="text-sm text-gray-600">Kiểu chia: <span className="font-medium text-green-600">{match.costSharing}</span></p>
+                  </div>
                 </div>
                 
                 <div className="md:w-2/3">
@@ -199,6 +244,7 @@ const MatchBoard = () => {
         isOpen={isCreateModalOpen} 
         onClose={() => setIsCreateModalOpen(false)} 
         onSubmit={handleCreatePostSubmit} 
+        fields={fields}
       />
 
       <ConfirmApplyModal 

@@ -14,6 +14,27 @@ const PitchDetail = () => {
   const [selectedSlot, setSelectedSlot] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const formatTime = (isoString: any) => {
+    if (!isoString) return '';
+    if (Array.isArray(isoString)) {
+        return `${isoString[0].toString().padStart(2, '0')}:${(isoString[1] || 0).toString().padStart(2, '0')}`;
+    }
+    const str = String(isoString);
+    if (str.includes('T')) return str.split('T')[1].substring(0, 5);
+    if (str.includes(' ')) return str.split(' ')[1].substring(0, 5);
+    if (str.includes(':')) {
+        const parts = str.split(':');
+        return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+    }
+    return str.substring(0, 5);
+  };
+
+  const isSlotAvailable = (s: any) => {
+    if (s.available !== undefined) return s.available === true;
+    if (s.isAvailable !== undefined) return s.isAvailable === true;
+    return s.status === 'AVAILABLE';
+  };
+
   useEffect(() => {
     const fetchPitchDetail = async () => {
       try {
@@ -33,11 +54,28 @@ const PitchDetail = () => {
       if (!id || !selectedDate) return;
       try {
         const res = await axiosClient.get(`/fields/${id}/availability?date=${selectedDate}`);
-        const sortedSlots = res.data.sort((a: any, b: any) => {
-           const timeA = new Date(a.startTime || `2000-01-01T${a.startTime}`).getTime();
-           const timeB = new Date(b.startTime || `2000-01-01T${b.startTime}`).getTime();
-           return timeA - timeB;
+        const rawSlots = Array.isArray(res.data) ? res.data : (res.data.availableTimeSlots || res.data.timeSlots || []);
+        
+        const uniqueSlots: any[] = [];
+        const seen = new Set();
+        
+        rawSlots.forEach((slot: any) => {
+          const startStr = formatTime(slot.startTime);
+          const endStr = formatTime(slot.endTime);
+          const timeKey = `${startStr}-${endStr}`;
+          
+          if (!seen.has(timeKey)) {
+            seen.add(timeKey);
+            uniqueSlots.push(slot);
+          }
         });
+
+        const sortedSlots = uniqueSlots.sort((a: any, b: any) => {
+           const timeA = formatTime(a.startTime);
+           const timeB = formatTime(b.startTime);
+           return timeA.localeCompare(timeB);
+        });
+
         setAvailableSlots(sortedSlots);
         setSelectedSlot(null);
       } catch (error) {
@@ -52,11 +90,6 @@ const PitchDetail = () => {
     navigate(`/thanh-toan/${id}`, {
       state: { pitch, selectedSlot, selectedDate }
     });
-  };
-
-  const formatTime = (isoString: string) => {
-    if (!isoString) return '';
-    return isoString.substring(11, 16);
   };
 
   const translateFieldType = (type: string) => {
@@ -126,11 +159,11 @@ const PitchDetail = () => {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {availableSlots.map((slot) => {
-                const isAvailable = slot.available !== false && slot.isAvailable !== false;
+              {availableSlots.map((slot, index) => {
+                const isAvailable = isSlotAvailable(slot);
                 return (
                   <button
-                    key={slot.id}
+                    key={slot.id || index}
                     disabled={!isAvailable}
                     onClick={() => setSelectedSlot(slot)}
                     className={`p-3 rounded-xl border text-center transition flex flex-col items-center gap-1

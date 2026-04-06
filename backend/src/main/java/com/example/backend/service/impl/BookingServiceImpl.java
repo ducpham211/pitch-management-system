@@ -78,7 +78,7 @@ public class BookingServiceImpl implements BookingService {
             } else {
                 bookingSaved.setDepositAmount(BigDecimal.ZERO);
             }
-            bookingSaved.setBookingDate(LocalDate.now());
+            bookingSaved.setBookingDate(slot.getStartTime().toLocalDate());
             bookingSaved.setUpdatedAt(LocalDateTime.now());
             bookingSaved.setCreatedAt(LocalDateTime.now());
             Booking savedBooking = bookingRepository.save(bookingSaved);
