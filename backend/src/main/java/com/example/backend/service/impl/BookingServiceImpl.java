@@ -24,7 +24,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -55,7 +54,6 @@ public class BookingServiceImpl implements BookingService {
             throw new AppException(400, "Sân đã có người đặt hoặc đang chờ thanh toán");
         }
 
-        // Tung chiêu Redis Lock (Giữ 5 phút)
         String lockKey = "lock:booking:slot_" + timeSlotId;
         Boolean isLocked = redisTemplate.opsForValue()
                 .setIfAbsent(lockKey, "LOCKED", 5, TimeUnit.MINUTES);
@@ -65,10 +63,9 @@ public class BookingServiceImpl implements BookingService {
         }
 
         try {
-            // Đổi trạng thái sân sang PENDING
             slot.setStatus(Enums.TimeSlotStatus.PENDING);
             timeSlotRepository.save(slot);
-            // Tạo hóa đơn Booking
+            
             Booking bookingSaved = bookingMapper.toEntity(request);
             bookingSaved.setUserId(userId);
             bookingSaved.setFieldId(slot.getFieldId());
@@ -78,7 +75,6 @@ public class BookingServiceImpl implements BookingService {
                 BigDecimal deposit = bookingSaved.getTotalAmount().multiply(BigDecimal.valueOf(0.3));
                 bookingSaved.setDepositAmount(deposit);
             } else {
-                // Đề phòng trường hợp totalAmount bị null
                 bookingSaved.setDepositAmount(BigDecimal.ZERO);
             }
             bookingSaved.setBookingDate(LocalDate.now());
@@ -179,12 +175,16 @@ public class BookingServiceImpl implements BookingService {
     public List<BookingResponse> getBookings(String userId){
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
         List<Booking> result =  bookingRepository.findByUserId(userId);
-        return result.stream().map(booking->bookingMapper.toResponse(booking, null)).toList();
+        return result.stream().map(booking -> {
+            BookingResponse response = bookingMapper.toResponse(booking, null);
+            timeSlotRepository.findById(booking.getTimeSlotId()).ifPresent(slot -> {
+                response.setStartTime(slot.getStartTime() != null ? slot.getStartTime().toString() : null);
+                response.setEndTime(slot.getEndTime() != null ? slot.getEndTime().toString() : null);
+            });
+            return response;
+        }).toList();
     }
 
-    // ====================================================================================
-    // HÀM MỚI: Xử lý khi Chủ Sân bấm "Thu Nốt Tiền" trên giao diện Web
-    // ====================================================================================
     @Override
     @Transactional
     public void completeBooking(String bookingId) {
@@ -195,11 +195,9 @@ public class BookingServiceImpl implements BookingService {
             throw new RuntimeException("Đơn đặt sân chưa đặt cọc hoặc đã được xử lý!");
         }
 
-        // 1. Cập nhật trạng thái Booking thành COMPLETED
         booking.setStatus(Enums.BookingStatus.COMPLETED);
         bookingRepository.save(booking);
 
-        // 2. Kế toán: Lưu dòng tiền phần còn lại (Chủ sân thu tiền mặt / chuyển khoản ngoài)
         long totalAmount = booking.getTotalAmount() != null ? booking.getTotalAmount().longValue() : 0;
         long depositAmount = booking.getDepositAmount() != null ? booking.getDepositAmount().longValue() : 0;
         long remainingAmount = totalAmount - depositAmount;
@@ -221,7 +219,6 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // 3. Gửi thông báo cho người đặt sân
         try {
             NotificationCreateRequest notif = new NotificationCreateRequest();
             notif.setTitle("✅ Ca đá đã hoàn tất!");

@@ -10,7 +10,6 @@ const Profile = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // State quản lý dữ liệu cập nhật
   const [updateData, setUpdateData] = useState({ fullName: '', phone: '' });
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -24,7 +23,15 @@ const Profile = () => {
         setUpdateData({ fullName: profileRes.data.fullName || '', phone: profileRes.data.phone || '' });
         
         const bookingsRes = await axiosClient.get('/bookings');
-        setBookings(bookingsRes.data.content || bookingsRes.data || []);
+        const rawBookings = bookingsRes.data.content || bookingsRes.data || [];
+        
+        const sortedBookings = rawBookings.sort((a: any, b: any) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
+        
+        setBookings(sortedBookings);
       } catch (error) {
         console.error('Lỗi tải hồ sơ:', error);
       } finally {
@@ -62,14 +69,12 @@ const Profile = () => {
     }
   };
 
-  // Format ngày đá (YYYY-MM-DD)
   const formatDate = (dateStr: string) => {
      if (!dateStr) return 'Chưa có';
      const parts = dateStr.split('-');
      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
   };
 
-  // Format ngày giờ chi tiết (Thời điểm đặt)
   const formatDateTime = (dateStr: string) => {
     if (!dateStr) return 'Chưa có';
     const date = new Date(dateStr);
@@ -80,6 +85,17 @@ const Profile = () => {
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const year = date.getFullYear();
     return `${hours}:${mins} - ${day}/${month}/${year}`;
+  };
+
+  const formatTimeOnly = (dateStr: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) {
+        const parts = dateStr.split(':');
+        if (parts.length >= 2) return `${parts[0]}:${parts[1]}`;
+        return dateStr;
+    }
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
   const safeSubstring = (str: string | undefined | null) => {
@@ -172,6 +188,7 @@ const Profile = () => {
                         <div>
                           <p className="mb-1 text-gray-500">Giờ đặt sân: <span className="font-bold text-gray-800">{formatDateTime(booking.createdAt)}</span></p>
                           <p className="mb-1 text-gray-500">Ngày ra sân: <span className="font-bold text-gray-800">{formatDate(booking.bookingDate)}</span></p>
+                          <p className="mb-1 text-gray-500">Ca đá: <span className="font-bold text-gray-800">{booking.startTime && booking.endTime ? `${formatTimeOnly(booking.startTime)} - ${formatTimeOnly(booking.endTime)}` : 'Đang cập nhật'}</span></p>
                           <p className="text-gray-500">Tổng chi phí: <span className="font-bold text-gray-800">{(booking.totalAmount || 0).toLocaleString('vi-VN')}đ</span></p>
                         </div>
                         <div className="sm:text-right flex flex-col justify-end items-start sm:items-end">

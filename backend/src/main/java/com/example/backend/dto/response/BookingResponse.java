@@ -24,4 +24,6 @@ public class BookingResponse {
     private String note;
     private LocalDateTime createdAt;
     private String message;
+    private String startTime;
+    private String endTime;
 }
