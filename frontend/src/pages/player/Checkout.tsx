@@ -32,7 +32,7 @@ const Checkout = () => {
   const navigate = useNavigate();
   const state = location.state as CheckoutLocationState;
 
-  const [paymentMethod, setPaymentMethod] = useState<'momo' | 'stripe'>('momo');
+  const [paymentMethod, setPaymentMethod] = useState<'momo' | 'stripe'>('stripe');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const pitch = state?.pitch;
@@ -68,22 +68,33 @@ const Checkout = () => {
     try {
       const requestBody = {
         timeSlotId: slot.timeSlotId || slot.id,
-        note: `Thanh toán qua ${paymentMethod}`,
+        note: `Thanh toán cọc qua ${paymentMethod === 'stripe' ? 'Stripe' : 'MoMo'}`,
       };
 
-      const response = await axiosClient.post('/bookings', requestBody);
+      const bookingResponse = await axiosClient.post('/bookings', requestBody);
+      const bookingId = bookingResponse.data?.bookingId;
 
-      if (response.data && response.data.paymentUrl) {
-        window.location.href = response.data.paymentUrl;
-        return;
+      if (!bookingId) {
+        throw new Error('Không lấy được mã đơn đặt sân từ hệ thống.');
       }
 
-      alert('🎉 Đặt sân thành công! ' + (response.data?.message || ''));
+      if (paymentMethod === 'stripe') {
+        const paymentResponse = await axiosClient.post(`/payments/create-session/${bookingId}`);
+        
+        if (paymentResponse.data && paymentResponse.data.url) {
+          window.location.href = paymentResponse.data.url;
+          return;
+        } else {
+          throw new Error('Không lấy được đường dẫn thanh toán từ Stripe.');
+        }
+      }
+
+      alert('🎉 Đặt sân thành công! Bạn đã chọn thanh toán qua MoMo (Đang phát triển).');
       navigate('/ho-so');
+
     } catch (error: any) {
       console.error(error);
-      alert('Lỗi đặt sân: ' + (error.response?.data?.message || error.response?.data || 'Đã xảy ra lỗi kết nối.'));
-    } finally {
+      alert('Lỗi đặt sân: ' + (error.response?.data?.message || error.response?.data || error.message || 'Đã xảy ra lỗi kết nối.'));
       setIsProcessing(false);
     }
   };
@@ -146,24 +157,6 @@ const Checkout = () => {
 
           <div className="space-y-4 mb-8">
             <label
-              className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${paymentMethod === 'momo' ? 'border-pink-500 bg-pink-50' : 'border-gray-200 hover:border-pink-200'}`}
-              onClick={() => setPaymentMethod('momo')}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-pink-100 text-pink-600 rounded-lg flex items-center justify-center text-xl">
-                  <FaMoneyBillWave />
-                </div>
-                <div>
-                  <p className="font-bold text-gray-800">Ví MoMo</p>
-                  <p className="text-xs text-gray-500">Quét mã QR qua ứng dụng</p>
-                </div>
-              </div>
-              {paymentMethod === 'momo' && (
-                <FaCheckCircle className="text-pink-500 text-xl" />
-              )}
-            </label>
-
-            <label
               className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${paymentMethod === 'stripe' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-green-200'}`}
               onClick={() => setPaymentMethod('stripe')}
             >
@@ -180,6 +173,24 @@ const Checkout = () => {
                 <FaCheckCircle className="text-green-500 text-xl" />
               )}
             </label>
+
+            <label
+              className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${paymentMethod === 'momo' ? 'border-pink-500 bg-pink-50' : 'border-gray-200 hover:border-pink-200 opacity-60'}`}
+              onClick={() => setPaymentMethod('momo')}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-pink-100 text-pink-600 rounded-lg flex items-center justify-center text-xl">
+                  <FaMoneyBillWave />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-800">Ví MoMo</p>
+                  <p className="text-xs text-gray-500">Bảo trì hệ thống</p>
+                </div>
+              </div>
+              {paymentMethod === 'momo' && (
+                <FaCheckCircle className="text-pink-500 text-xl" />
+              )}
+            </label>
           </div>
 
           <Button
@@ -188,10 +199,10 @@ const Checkout = () => {
             onClick={handlePaymentSubmit}
             disabled={isProcessing}
           >
-            {isProcessing ? 'Đang xử lý giao dịch...' : `Xác nhận Đặt sân`}
+            {isProcessing ? 'Đang kết nối cổng thanh toán...' : `Xác nhận & Thanh toán`}
           </Button>
           <p className="text-center text-xs text-gray-400 mt-4">
-            Giao dịch được mã hóa và bảo mật an toàn.
+            Giao dịch được mã hóa và bảo mật qua hệ thống Stripe an toàn.
           </p>
         </div>
       </div>

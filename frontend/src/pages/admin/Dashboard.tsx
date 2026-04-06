@@ -1,151 +1,245 @@
-import { useState } from 'react';
-import { FaUsers, FaCheckSquare, FaChartPie, FaLock, FaUnlock, FaCheck, FaTimes } from 'react-icons/fa';
-import { ADMIN_STATS, ADMIN_USERS, ADMIN_PENDING_PITCHES } from '../../mocks/adminData';
+import { useState, useEffect } from 'react';
+import { FaUsers, FaGavel, FaCheck, FaBan, FaFilter, FaStar } from 'react-icons/fa';
 import Button from '../../components/common/Button';
+import { adminApi } from '../../api/adminApi';
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'approvals'>('overview');
-  const [users, setUsers] = useState(ADMIN_USERS);
-  const [pendingPitches, setPendingPitches] = useState(ADMIN_PENDING_PITCHES);
+  const [activeTab, setActiveTab] = useState<'users' | 'reviews'>('users');
+  
+  // States cho Users
+  const [users, setUsers] = useState<any[]>([]);
+  const [roleFilter, setRoleFilter] = useState('');
+  const [minTrustScore, setMinTrustScore] = useState('');
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
-  const toggleUserStatus = (id: string) => {
-    setUsers(users.map(u => {
-      if (u.id === id) {
-        return { ...u, status: u.status === 'ACTIVE' ? 'LOCKED' : 'ACTIVE' };
-      }
-      return u;
-    }));
+  // States cho Reviews
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewStatus, setReviewStatus] = useState('PENDING_ADMIN_REVIEW');
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+
+  // States cho Modal Xử lý Review
+  const [adjudicateModal, setAdjudicateModal] = useState<{isOpen: boolean, review: any}>({isOpen: false, review: null});
+  const [customPenalty, setCustomPenalty] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const truncateId = (id: string) => id ? id.substring(0, 6).toUpperCase() : 'N/A';
+
+  const fetchUsers = async () => {
+    setIsLoadingUsers(true);
+    try {
+      const params: any = {};
+      if (roleFilter) params.role = roleFilter;
+      if (minTrustScore) params.minTrustScore = Number(minTrustScore);
+      
+      const res = await adminApi.getUsers(params);
+      setUsers(res.data);
+    } catch (error) {
+      console.error('Lỗi tải người dùng', error);
+    } finally {
+      setIsLoadingUsers(false);
+    }
   };
 
-  const handleApprovePitch = (id: string, isApproved: boolean) => {
-    const action = isApproved ? 'duyệt' : 'từ chối';
-    if (window.confirm(`Bạn có chắc chắn muốn ${action} sân này?`)) {
-      setPendingPitches(pendingPitches.filter(p => p.id !== id));
+  const fetchReviews = async () => {
+    setIsLoadingReviews(true);
+    try {
+      const params: any = {};
+      if (reviewStatus) params.status = reviewStatus;
+
+      const res = await adminApi.getReviews(params);
+      setReviews(res.data);
+    } catch (error) {
+      console.error('Lỗi tải đánh giá', error);
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  };
+
+  // Chạy khi đổi Tab hoặc thay đổi Filter
+  useEffect(() => {
+    if (activeTab === 'users') {
+      fetchUsers();
+    } else {
+      fetchReviews();
+    }
+  }, [activeTab, roleFilter, minTrustScore, reviewStatus]);
+
+  // Xử lý Phán quyết
+  const handleAdjudicate = async (approve: boolean) => {
+    if (!adjudicateModal.review) return;
+    setIsSubmitting(true);
+    try {
+      const payload: any = { approve };
+      // Nếu duyệt phạt và có nhập số thủ công thì gửi lên, không thì để BE tự lấy điểm của AI
+      if (approve && customPenalty) {
+        payload.finalPenalty = Number(customPenalty);
+      }
+
+      const res = await adminApi.adjudicateReview(adjudicateModal.review.id, payload);
+      alert(res.data || 'Đã xử lý thành công!');
+      
+      setAdjudicateModal({isOpen: false, review: null});
+      setCustomPenalty('');
+      fetchReviews(); // Tải lại danh sách
+    } catch (error: any) {
+      alert('Lỗi xử lý: ' + (error.response?.data?.message || 'Không rõ nguyên nhân'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl flex flex-col md:flex-row gap-6 h-full">
-      {}
-      <div className="w-full md:w-1/4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit sticky top-24">
-        <h2 className="text-xl font-bold text-gray-800 mb-6">Kênh Quản Trị</h2>
-        <div className="flex flex-col gap-2">
-          <button onClick={() => setActiveTab('overview')} className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition ${activeTab === 'overview' ? 'bg-green-50 text-green-600' : 'text-gray-600 hover:bg-gray-50'}`}>
-            <FaChartPie /> Tổng quan hệ thống
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Quản Trị Hệ Thống</h1>
+          <p className="text-gray-500 mt-1">Quản lý người dùng và xử lý vi phạm Fair-Play</p>
+        </div>
+        <div className="flex bg-gray-100 p-1 rounded-xl">
+          <button onClick={() => setActiveTab('users')} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            <FaUsers /> Người Dùng
           </button>
-          <button onClick={() => setActiveTab('users')} className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition ${activeTab === 'users' ? 'bg-green-50 text-green-600' : 'text-gray-600 hover:bg-gray-50'}`}>
-            <FaUsers /> Quản lý Người dùng
-          </button>
-          <button onClick={() => setActiveTab('approvals')} className={`flex items-center justify-between w-full p-3 rounded-xl font-medium transition ${activeTab === 'approvals' ? 'bg-green-50 text-green-600' : 'text-gray-600 hover:bg-gray-50'}`}>
-            <div className="flex items-center gap-3"><FaCheckSquare /> Kiểm duyệt Sân</div>
-            {pendingPitches.length > 0 && (
-              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{pendingPitches.length}</span>
-            )}
+          <button onClick={() => setActiveTab('reviews')} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'reviews' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            <FaGavel /> Tòa Án Fair-Play
           </button>
         </div>
       </div>
 
-      <div className="w-full md:w-3/4">
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800">Thống kê Nền tảng</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-t-4 border-t-purple-500">
-                <p className="text-sm text-gray-500 font-medium">Doanh thu nền tảng</p>
-                <p className="text-2xl font-bold text-gray-800 mt-2">{ADMIN_STATS.totalPlatformRevenue.toLocaleString('vi-VN')}đ</p>
-              </div>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-t-4 border-t-blue-500">
-                <p className="text-sm text-gray-500 font-medium">Tổng Users</p>
-                <p className="text-2xl font-bold text-gray-800 mt-2">{ADMIN_STATS.totalUsers}</p>
-              </div>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-t-4 border-t-green-500">
-                <p className="text-sm text-gray-500 font-medium">Tổng Sân bóng</p>
-                <p className="text-2xl font-bold text-gray-800 mt-2">{ADMIN_STATS.totalPitches}</p>
-              </div>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-t-4 border-t-orange-500">
-                <p className="text-sm text-gray-500 font-medium">Chờ duyệt</p>
-                <p className="text-2xl font-bold text-gray-800 mt-2">{pendingPitches.length}</p>
-              </div>
+      {activeTab === 'users' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fade-in-up">
+          <div className="flex flex-wrap gap-4 mb-6 pb-6 border-b border-gray-100">
+            <div className="flex items-center gap-2 text-gray-700 font-medium">
+              <FaFilter className="text-gray-400" /> Bộ lọc:
             </div>
+            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none bg-white">
+              <option value="">Tất cả Vai trò</option>
+              <option value="PLAYER">Người Chơi</option>
+              <option value="OWNER">Chủ Sân</option>
+              <option value="ADMIN">Quản Trị Viên</option>
+            </select>
+            <input type="number" placeholder="Điểm Uy Tín tối thiểu..." value={minTrustScore} onChange={(e) => setMinTrustScore(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none w-48" />
           </div>
-        )}
 
-        {activeTab === 'users' && (
-          <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Quản lý Tài khoản</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 text-gray-600 border-b border-gray-200">
-                    <th className="p-4 font-medium rounded-tl-lg">ID</th>
-                    <th className="p-4 font-medium">Họ tên & Email</th>
-                    <th className="p-4 font-medium">Vai trò</th>
-                    <th className="p-4 font-medium">Trạng thái</th>
-                    <th className="p-4 font-medium rounded-tr-lg text-center">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="p-4 font-bold text-gray-500">{user.id}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                  <th className="p-4 rounded-tl-xl">ID</th>
+                  <th className="p-4">Họ và Tên</th>
+                  <th className="p-4">Email</th>
+                  <th className="p-4">Vai Trò</th>
+                  <th className="p-4 rounded-tr-xl">Điểm Uy Tín (Trust)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {isLoadingUsers ? (
+                  <tr><td colSpan={5} className="p-8 text-center text-gray-400">Đang tải dữ liệu...</td></tr>
+                ) : users.length === 0 ? (
+                  <tr><td colSpan={5} className="p-8 text-center text-gray-400">Không tìm thấy người dùng nào.</td></tr>
+                ) : (
+                  users.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50 transition">
+                      <td className="p-4 font-mono text-xs text-gray-500">{truncateId(user.id)}</td>
+                      <td className="p-4 font-bold text-gray-800">{user.fullName || 'Chưa cập nhật'}</td>
+                      <td className="p-4 text-gray-600 text-sm">{user.email}</td>
                       <td className="p-4">
-                        <p className="font-bold text-gray-800">{user.name}</p>
-                        <p className="text-sm text-gray-500">{user.email}</p>
-                      </td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${user.role === 'OWNER' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : user.role === 'OWNER' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
                           {user.role}
                         </span>
                       </td>
                       <td className="p-4">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${user.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                          {user.status === 'ACTIVE' ? 'Hoạt động' : 'Đã khóa'}
-                        </span>
-                      </td>
-                      <td className="p-4 text-center">
-                        <button onClick={() => toggleUserStatus(user.id)} className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 mx-auto transition ${user.status === 'ACTIVE' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
-                          {user.status === 'ACTIVE' ? <><FaLock /> Khóa</> : <><FaUnlock /> Mở</>}
-                        </button>
+                        <div className="flex items-center gap-1 font-bold text-yellow-600 bg-yellow-50 px-3 py-1 rounded-lg w-fit border border-yellow-200">
+                          <FaStar className="text-yellow-500" /> {user.trustScore ?? 100}
+                        </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
+        </div>
+      )}
 
-        {activeTab === 'approvals' && (
-          <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Yêu cầu đăng ký Sân mới</h2>
-            {pendingPitches.length > 0 ? (
-              <div className="space-y-4">
-                {pendingPitches.map((pitch) => (
-                  <div key={pitch.id} className="p-5 border border-gray-200 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center bg-orange-50/30">
-                    <div>
-                      <h3 className="font-bold text-gray-800 text-lg">{pitch.name}</h3>
-                      <p className="text-gray-600 text-sm mt-1">Chủ sân: <span className="font-medium">{pitch.owner}</span> | Loại: {pitch.type}</p>
-                      <p className="text-gray-500 text-xs mt-1">Ngày gửi yêu cầu: {pitch.requestDate}</p>
-                    </div>
-                    <div className="flex gap-2 mt-4 md:mt-0">
-                      <Button variant="primary" className="!bg-green-600 px-4 py-2 flex items-center gap-2" onClick={() => handleApprovePitch(pitch.id, true)}>
-                        <FaCheck /> Duyệt
-                      </Button>
-                      <Button variant="danger" className="px-4 py-2 flex items-center gap-2" onClick={() => handleApprovePitch(pitch.id, false)}>
-                        <FaTimes /> Từ chối
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+      {activeTab === 'reviews' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fade-in-up">
+           <div className="flex flex-wrap gap-4 mb-6 pb-6 border-b border-gray-100">
+            <div className="flex items-center gap-2 text-gray-700 font-medium">
+              <FaFilter className="text-gray-400" /> Trạng thái:
+            </div>
+            <select value={reviewStatus} onChange={(e) => setReviewStatus(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none bg-white">
+              <option value="">Tất cả</option>
+              <option value="PENDING_ADMIN_REVIEW">Đang Chờ Duyệt (Báo Động)</option>
+              <option value="AUTO_PASSED">An Toàn (AI tự động duyệt)</option>
+              <option value="PENALIZED">Đã Phạt</option>
+            </select>
+          </div>
+
+          <div className="space-y-4">
+            {isLoadingReviews ? (
+               <div className="p-8 text-center text-gray-400 border border-dashed rounded-xl">Đang tải hồ sơ vụ án...</div>
+            ) : reviews.length === 0 ? (
+               <div className="p-8 text-center text-gray-400 border border-dashed rounded-xl bg-gray-50">Không có báo cáo nào ở trạng thái này.</div>
             ) : (
-              <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                <p className="text-gray-500">Tuyệt vời! Không có yêu cầu chờ duyệt nào.</p>
-              </div>
+              reviews.map((review) => (
+                <div key={review.id} className={`p-5 rounded-xl border ${review.status === 'PENDING_ADMIN_REVIEW' ? 'border-red-200 bg-red-50/30' : 'border-gray-200'} transition hover:shadow-md flex flex-col md:flex-row justify-between gap-4`}>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">MÃ VỤ: {truncateId(review.id)}</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded ${review.status === 'PENDING_ADMIN_REVIEW' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{review.status}</span>
+                    </div>
+                    <p className="text-sm text-gray-500 mb-1">Mã đơn: <span className="font-mono">{truncateId(review.matchRequestId)}</span> • Kẻ bị tố cáo (Bị cáo): <span className="font-mono font-bold text-gray-800">{truncateId(review.revieweeId)}</span></p>
+                    <div className="bg-white p-3 border border-gray-200 rounded-lg my-3">
+                      <p className="text-sm text-gray-800"><strong className="text-gray-500">Lý do báo cáo:</strong> "{review.reason}"</p>
+                    </div>
+                    {review.aiAnalysis && (
+                      <p className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100"><strong className="text-red-800">AI Phân Tích:</strong> {review.aiAnalysis}</p>
+                    )}
+                  </div>
+                  
+                  <div className="flex flex-col justify-center items-end min-w-[200px] border-l border-gray-200 pl-4">
+                    <p className="text-sm text-gray-500 text-right w-full mb-1">Điểm uy tín trừ dự kiến</p>
+                    <p className="text-3xl font-bold text-red-600 mb-4">-{review.aiSuggestedPenalty || 0}</p>
+                    
+                    {review.status === 'PENDING_ADMIN_REVIEW' && (
+                      <Button variant="primary" className="w-full shadow-sm !bg-red-600 hover:!bg-red-700" onClick={() => setAdjudicateModal({isOpen: true, review})}>
+                        Mở Tòa Xử Lý
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Modal Mở Tòa Phán Quyết */}
+      {adjudicateModal.isOpen && adjudicateModal.review && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in-up">
+            <h3 className="text-xl font-bold text-gray-800 mb-2 border-b pb-2">Tòa Án Tối Cao</h3>
+            <p className="text-sm text-gray-600 mb-4">Bạn đang xét xử vụ án <span className="font-mono font-bold">{truncateId(adjudicateModal.review.id)}</span>.</p>
+            
+            <div className="bg-red-50 border border-red-100 p-4 rounded-xl mb-4">
+              <p className="text-sm text-red-800 font-bold mb-2">Trí tuệ nhân tạo (AI) đề xuất:</p>
+              <p className="text-sm text-red-700 mb-2">Tội danh: {adjudicateModal.review.aiAnalysis}</p>
+              <p className="text-sm text-red-700">Mức án: <strong>Trừ {adjudicateModal.review.aiSuggestedPenalty} điểm uy tín</strong></p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Bạn muốn đổi mức phạt không? (Để trống nếu đồng ý với AI)</label>
+              <input type="number" placeholder={`Nhập mức phạt (VD: ${adjudicateModal.review.aiSuggestedPenalty})`} value={customPenalty} onChange={(e) => setCustomPenalty(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none" />
+            </div>
+
+            <div className="flex gap-3">
+              <Button variant="secondary" className="w-full border-gray-300 hover:bg-gray-100 text-gray-600" onClick={() => setAdjudicateModal({isOpen: false, review: null})} disabled={isSubmitting}>Hủy bỏ</Button>
+              <Button variant="outline" className="w-full border-green-500 text-green-600 hover:bg-green-50" onClick={() => handleAdjudicate(false)} disabled={isSubmitting}><FaBan className="inline mr-1"/> Tha bổng</Button>
+              <Button variant="primary" className="w-full !bg-red-600 hover:!bg-red-700" onClick={() => handleAdjudicate(true)} disabled={isSubmitting}><FaGavel className="inline mr-1"/> Y Án Phạt</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
