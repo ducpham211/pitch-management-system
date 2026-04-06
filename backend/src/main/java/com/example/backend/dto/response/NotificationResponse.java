@@ -1,6 +1,6 @@
 package com.example.backend.dto.response;
 
-import com.example.backend.entity.Enums.NotificationType;
+import com.example.backend.utils.Enums.NotificationType;
 import lombok.Data;
 
 import java.time.LocalDateTime;

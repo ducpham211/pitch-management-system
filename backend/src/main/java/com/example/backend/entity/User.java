@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import com.example.backend.entity.Enums.UserRole;
+import com.example.backend.utils.Enums.UserRole;
 
 @Entity
 @Table(name = "users")

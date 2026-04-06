@@ -1,6 +1,6 @@
 package com.example.backend.repository;
 
-import com.example.backend.entity.Enums;
+import com.example.backend.utils.Enums;
 import com.example.backend.entity.MatchPost;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

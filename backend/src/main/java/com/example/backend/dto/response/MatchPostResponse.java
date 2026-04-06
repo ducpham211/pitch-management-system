@@ -1,6 +1,6 @@
 package com.example.backend.dto.response;
 
-import com.example.backend.entity.Enums;
+import com.example.backend.utils.Enums;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;

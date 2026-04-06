@@ -2,14 +2,9 @@ package com.example.backend.mapper;
 
 import com.example.backend.dto.request.PaymentCreateRequest;
 import com.example.backend.dto.response.PaymentResponse;
-import com.example.backend.entity.Booking;
-import com.example.backend.entity.Enums;
 import com.example.backend.entity.Payment;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Mapper(componentModel = "spring", unmappedTargetPolicy = org.mapstruct.ReportingPolicy.IGNORE)
 public interface PaymentMapper {

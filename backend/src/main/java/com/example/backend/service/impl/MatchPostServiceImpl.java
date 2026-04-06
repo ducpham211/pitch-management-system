@@ -5,7 +5,7 @@ import com.example.backend.dto.aiOpponentRecommendation.AiRecommendationResult;
 import com.example.backend.dto.request.MatchPostCreateRequest;
 import com.example.backend.dto.response.MatchPostResponse;
 import com.example.backend.dto.response.RecommendedMatchResponse;
-import com.example.backend.entity.Enums;
+import com.example.backend.utils.Enums;
 import com.example.backend.entity.MatchPost;
 import com.example.backend.entity.User;
 import com.example.backend.mapper.MatchPostMapper;
@@ -16,7 +16,6 @@ import com.example.backend.service.ai.GroqAiService;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 import java.util.List;
 

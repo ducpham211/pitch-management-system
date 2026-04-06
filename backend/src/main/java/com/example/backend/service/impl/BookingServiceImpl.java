@@ -14,6 +14,7 @@ import com.example.backend.repository.TimeSlotRepository;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.service.BookingService;
 import com.example.backend.service.NotificationService;
+import com.example.backend.utils.Enums;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;

@@ -6,7 +6,7 @@ import com.example.backend.dto.request.MatchRequestStatusCreateRequest;
 import com.example.backend.dto.request.NotificationCreateRequest;
 import com.example.backend.dto.response.MatchRequestResponse;
 import com.example.backend.dto.response.MatchRequestStatusResponse;
-import com.example.backend.entity.Enums;
+import com.example.backend.utils.Enums;
 import com.example.backend.entity.MatchPost;
 import com.example.backend.entity.MatchRequest;
 import com.example.backend.entity.User;
