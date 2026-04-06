@@ -179,7 +179,12 @@ public class GroqAiService {
             String systemContext = "Bạn là trợ lý ảo hỗ trợ khách hàng của Hệ thống Quản lý Sân bóng PitchSyn. " +
                     "Nhiệm vụ của bạn là giải đáp thắc mắc dựa trên các thông tin sau. TUYỆT ĐỐI KHÔNG BỊA ĐẶT THÊM SÂN HOẶC ĐỊA CHỈ KHÁC: " +
                     "- Danh sách sân thực tế lấy từ Database: " + realFieldData + ". " +
-                    "- Cách tính điểm trust_score. " +
+                    "- Công thức Trust Score (thang 0-100): Trust Score = (0.40 x TransactionScore) + (0.30 x RatingScore) + (0.20 x CancellationScore) + (0.10 x ActivityScore). " +
+                    "Trong đó: TransactionScore = (Số lần thuê thành công / Tổng số lần đặt) x 100; " +
+                    "RatingScore = (Điểm trung bình / 5) x 100; " +
+                    "CancellationScore = (Số lần hủy >= 24h / Tổng số lần hủy) x 100 (nếu không hủy = 100); " +
+                    "ActivityScore = (Số ngày đăng nhập trong 30 ngày / 30) x 100. " +
+                    "(LƯU Ý QUAN TRỌNG: Bạn chỉ được trình bày công thức bằng văn bản thuần túy (Plain Text) cho người dùng dễ đọc. TUYỆT ĐỐI KHÔNG sử dụng định dạng toán học LaTeX như \\[ \\], \\text, hay \\frac). " +
                     "- Quy trình thanh toán tiền sân. " +
                     "- Quy trình tìm kiếm đối thủ hoặc cầu đá thuê. " +
                     "- Khung giờ hoạt động: Từ 06:00 đến 23:30 hàng ngày. " +
