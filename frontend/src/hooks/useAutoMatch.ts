@@ -147,14 +147,13 @@ export const useAutoMatch = (
                          setFoundLivePost(null);
                          setAiStep('RECEIVE_REQUEST');
                          onChangeViewMode('ai');
-                         setIsPolling(false);
                      }
                      return;
                  }
              }
         }
 
-        if (aiStepRef.current === 'WAITING_OPPONENT' && waitingForPostIdRef.current) {
+        if ((aiStepRef.current === 'WAITING_OPPONENT' || aiStepRef.current === 'RECEIVE_REQUEST') && waitingForPostIdRef.current) {
              const targetPost = currentMatches.find((p: any) => p.id === waitingForPostIdRef.current);
              if (targetPost) {
                  const myReq = targetPost.requests?.find((r: any) => r.requesterId === currentUserIdRef.current);
@@ -445,6 +444,7 @@ export const useAutoMatch = (
   return {
       aiStep, aiResults, isPolling, isProcessingMatch, pendingRequest,
       handleAutoMatchSubmit, handleCancelSearch, handleAcceptLiveMatch, handleDeclineLiveMatch,
-      handleAcceptStaticSuggestion, handleAcceptPending, handleRejectPending
+      handleAcceptStaticSuggestion, handleAcceptPending, handleRejectPending,
+      foundLivePost
   };
 };

@@ -167,6 +167,7 @@ const MatchBoard = () => {
           onAcceptPending={autoMatch.handleAcceptPending}
           onRejectPending={autoMatch.handleRejectPending}
           onAcceptStaticMatch={autoMatch.handleAcceptStaticSuggestion}
+          foundLivePost={autoMatch.foundLivePost}
         />
       ) : viewMode === 'history' ? (
         <div className="space-y-4 max-w-4xl mx-auto">
