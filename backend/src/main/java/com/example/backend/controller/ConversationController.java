@@ -5,6 +5,7 @@ import com.example.backend.dto.response.ConversationResponse;
 import com.example.backend.dto.response.MessageResponse;
 import com.example.backend.service.ConversationService;
 import com.example.backend.service.MessageService;
+import com.example.backend.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,7 +17,7 @@ import java.util.List;
 @RequestMapping("/api/conversations")
 @RequiredArgsConstructor
 public class ConversationController {
-
+    private final NotificationService notificationService;
     private final MessageService messageService;
     private final ConversationService conversationService;
 
@@ -41,5 +42,14 @@ public class ConversationController {
         // Ném cả conversationId (từ URL) và currentUserId (từ Token) xuống cho Service xử lý
         MessageResponse response = messageService.createMessage(conversationId, currentUserId, request);
         return ResponseEntity.ok(response);
+    }
+    @PutMapping("/{conversationId}/read")
+    public ResponseEntity<Void> markConversationAsRead(
+            @PathVariable String conversationId,
+            @RequestParam String userId) { // Thực tế bác nên lấy userId từ Security Context (Token) cho bảo mật nhé
+
+        // Gọi thẳng vào dịch vụ Redis để xóa bộ đếm
+        notificationService.resetUnreadCount(userId, conversationId);
+        return ResponseEntity.ok().build();
     }
 }

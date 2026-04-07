@@ -8,6 +8,7 @@ import com.example.backend.mapper.NotificationMapper;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.service.NotificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,8 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
     private final SimpMessagingTemplate messagingTemplate;
+    private final StringRedisTemplate redisTemplate;
+    private static final String UNREAD_PREFIX = "unread_count:";
 
     @Override
     public List<NotificationResponse> getNotificationsByUserId(String userId) {
@@ -70,5 +73,23 @@ public class NotificationServiceImpl implements NotificationService {
 
         // 3. Bắn WebSocket xuống client
         messagingTemplate.convertAndSendToUser(userId, "/queue/notifications", response);
+    }
+    @Override
+    public void incrementUnreadCount(String userId, String roomId) {
+        String key = UNREAD_PREFIX + userId + ":" + roomId;
+        redisTemplate.opsForValue().increment(key);
+    }
+
+    @Override
+    public void resetUnreadCount(String userId, String roomId) {
+        String key = UNREAD_PREFIX + userId + ":" + roomId;
+        redisTemplate.delete(key);
+    }
+
+    @Override
+    public int getUnreadCount(String userId, String roomId) {
+        String key = UNREAD_PREFIX + userId + ":" + roomId;
+        String count = redisTemplate.opsForValue().get(key);
+        return count != null ? Integer.parseInt(count) : 0;
     }
 }

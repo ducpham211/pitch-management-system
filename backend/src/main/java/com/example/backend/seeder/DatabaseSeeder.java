@@ -176,28 +176,37 @@ public class DatabaseSeeder implements CommandLineRunner {
     }
 
     // Hàm tạo slot tự động cuốn chiếu
+// Hàm tạo slot tự động cuốn chiếu (ĐÃ TỐI ƯU SIÊU TỐC)
     private void seedDynamicTimeSlots(int daysInAdvance) {
         List<Field> allFields = fieldRepository.findAll();
         if (allFields.isEmpty()) return;
 
         LocalDate today = LocalDate.now();
+        LocalDateTime rangeStart = LocalDateTime.of(today, LocalTime.MIN);
+        LocalDateTime rangeEnd = LocalDateTime.of(today.plusDays(daysInAdvance - 1), LocalTime.MAX);
+
+        List<TimeSlot> existingSlots = timeSlotRepository.findByStartTimeBetween(rangeStart, rangeEnd);
+
+        java.util.Set<String> existingSlotKeys = existingSlots.stream()
+                .map(slot -> slot.getFieldId() + "_" + slot.getStartTime().toString())
+                .collect(java.util.stream.Collectors.toSet());
+
         LocalTime[] startTimes = {
-                LocalTime.of(6, 0), LocalTime.of(7, 30), LocalTime.of(9, 0), 
+                LocalTime.of(6, 0), LocalTime.of(7, 30), LocalTime.of(9, 0),
                 LocalTime.of(10, 30), LocalTime.of(12, 0), LocalTime.of(13, 30),
-                LocalTime.of(15, 0), LocalTime.of(16, 30), LocalTime.of(18, 0), 
+                LocalTime.of(15, 0), LocalTime.of(16, 30), LocalTime.of(18, 0),
                 LocalTime.of(19, 30), LocalTime.of(21, 0), LocalTime.of(22, 0)
         };
         LocalTime[] endTimes = {
-                LocalTime.of(7, 30), LocalTime.of(9, 0), LocalTime.of(10, 30), 
+                LocalTime.of(7, 30), LocalTime.of(9, 0), LocalTime.of(10, 30),
                 LocalTime.of(12, 0), LocalTime.of(13, 30), LocalTime.of(15, 0),
-                LocalTime.of(16, 30), LocalTime.of(18, 0), LocalTime.of(19, 30), 
+                LocalTime.of(16, 30), LocalTime.of(18, 0), LocalTime.of(19, 30),
                 LocalTime.of(21, 0), LocalTime.of(22, 30), LocalTime.of(23, 30)
         };
 
         List<TimeSlot> newSlots = new ArrayList<>();
 
         for (Field field : allFields) {
-            // Setup giá tự động dựa theo loại sân (có thể tinh chỉnh sau)
             BigDecimal defaultPrice = field.getType() == Enums.FieldType.SEVEN_A_SIDE ? new BigDecimal("300000") : new BigDecimal("150000");
 
             for (int day = 0; day < daysInAdvance; day++) {
@@ -206,8 +215,11 @@ public class DatabaseSeeder implements CommandLineRunner {
                 for (int i = 0; i < startTimes.length; i++) {
                     LocalDateTime startTime = LocalDateTime.of(date, startTimes[i]);
 
-                    // Chỉ tạo nếu Time Slot này chưa tồn tại trong database
-                    if (!timeSlotRepository.existsByFieldIdAndStartTime(field.getId(), startTime)) {
+                    // Tạo một chuỗi Key để so sánh
+                    String slotKey = field.getId() + "_" + startTime.toString();
+
+                    // 👉 TÌM TRONG RAM: Thay vì query DB, chỉ cần kiểm tra Set
+                    if (!existingSlotKeys.contains(slotKey)) {
                         TimeSlot slot = new TimeSlot();
                         slot.setFieldId(field.getId());
                         slot.setStartTime(startTime);
@@ -220,6 +232,7 @@ public class DatabaseSeeder implements CommandLineRunner {
             }
         }
 
+        // 👉 LƯU 1 LẦN DUY NHẤT
         if (!newSlots.isEmpty()) {
             timeSlotRepository.saveAll(newSlots);
             System.out.println("Thành công: Đã tự động tạo thêm " + newSlots.size() + " Time Slots mới!");

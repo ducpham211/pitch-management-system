@@ -11,4 +11,8 @@ public interface NotificationService {
     long getUnreadCount(String userId);
     // Đảm bảo chữ ký này đồng nhất với Impl
     void createAndSendNotification(String userId, NotificationCreateRequest request);
+    void incrementUnreadCount(String userId, String roomId);
+    void resetUnreadCount(String userId, String roomId);
+    int getUnreadCount(String userId, String roomId);
+
 }
