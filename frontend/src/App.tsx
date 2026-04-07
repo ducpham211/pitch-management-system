@@ -26,15 +26,15 @@ function App() {
           <main className="flex-1 w-full mt-4">
             <Routes>
               <Route path="/" element={<Home />} />
-              <Route path="/tim-san" element={<FindPitch />} />
-              <Route path="/san/:id" element={<PitchDetail />} />
-              <Route path="/thanh-toan/:id" element={<Checkout />} />
-              <Route path="/ghep-tran" element={<MatchBoard />} />
-              <Route path="/dang-nhap" element={<Login />} />
-              <Route path="/dang-ky" element={<Register />} />
-              <Route path="/tin-nhan" element={<Chat />} />
-              <Route path="/ho-so" element={<Profile />} />
-              <Route path="/chu-san/*" element={<OwnerDashboard />} />
+              <Route path="/pitches" element={<FindPitch />} />
+              <Route path="/pitches/:id" element={<PitchDetail />} />
+              <Route path="/checkout/:id" element={<Checkout />} />
+              <Route path="/matches" element={<MatchBoard />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/messages" element={<Chat />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/owner/*" element={<OwnerDashboard />} />
               <Route path="/admin/*" element={<AdminDashboard />} />
               <Route path="/payment/success" element={<PaymentSuccess />} />
               <Route path="/payment/cancel" element={<PaymentCancel />} />

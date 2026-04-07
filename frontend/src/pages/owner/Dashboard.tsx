@@ -38,7 +38,7 @@ const OwnerDashboard = () => {
     setIsLoadingPitches(true);
     try {
       const token = localStorage.getItem('accessToken');
-      if (!token) return navigate('/dang-nhap');
+      if (!token) return navigate('/login');
       const res = await axios.get(`${API_URL}/fields`, { headers: { Authorization: `Bearer ${token}` } });
       setPitches(res.data.content || res.data || []);
     } catch (error) {
@@ -52,7 +52,7 @@ const OwnerDashboard = () => {
     setIsLoadingBookings(true);
     try {
       const token = localStorage.getItem('accessToken');
-      if (!token) return navigate('/dang-nhap');
+      if (!token) return navigate('/login');
       const res = await axios.get(`${API_URL}/bookings`, { headers: { Authorization: `Bearer ${token}` } });
       setBookings(res.data.content || res.data || []);
     } catch (error) {

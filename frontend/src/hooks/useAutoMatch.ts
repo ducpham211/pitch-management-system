@@ -134,27 +134,26 @@ export const useAutoMatch = (
              const cleanSilentId = String(typeof currentSilentId === 'object' ? (currentSilentId as any).id : currentSilentId);
              const mySilentPost = currentMatches.find((p: any) => String(p.id) === cleanSilentId);
              
-             if (!mySilentPost || mySilentPost.status === 'CLOSED') {
+             if (mySilentPost && mySilentPost.status === 'CLOSED') {
                  handleCancelSearch();
                  return;
              }
              
              if (mySilentPost && mySilentPost.requests && mySilentPost.requests.length > 0) {
                  const pending = mySilentPost.requests.find((r: any) => r.status === 'PENDING');
-                 if (pending && aiStepRef.current !== 'MATCH_FOUND' && aiStepRef.current !== 'RECEIVE_REQUEST') {
+                 if (pending && aiStepRef.current !== 'RECEIVE_REQUEST') {
                      if (isMounted) {
                          setPendingRequest(pending);
                          setFoundLivePost(null);
                          setAiStep('RECEIVE_REQUEST');
                          onChangeViewMode('ai');
-                         setIsPolling(false);
                      }
                      return;
                  }
              }
         }
 
-        if (aiStepRef.current === 'WAITING_OPPONENT' && waitingForPostIdRef.current) {
+        if ((aiStepRef.current === 'WAITING_OPPONENT' || aiStepRef.current === 'RECEIVE_REQUEST') && waitingForPostIdRef.current) {
              const targetPost = currentMatches.find((p: any) => p.id === waitingForPostIdRef.current);
              if (targetPost) {
                  const myReq = targetPost.requests?.find((r: any) => r.requesterId === currentUserIdRef.current);
@@ -175,7 +174,7 @@ export const useAutoMatch = (
                              localStorage.removeItem('autoMatch_waitingForPostId');
                              
                              setIsProcessingMatch(false);
-                             navigate('/tin-nhan');
+                             navigate('/messages');
                          }
                          return;
                      } else if (myReq.status === 'REJECTED') {
@@ -254,6 +253,8 @@ export const useAutoMatch = (
 
             if (isMounted) {
                 setAiResults(staticMatches);
+                setAiStep('RESULTS');
+                setIsPolling(false);
             }
         }
       } catch (error: any) {
@@ -332,12 +333,6 @@ export const useAutoMatch = (
                 message: "Auto Match Live: Chốt kèo!"
             }, config);
             
-            if (silentPostIdRef.current) {
-                try { await axios.delete(`${API_URL}/match-posts/${silentPostIdRef.current}`, config); } catch(e) {}
-                setSilentPostId(null);
-                localStorage.removeItem('autoMatch_silentPostId');
-            }
-
             setWaitingForPostId(foundLivePost.id);
             localStorage.setItem('autoMatch_waitingForPostId', foundLivePost.id);
             setFoundLivePost(null);
@@ -428,6 +423,7 @@ export const useAutoMatch = (
         await axios.put(`${API_URL}/match-requests/${pendingRequest.id}/status`, { status: 'ACCEPTED' }, config);
         
         if (silentPostIdRef.current) {
+            try { await axios.delete(`${API_URL}/match-posts/${silentPostIdRef.current}`, config); } catch(e) {}
             setSilentPostId(null);
             localStorage.removeItem('autoMatch_silentPostId');
             localStorage.removeItem('autoMatch_criteria');
@@ -436,7 +432,7 @@ export const useAutoMatch = (
 
         alert('🎉 Đã chốt kèo thành công! Chuyển tới phòng chat...');
         setSearchCriteria(null);
-        navigate('/tin-nhan');
+        navigate('/messages');
     } catch (e) {
         alert('Rất tiếc, có lỗi xảy ra hoặc đối phương đã hủy.');
         handleRejectPending(); 
@@ -448,6 +444,7 @@ export const useAutoMatch = (
   return {
       aiStep, aiResults, isPolling, isProcessingMatch, pendingRequest,
       handleAutoMatchSubmit, handleCancelSearch, handleAcceptLiveMatch, handleDeclineLiveMatch,
-      handleAcceptStaticSuggestion, handleAcceptPending, handleRejectPending
+      handleAcceptStaticSuggestion, handleAcceptPending, handleRejectPending,
+      foundLivePost
   };
 };

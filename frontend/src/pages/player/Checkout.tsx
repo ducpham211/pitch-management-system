@@ -39,7 +39,7 @@ const Checkout = () => {
   const slot = state?.slot || state?.selectedSlot;
 
   if (!pitch || !slot) {
-    navigate('/tim-san');
+    navigate('/pitches');
     return null;
   }
 
@@ -90,7 +90,7 @@ const Checkout = () => {
       }
 
       alert('🎉 Đặt sân thành công! Bạn đã chọn thanh toán qua MoMo (Đang phát triển).');
-      navigate('/ho-so');
+      navigate('/profile');
 
     } catch (error: any) {
       console.error(error);

@@ -28,7 +28,7 @@ const Chat = () => {
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      navigate('/dang-nhap');
+      navigate('/login');
       return;
     }
     try {

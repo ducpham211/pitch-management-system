@@ -167,6 +167,7 @@ const MatchBoard = () => {
           onAcceptPending={autoMatch.handleAcceptPending}
           onRejectPending={autoMatch.handleRejectPending}
           onAcceptStaticMatch={autoMatch.handleAcceptStaticSuggestion}
+          foundLivePost={autoMatch.foundLivePost}
         />
       ) : viewMode === 'history' ? (
         <div className="space-y-4 max-w-4xl mx-auto">
@@ -196,7 +197,7 @@ const MatchBoard = () => {
                             {statusLabel.includes('Đã') || statusLabel.includes('Được') ? <FaCheckCircle/> : <FaClock/>} {statusLabel}
                         </span>
                         {(statusLabel.includes('Đã Chốt') || statusLabel.includes('Được Duyệt')) && (
-                            <Button variant="primary" className="!bg-blue-600 hover:!bg-blue-700 shadow-md py-2 px-5 rounded-xl" onClick={() => navigate('/tin-nhan')}>Vào Chat</Button>
+                            <Button variant="primary" className="!bg-blue-600 hover:!bg-blue-700 shadow-md py-2 px-5 rounded-xl" onClick={() => navigate('/messages')}>Vào Chat</Button>
                         )}
                     </div>
                 </div>
@@ -286,7 +287,10 @@ const MatchBoard = () => {
       <AutoMatchModal 
         isOpen={isAutoMatchModalOpen} 
         onClose={() => setIsAutoMatchModalOpen(false)} 
-        onSubmit={autoMatch.handleAutoMatchSubmit} 
+        onSubmit={(criteria) => {
+            autoMatch.handleAutoMatchSubmit(criteria);
+            setIsAutoMatchModalOpen(false);
+        }} 
         fields={fields}
       />
 
@@ -301,7 +305,7 @@ const MatchBoard = () => {
         isOpen={!!applyingMatch} 
         match={applyingMatch} 
         onClose={() => setApplyingMatch(null)} 
-        onConfirm={() => { setApplyingMatch(null); navigate('/tin-nhan'); }} 
+        onConfirm={() => { setApplyingMatch(null); navigate('/messages'); }} 
       />
     </div>
   );
