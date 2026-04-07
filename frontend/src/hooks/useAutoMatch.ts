@@ -141,7 +141,7 @@ export const useAutoMatch = (
              
              if (mySilentPost && mySilentPost.requests && mySilentPost.requests.length > 0) {
                  const pending = mySilentPost.requests.find((r: any) => r.status === 'PENDING');
-                 if (pending && aiStepRef.current !== 'MATCH_FOUND' && aiStepRef.current !== 'RECEIVE_REQUEST') {
+                 if (pending && aiStepRef.current !== 'RECEIVE_REQUEST') {
                      if (isMounted) {
                          setPendingRequest(pending);
                          setFoundLivePost(null);

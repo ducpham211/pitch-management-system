@@ -88,15 +88,15 @@ const AutoMatchView = ({
         )}
 
         <div className="lg:w-1/3 bg-white rounded-3xl shadow-sm border border-blue-100 flex flex-col items-center justify-center relative overflow-hidden p-6">
-            <div className={`absolute top-1/2 left-1/2 w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-20 transform -translate-x-1/2 -translate-y-1/2 ${aiStep === 'WAITING_OPPONENT' ? 'bg-orange-400 animate-pulse' : 'bg-blue-400 animate-ping'}`}></div>
+            <div className={`absolute top-1/2 left-1/2 w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-20 transform -translate-x-1/2 -translate-y-1/2 ${aiStep === 'WAITING_OPPONENT' ? 'bg-orange-400 animate-pulse' : (isPolling ? 'bg-blue-400 animate-ping' : 'bg-gray-300')}`}></div>
             <div className="relative mb-8 z-10">
                 <div className={`w-32 h-32 border-4 rounded-full ${aiStep === 'WAITING_OPPONENT' ? 'border-orange-100' : 'border-blue-50'}`}></div>
-                <div className={`w-32 h-32 border-4 rounded-full border-t-transparent absolute top-0 left-0 ${aiStep === 'WAITING_OPPONENT' ? 'border-orange-500' : 'border-blue-600'} ${isPolling ? 'animate-spin' : ''}`}></div>
+                <div className={`w-32 h-32 border-4 rounded-full border-t-transparent absolute top-0 left-0 ${aiStep === 'WAITING_OPPONENT' ? 'border-orange-500' : (isPolling ? 'border-blue-600 animate-spin' : 'border-gray-400')}`}></div>
                 <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
                     {aiStep === 'WAITING_OPPONENT' ? (
                         <FaHourglassHalf className="text-5xl text-orange-500 animate-pulse" />
                     ) : (
-                        <FaRobot className={`text-5xl text-blue-600 ${isPolling ? 'animate-pulse' : ''}`} />
+                        <FaRobot className={`text-5xl ${isPolling ? 'text-blue-600 animate-pulse' : 'text-gray-400'}`} />
                     )}
                 </div>
             </div>
@@ -111,10 +111,10 @@ const AutoMatchView = ({
             ) : (
                 <>
                     <h4 className="font-bold text-gray-800 text-xl mb-2 z-10 text-center">
-                        {isPolling ? 'Radar Đang Quét...' : 'Đang Tạm Dừng'}
+                        {isPolling ? 'Radar Đang Quét...' : 'Đã Quét Xong'}
                     </h4>
                     <p className="text-gray-500 text-sm text-center mb-8 z-10 px-4 leading-relaxed">
-                        Hệ thống đang dò tìm ngầm các đối thủ trực tuyến phù hợp nhất với bạn.
+                        {isPolling ? 'Hệ thống đang dò tìm ngầm các đối thủ trực tuyến phù hợp nhất với bạn.' : 'Radar đã tạm dừng. Bạn có thể chốt các kèo phía trên hoặc thử tìm lại.'}
                     </p>
                 </>
             )}
