@@ -11,11 +11,15 @@ const AdminDashboard = () => {
   const [roleFilter, setRoleFilter] = useState('');
   const [minTrustScore, setMinTrustScore] = useState('');
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [userPage, setUserPage] = useState(0);
+  const [userTotalPages, setUserTotalPages] = useState(1);
 
   // States cho Reviews
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewStatus, setReviewStatus] = useState('PENDING_ADMIN_REVIEW');
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+  const [reviewPage, setReviewPage] = useState(0);
+  const [reviewTotalPages, setReviewTotalPages] = useState(1);
 
   // States cho Modal Xử lý Review
   const [adjudicateModal, setAdjudicateModal] = useState<{isOpen: boolean, review: any}>({isOpen: false, review: null});
@@ -27,12 +31,13 @@ const AdminDashboard = () => {
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
     try {
-      const params: any = {};
+      const params: any = { page: userPage, size: 10 };
       if (roleFilter) params.role = roleFilter;
       if (minTrustScore) params.minTrustScore = Number(minTrustScore);
       
       const res = await adminApi.getUsers(params);
-      setUsers(res.data);
+      setUsers(res.data.content || []);
+      setUserTotalPages(res.data.totalPages || 1);
     } catch (error) {
       console.error('Lỗi tải người dùng', error);
     } finally {
@@ -43,11 +48,12 @@ const AdminDashboard = () => {
   const fetchReviews = async () => {
     setIsLoadingReviews(true);
     try {
-      const params: any = {};
+      const params: any = { page: reviewPage, size: 10 };
       if (reviewStatus) params.status = reviewStatus;
 
       const res = await adminApi.getReviews(params);
-      setReviews(res.data);
+      setReviews(res.data.content || []);
+      setReviewTotalPages(res.data.totalPages || 1);
     } catch (error) {
       console.error('Lỗi tải đánh giá', error);
     } finally {
@@ -55,14 +61,14 @@ const AdminDashboard = () => {
     }
   };
 
-  // Chạy khi đổi Tab hoặc thay đổi Filter
+  // Chạy khi đổi Tab hoặc thay đổi Filter/Page
   useEffect(() => {
     if (activeTab === 'users') {
       fetchUsers();
     } else {
       fetchReviews();
     }
-  }, [activeTab, roleFilter, minTrustScore, reviewStatus]);
+  }, [activeTab, roleFilter, minTrustScore, reviewStatus, userPage, reviewPage]);
 
   // Xử lý Phán quyết
   const handleAdjudicate = async (approve: boolean) => {
@@ -158,6 +164,29 @@ const AdminDashboard = () => {
               </tbody>
             </table>
           </div>
+          
+          {/* USER PAGINATION CONTROLS */}
+          <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
+            <span className="text-sm text-gray-500">Trang {userPage + 1} / {userTotalPages}</span>
+            <div className="flex gap-2">
+              <Button 
+                variant="secondary" 
+                className="py-1.5 px-3 text-sm hover:bg-gray-100 disabled:opacity-50" 
+                onClick={() => setUserPage(curr => Math.max(0, curr - 1))}
+                disabled={userPage === 0}
+              >
+                Trước
+              </Button>
+              <Button 
+                variant="secondary" 
+                className="py-1.5 px-3 text-sm hover:bg-gray-100 disabled:opacity-50" 
+                onClick={() => setUserPage(curr => Math.min(userTotalPages - 1, curr + 1))}
+                disabled={userPage >= userTotalPages - 1}
+              >
+                Sau
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -210,6 +239,29 @@ const AdminDashboard = () => {
                 </div>
               ))
             )}
+          </div>
+          
+          {/* REVIEW PAGINATION CONTROLS */}
+          <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
+            <span className="text-sm text-gray-500">Trang {reviewPage + 1} / {reviewTotalPages}</span>
+            <div className="flex gap-2">
+              <Button 
+                variant="secondary" 
+                className="py-1.5 px-3 text-sm hover:bg-gray-100 disabled:opacity-50" 
+                onClick={() => setReviewPage(curr => Math.max(0, curr - 1))}
+                disabled={reviewPage === 0}
+              >
+                Trước
+              </Button>
+              <Button 
+                variant="secondary" 
+                className="py-1.5 px-3 text-sm hover:bg-gray-100 disabled:opacity-50" 
+                onClick={() => setReviewPage(curr => Math.min(reviewTotalPages - 1, curr + 1))}
+                disabled={reviewPage >= reviewTotalPages - 1}
+              >
+                Sau
+              </Button>
+            </div>
           </div>
         </div>
       )}

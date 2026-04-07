@@ -44,7 +44,7 @@ const MatchBoard = () => {
         const token = localStorage.getItem('accessToken');
         const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
         const [postsRes, fieldsRes] = await Promise.all([
-          axios.get(`${API_URL}/match-posts`, config),
+          axios.get(`${API_URL}/match-posts?size=100`, config),
           axios.get(`${API_URL}/fields`, config)
         ]);
         setMatches(postsRes.data.content || postsRes.data || []);
@@ -61,7 +61,7 @@ const MatchBoard = () => {
       const token = localStorage.getItem('accessToken');
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
       await axios.post(`${API_URL}/match-posts`, postData, config);
-      const res = await axios.get(`${API_URL}/match-posts`, config);
+      const res = await axios.get(`${API_URL}/match-posts?size=100`, config);
       setMatches(res.data.content || res.data || []);
       setIsCreateModalOpen(false);
     } catch (error) {
@@ -76,7 +76,7 @@ const MatchBoard = () => {
       const config = { headers: { Authorization: `Bearer ${token}` } };
       await axios.put(`${API_URL}/match-requests/${requestId}/status`, { status: 'ACCEPTED' }, config);
       alert('Chốt kèo thành công! Bài đăng đã được đóng.');
-      const res = await axios.get(`${API_URL}/match-posts`, config);
+      const res = await axios.get(`${API_URL}/match-posts?size=100`, config);
       setMatches(res.data.content || res.data || []);
     } catch (error: any) {
       alert(error.response?.data?.message || 'Có lỗi xảy ra khi chốt kèo!');

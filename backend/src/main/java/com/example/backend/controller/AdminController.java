@@ -11,6 +11,9 @@ import com.example.backend.repository.ReviewRepository;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.service.AdminService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -31,28 +34,18 @@ public class AdminController {
     // 1. GET: Danh sách User có bộ lọc (Đã fix lỗi 500 Infinite Recursion)
     @GetMapping("/users")
     public ResponseEntity<?> getUsers(
-            @RequestParam(required = false) String role,
+            @RequestParam(required = false) Enums.UserRole role,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) Integer minTrustScore) {
+            @RequestParam(required = false) Integer minTrustScore,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
         try {
-            // Lấy toàn bộ user và lọc bằng Java Stream để tránh lỗi ép kiểu JPQL Enum
-            List<User> users = userRepository.findAll();
-
-            if (role != null && !role.isEmpty()) {
-                users = users.stream()
-                        .filter(u -> u.getRole() != null && u.getRole().name().equalsIgnoreCase(role))
-                        .collect(Collectors.toList());
-            }
-
-            if (minTrustScore != null) {
-                users = users.stream()
-                        .filter(u -> u.getTrustScore() != null && u.getTrustScore() >= minTrustScore)
-                        .collect(Collectors.toList());
-            }
+            Pageable pageable = PageRequest.of(page, size);
+            Page<User> userPage = userRepository.findUsersByFilters(role, minTrustScore, pageable);
 
             // Map thủ công để tránh trả về trực tiếp Entity User gây lỗi JSON và lộ Password
-            List<java.util.Map<String, Object>> safeResponse = users.stream().map(u -> {
+            Page<java.util.Map<String, Object>> safeResponse = userPage.map(u -> {
                 java.util.Map<String, Object> map = new java.util.HashMap<>();
                 map.put("id", u.getId());
                 map.put("fullName", u.getFullName());
@@ -60,7 +53,7 @@ public class AdminController {
                 map.put("role", u.getRole());
                 map.put("trustScore", u.getTrustScore());
                 return map;
-            }).collect(Collectors.toList());
+            });
 
             return ResponseEntity.ok(safeResponse);
 
@@ -71,14 +64,17 @@ public class AdminController {
 
     // 2. GET: Lịch sử đánh giá (Có thể lọc theo trạng thái)
     @GetMapping("/reviews")
-    public ResponseEntity<List<Review>> getReviews(
-            @RequestParam(required = false) Enums.ReviewStatus status) {
+    public ResponseEntity<Page<Review>> getReviews(
+            @RequestParam(required = false) Enums.ReviewStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
-        List<Review> reviews;
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Review> reviews;
         if (status != null) {
-            reviews = reviewRepository.findByStatus(status);
+            reviews = reviewRepository.findByStatus(status, pageable);
         } else {
-            reviews = reviewRepository.findAll();
+            reviews = reviewRepository.findAll(pageable);
         }
         return ResponseEntity.ok(reviews);
     }

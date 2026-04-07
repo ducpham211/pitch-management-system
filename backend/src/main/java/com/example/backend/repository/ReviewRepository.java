@@ -3,6 +3,8 @@ package com.example.backend.repository;
 
 import com.example.backend.utils.Enums;
 import com.example.backend.entity.Review;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;
@@ -13,5 +15,5 @@ public interface ReviewRepository extends JpaRepository<Review, String> {
     boolean existsByMatchRequestIdAndReviewerId(String matchRequestId, String reviewerId);
     List<Review> findByRevieweeId(String revieweeId);
     List<Review> findByMatchRequestId(String matchRequestId);
-    List<Review> findByStatus(Enums.ReviewStatus status);
+    Page<Review> findByStatus(Enums.ReviewStatus status, Pageable pageable);
 }

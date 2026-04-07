@@ -96,7 +96,7 @@ export const useAutoMatch = (
         if (!token) { setIsPolling(false); return; }
         const config = { headers: { Authorization: `Bearer ${token}` } };
         
-        const postsRes = await axios.get(`${API_URL}/match-posts`, config);
+        const postsRes = await axios.get(`${API_URL}/match-posts?size=100`, config);
         const currentMatches = postsRes.data.content || postsRes.data || [];
         if (isMounted) onMatchesFetched(currentMatches);
 
@@ -405,7 +405,7 @@ export const useAutoMatch = (
         
         if (pendingRequest) {
             await axios.put(`${API_URL}/match-requests/${pendingRequest.id}/status`, { status: 'REJECTED' }, config);
-            const postsRes = await axios.get(`${API_URL}/match-posts`, config);
+            const postsRes = await axios.get(`${API_URL}/match-posts?size=100`, config);
             const currentMatches = postsRes.data.content || postsRes.data || [];
             const theirPost = currentMatches.find((p: any) => p.userId === pendingRequest.requesterId && p.message?.startsWith("[LIVE_MATCH]"));
             if (theirPost) setSkippedMatchIds(prev => [...prev, theirPost.id]);
