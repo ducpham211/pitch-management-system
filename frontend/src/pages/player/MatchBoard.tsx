@@ -81,7 +81,7 @@ const MatchBoard = () => {
   const fetchMatches = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/match-posts`);
+      const response = await axios.get(`${API_URL}/match-posts?size=100`);
       setMatches(response.data.content || response.data || []);
     } catch (error) {} finally {
       setIsLoading(false);
@@ -138,7 +138,7 @@ const MatchBoard = () => {
         const token = localStorage.getItem('accessToken');
         const config = { headers: { Authorization: `Bearer ${token}` } };
         
-        const postsRes = await axios.get(`${API_URL}/match-posts`);
+        const postsRes = await axios.get(`${API_URL}/match-posts?size=100`);
         const currentMatches = postsRes.data.content || postsRes.data || [];
         if (isMounted) setMatches(currentMatches);
 
@@ -347,7 +347,7 @@ const MatchBoard = () => {
 
     if (foundLivePost) {
         try {
-            const postsRes = await axios.get(`${API_URL}/match-posts`, config);
+            const postsRes = await axios.get(`${API_URL}/match-posts?size=100`, config);
             const currentMatches = postsRes.data.content || postsRes.data || [];
             const currentSilentId = String(typeof silentPostIdRef.current === 'object' ? (silentPostIdRef.current as any).id : silentPostIdRef.current);
             const mySilentPost = currentMatches.find((p: any) => String(p.id) === currentSilentId);
@@ -468,7 +468,7 @@ const MatchBoard = () => {
         const config = { headers: { Authorization: `Bearer ${token}` } };
         await axios.put(`${API_URL}/match-requests/${pendingRequest.id}/status`, { status: 'REJECTED' }, config);
         
-        const postsRes = await axios.get(`${API_URL}/match-posts`);
+        const postsRes = await axios.get(`${API_URL}/match-posts?size=100`);
         const currentMatches = postsRes.data.content || postsRes.data || [];
         const theirPost = currentMatches.find((p: any) => p.userId === pendingRequest.requesterId && p.message?.startsWith("[LIVE_MATCH]"));
         if (theirPost) {

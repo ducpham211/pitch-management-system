@@ -59,10 +59,9 @@ const handleIncomingWebSocketMessage = async (incomingMessage) => {
     if (currentActiveConversationId === conversationId) {
         // Kịch bản A: Đang xem trực tiếp phòng trò chuyện
         appendMessageToUI(incomingMessage);
-        
         try {
             // Gửi tín hiệu đồng bộ hóa cho Back-end
-            await apiClient.put(`/api/messages/conversations/${conversationId}/read`, null, {
+            await apiClient.put(`/api/conversations/{conversationId}/read`, null, {
                 params: { userId: currentUserId }
             });
         } catch (error) {

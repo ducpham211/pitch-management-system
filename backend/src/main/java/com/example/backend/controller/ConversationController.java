@@ -39,16 +39,14 @@ public class ConversationController {
     ) {
         String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        // Ném cả conversationId (từ URL) và currentUserId (từ Token) xuống cho Service xử lý
         MessageResponse response = messageService.createMessage(conversationId, currentUserId, request);
         return ResponseEntity.ok(response);
     }
     @PutMapping("/{conversationId}/read")
     public ResponseEntity<Void> markConversationAsRead(
-            @PathVariable String conversationId,
-            @RequestParam String userId) { // Thực tế bác nên lấy userId từ Security Context (Token) cho bảo mật nhé
-
-        // Gọi thẳng vào dịch vụ Redis để xóa bộ đếm
+            @PathVariable String conversationId
+           ) {
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         notificationService.resetUnreadCount(userId, conversationId);
         return ResponseEntity.ok().build();
     }

@@ -7,11 +7,11 @@ export interface AdminCreateRequest {
 
 export const adminApi = {
   // 1. GET: Danh sách User có bộ lọc
-  getUsers: (params?: { role?: string; status?: string; minTrustScore?: number }) => 
+  getUsers: (params?: { role?: string; status?: string; minTrustScore?: number; page?: number; size?: number }) => 
     axiosClient.get('/admin/users', { params }),
     
   // 2. GET: Lịch sử đánh giá (Lọc theo trạng thái)
-  getReviews: (params?: { status?: string }) => 
+  getReviews: (params?: { status?: string; page?: number; size?: number }) => 
     axiosClient.get('/admin/reviews', { params }),
     
   // 3. PUT: Phán quyết của Admin cho một review

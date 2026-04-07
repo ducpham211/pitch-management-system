@@ -13,6 +13,10 @@ import com.example.backend.repository.MatchPostRepository;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.service.MatchPostService;
 import com.example.backend.service.ai.GroqAiService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import com.example.backend.service.ai.GroqAiService;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -39,9 +43,10 @@ public class MatchPostServiceImpl implements MatchPostService {
     }
 
     @Override
-    public List<MatchPostResponse> getMatchPosts(Enums.TeamLevel skillLevel, Enums.PostType postType) {
-        List<MatchPost> result = matchPostRepository.filterMatchPosts(skillLevel, postType);
-        return result.stream().map(matchPostMapper::toResponse).toList();
+    public Page<MatchPostResponse> getMatchPosts(Enums.TeamLevel skillLevel, Enums.PostType postType, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<MatchPost> matchPage = matchPostRepository.filterMatchPosts(skillLevel, postType, pageable);
+        return matchPage.map(matchPostMapper::toResponse);
     }
     @Override
     public MatchPostResponse updateMatchPost(String postId, String currentUserId, MatchPostCreateRequest request){
@@ -69,14 +74,15 @@ public class MatchPostServiceImpl implements MatchPostService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy User"));
         int currentTrust = currentUser.getTrustScore() != null ? currentUser.getTrustScore() : 100;
 
-        // 2. LỌC THÔ: Lấy top 15 trận từ Database (Giả sử bạn dùng Pageable hoặc lấy list rồi sublist)
-        List<MatchPost> rawMatches = matchPostRepository.findPotentialMatches(currentUserId);
-        if (rawMatches.isEmpty()) {
+        // 2. LỌC THÔ: Lấy top 15 trận từ Database bằng Pageable
+        Pageable top15 = PageRequest.of(0, 15);
+        Page<MatchPost> rawMatchesPage = matchPostRepository.findPotentialMatches(currentUserId, top15);
+        if (rawMatchesPage.isEmpty()) {
             return List.of(); // Không có ai đang rảnh
         }
 
         // Cắt lấy 15 trận đầu tiên để nhét cho AI (tránh tràn token)
-        List<MatchPost> top15Matches = rawMatches.stream().limit(15).toList();
+        List<MatchPost> top15Matches = rawMatchesPage.getContent();
 
         // 3. Chuẩn bị Dữ liệu nhẹ cho AI
         // 3. Chuẩn bị Dữ liệu nhẹ cho AI
