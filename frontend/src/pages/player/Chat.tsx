@@ -133,10 +133,6 @@ const Chat = () => {
     };
   }, [activeConv, SOCKET_URL, currentUserId]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isPartnerTyping]);
-
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessageText(e.target.value);
     if (activeConv === 'bot') return;
