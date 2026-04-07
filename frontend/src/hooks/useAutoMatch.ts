@@ -134,7 +134,7 @@ export const useAutoMatch = (
              const cleanSilentId = String(typeof currentSilentId === 'object' ? (currentSilentId as any).id : currentSilentId);
              const mySilentPost = currentMatches.find((p: any) => String(p.id) === cleanSilentId);
              
-             if (!mySilentPost || mySilentPost.status === 'CLOSED') {
+             if (mySilentPost && mySilentPost.status === 'CLOSED') {
                  handleCancelSearch();
                  return;
              }
@@ -254,6 +254,8 @@ export const useAutoMatch = (
 
             if (isMounted) {
                 setAiResults(staticMatches);
+                setAiStep('RESULTS');
+                setIsPolling(false);
             }
         }
       } catch (error: any) {
@@ -332,12 +334,6 @@ export const useAutoMatch = (
                 message: "Auto Match Live: Chốt kèo!"
             }, config);
             
-            if (silentPostIdRef.current) {
-                try { await axios.delete(`${API_URL}/match-posts/${silentPostIdRef.current}`, config); } catch(e) {}
-                setSilentPostId(null);
-                localStorage.removeItem('autoMatch_silentPostId');
-            }
-
             setWaitingForPostId(foundLivePost.id);
             localStorage.setItem('autoMatch_waitingForPostId', foundLivePost.id);
             setFoundLivePost(null);
@@ -428,6 +424,7 @@ export const useAutoMatch = (
         await axios.put(`${API_URL}/match-requests/${pendingRequest.id}/status`, { status: 'ACCEPTED' }, config);
         
         if (silentPostIdRef.current) {
+            try { await axios.delete(`${API_URL}/match-posts/${silentPostIdRef.current}`, config); } catch(e) {}
             setSilentPostId(null);
             localStorage.removeItem('autoMatch_silentPostId');
             localStorage.removeItem('autoMatch_criteria');
