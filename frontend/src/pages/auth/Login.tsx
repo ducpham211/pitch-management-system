@@ -39,7 +39,7 @@ const Login = () => {
       if (role === 'ADMIN') {
         navigate('/admin');
       } else if (role === 'OWNER') {
-        navigate('/chu-san');
+        navigate('/owner');
       } else {
         navigate('/');
       }
@@ -123,7 +123,7 @@ const Login = () => {
 
         <div className="mt-6 text-center text-gray-600">
           Chưa có tài khoản?{' '}
-          <Link to="/dang-ky" className="text-green-600 hover:text-green-700 font-bold">
+          <Link to="/register" className="text-green-600 hover:text-green-700 font-bold">
             Đăng ký ngay
           </Link>
         </div>

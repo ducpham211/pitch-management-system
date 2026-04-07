@@ -87,7 +87,7 @@ const PitchDetail = () => {
 
   const handleBooking = () => {
     if (!selectedSlot) return;
-    navigate(`/thanh-toan/${id}`, {
+    navigate(`/checkout/${id}`, {
       state: { pitch, selectedSlot, selectedDate }
     });
   };
@@ -104,7 +104,7 @@ const PitchDetail = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <Link to="/tim-san" className="inline-flex items-center text-gray-500 hover:text-green-600 mb-6 transition">
+      <Link to="/pitches" className="inline-flex items-center text-gray-500 hover:text-green-600 mb-6 transition">
         <FaArrowLeft className="mr-2" /> Quay lại danh sách
       </Link>
 

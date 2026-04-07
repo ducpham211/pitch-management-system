@@ -35,7 +35,7 @@ const Register = () => {
       });
 
       alert(response.data.message || 'Đăng ký tài khoản thành công!');
-      navigate('/dang-nhap');
+      navigate('/login');
     } catch (err: any) {
       if (err.response?.data?.message) {
         setError(err.response.data.message);
@@ -118,7 +118,7 @@ const Register = () => {
 
         <div className="mt-6 text-center text-gray-600">
           Đã có tài khoản?{' '}
-          <Link to="/dang-nhap" className="text-green-600 hover:text-green-700 font-bold">
+          <Link to="/login" className="text-green-600 hover:text-green-700 font-bold">
             Đăng nhập
           </Link>
         </div>

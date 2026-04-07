@@ -20,12 +20,12 @@ const Home = () => {
             Nền tảng giúp bạn tìm kiếm sân bóng gần nhất, đặt lịch nhanh chóng, cọc giữ chỗ an toàn và kết nối giao hữu với hàng ngàn đội bóng khác.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link to="/tim-san" className="w-full sm:w-auto">
+            <Link to="/pitches" className="w-full sm:w-auto">
               <Button variant="primary" className="text-lg px-8 py-4 shadow-lg !bg-green-600 hover:!bg-green-700 w-full">
                 Bắt đầu Tìm Sân
               </Button>
             </Link>
-            <Link to="/ghep-tran" className="w-full sm:w-auto">
+            <Link to="/matches" className="w-full sm:w-auto">
               <Button variant="secondary" className="text-lg px-8 py-4 shadow-md border border-gray-300 w-full bg-white hover:bg-gray-50">
                 Tham Gia Ghép Trận
               </Button>
@@ -43,7 +43,7 @@ const Home = () => {
           <p className="text-gray-600 leading-relaxed mb-6 flex-1">
             Xem lịch trống, giá cả và vị trí các sân bóng xung quanh khu vực của bạn một cách trực quan.
           </p>
-          <Link to="/tim-san" className="w-full">
+          <Link to="/pitches" className="w-full">
             <Button variant="primary" className="w-full !bg-blue-600 hover:!bg-blue-700">Tìm Sân Ngay</Button>
           </Link>
         </div>
@@ -56,7 +56,7 @@ const Home = () => {
           <p className="text-gray-600 leading-relaxed mb-6 flex-1">
             Đăng tin tìm đối thủ, lướt bảng tin nhận kèo và thương lượng trực tiếp qua hệ thống chat nội bộ.
           </p>
-          <Link to="/ghep-tran" className="w-full">
+          <Link to="/matches" className="w-full">
             <Button variant="primary" className="w-full !bg-green-600 hover:!bg-green-700">Đến Bảng Tin</Button>
           </Link>
         </div>
@@ -81,7 +81,7 @@ const Home = () => {
             </h2>
             <p className="text-gray-600 text-lg">Các sân bóng được đánh giá cao và đặt nhiều nhất trong tuần</p>
           </div>
-          <Link to="/tim-san" className="hidden md:block text-green-600 font-bold hover:underline">
+          <Link to="/pitches" className="hidden md:block text-green-600 font-bold hover:underline">
             Xem tất cả &rarr;
           </Link>
         </div>
@@ -95,13 +95,13 @@ const Home = () => {
               location={pitch.location}
               type={pitch.type}
               price={pitch.price}
-              onActionClick={() => navigate(`/san/${pitch.id}`)}
+              onActionClick={() => navigate(`/pitches/${pitch.id}`)}
             />
           ))}
         </div>
         
         <div className="mt-6 text-center md:hidden">
-          <Link to="/tim-san" className="text-green-600 font-bold hover:underline">
+          <Link to="/pitches" className="text-green-600 font-bold hover:underline">
             Xem tất cả sân bóng &rarr;
           </Link>
         </div>
@@ -113,7 +113,7 @@ const Home = () => {
           <p className="text-gray-300 mb-8 max-w-2xl mx-auto text-lg">
             Đăng ký đối tác với nền tảng của chúng tôi ngay hôm nay để quản lý lịch đặt sân dễ dàng, tăng doanh thu và tiếp cận hàng ngàn đội bóng.
           </p>
-          <Link to="/dang-ky">
+          <Link to="/register">
             <Button variant="primary" className="!bg-white !text-gray-900 hover:!bg-gray-100 text-lg px-8 py-3 font-bold">
               Trở thành Đối Tác
             </Button>

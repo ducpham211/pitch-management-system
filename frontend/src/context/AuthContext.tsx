@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     localStorage.removeItem('accessToken');
     setUser(null);
-    window.location.href = '/dang-nhap';
+    window.location.href = '/login';
   };
 
   return (

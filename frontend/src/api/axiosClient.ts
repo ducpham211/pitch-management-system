@@ -23,7 +23,7 @@ axiosClient.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('accessToken');
-      window.location.href = '/dang-nhap';
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

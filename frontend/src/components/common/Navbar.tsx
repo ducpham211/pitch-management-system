@@ -71,9 +71,9 @@ const Navbar = () => {
 
   const navLinks = [
     { name: 'Trang Chủ', path: '/' },
-    { name: 'Tìm Sân', path: '/tim-san' },
-    { name: 'Ghép Trận', path: '/ghep-tran' },
-    { name: 'Tin Nhắn', path: '/tin-nhan' },
+    { name: 'Tìm Sân', path: '/pitches' },
+    { name: 'Ghép Trận', path: '/matches' },
+    { name: 'Tin Nhắn', path: '/messages' },
   ];
 
   return (
@@ -150,8 +150,8 @@ const Navbar = () => {
 
                   {showDropdown && (
                     <div className="absolute right-0 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2 mt-0 z-50 overflow-hidden">
-                      <Link to="/ho-so" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 transition"><FaUser className="text-sm" /> Hồ sơ cá nhân</Link>
-                      {user.role === 'OWNER' && <Link to="/chu-san" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"><FaFutbol className="text-sm" /> Kênh Chủ Sân</Link>}
+                      <Link to="/profile" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 transition"><FaUser className="text-sm" /> Hồ sơ cá nhân</Link>
+                      {user.role === 'OWNER' && <Link to="/owner" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"><FaFutbol className="text-sm" /> Kênh Chủ Sân</Link>}
                       {user.role === 'ADMIN' && <Link to="/admin" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition"><FaCheck className="text-sm" /> Quản Trị Hệ Thống</Link>}
                       <hr className="my-1 border-gray-100" />
                       <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 w-full text-left text-red-600 hover:bg-red-50 transition"><FaSignOutAlt className="text-sm" /> Đăng xuất</button>
@@ -161,8 +161,8 @@ const Navbar = () => {
               </>
             ) : (
               <>
-                <Link to="/dang-nhap"><Button variant="secondary" className="bg-transparent border border-gray-300">Đăng Nhập</Button></Link>
-                <Link to="/dang-ky"><Button variant="primary" className="!bg-green-600 hover:!bg-green-700">Đăng Ký</Button></Link>
+                <Link to="/login"><Button variant="secondary" className="bg-transparent border border-gray-300">Đăng Nhập</Button></Link>
+                <Link to="/register"><Button variant="primary" className="!bg-green-600 hover:!bg-green-700">Đăng Ký</Button></Link>
               </>
             )}
           </div>
@@ -196,22 +196,27 @@ const Navbar = () => {
             <div className="pt-4 flex flex-col gap-3 border-t border-gray-100">
               {user ? (
                 <>
-                  <Link to="/ho-so" onClick={() => setIsOpen(false)}>
+                  <Link to="/profile" onClick={() => setIsOpen(false)}>
                     <Button variant="secondary" className="w-full text-center border border-gray-300 py-3">Hồ sơ cá nhân</Button>
                   </Link>
                   {user.role === 'OWNER' && (
-                    <Link to="/chu-san" onClick={() => setIsOpen(false)}>
+                    <Link to="/owner" onClick={() => setIsOpen(false)}>
                       <Button variant="secondary" className="w-full text-center border border-blue-200 text-blue-600 bg-blue-50 py-3">Kênh Chủ Sân</Button>
+                    </Link>
+                  )}
+                  {user.role === 'ADMIN' && (
+                    <Link to="/admin" onClick={() => setIsOpen(false)}>
+                      <Button variant="secondary" className="w-full text-center border border-purple-200 text-purple-600 bg-purple-50 py-3">Quản Trị Hệ Thống</Button>
                     </Link>
                   )}
                   <Button onClick={() => { handleLogout(); setIsOpen(false); }} variant="secondary" className="w-full text-center border border-red-200 text-red-600 bg-red-50 py-3">Đăng Xuất</Button>
                 </>
               ) : (
                 <>
-                  <Link to="/dang-nhap" onClick={() => setIsOpen(false)}>
+                  <Link to="/login" onClick={() => setIsOpen(false)}>
                     <Button variant="secondary" className="w-full text-center border border-gray-300 py-3">Đăng Nhập</Button>
                   </Link>
-                  <Link to="/dang-ky" onClick={() => setIsOpen(false)}>
+                  <Link to="/register" onClick={() => setIsOpen(false)}>
                     <Button variant="primary" className="w-full text-center !bg-green-600 py-3">Đăng Ký</Button>
                   </Link>
                 </>

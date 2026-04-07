@@ -17,7 +17,7 @@ const PaymentCancel = () => {
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate('/')}>Trang Chủ</Button>
-          <Button variant="primary" className="w-full sm:w-auto !bg-green-600 hover:!bg-green-700" onClick={() => navigate('/tim-san')}>Thử Đặt Lại</Button>
+          <Button variant="primary" className="w-full sm:w-auto !bg-green-600 hover:!bg-green-700" onClick={() => navigate('/pitches')}>Thử Đặt Lại</Button>
         </div>
       </div>
     </div>

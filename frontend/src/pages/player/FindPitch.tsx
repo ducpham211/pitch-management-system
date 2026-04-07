@@ -63,7 +63,7 @@ const FindPitch = () => {
   });
 
   const handleBookClick = (pitchId: string) => {
-    navigate(`/san/${pitchId}`);
+    navigate(`/pitches/${pitchId}`);
   };
 
   return (

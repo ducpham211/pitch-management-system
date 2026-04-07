@@ -175,7 +175,7 @@ export const useAutoMatch = (
                              localStorage.removeItem('autoMatch_waitingForPostId');
                              
                              setIsProcessingMatch(false);
-                             navigate('/tin-nhan');
+                             navigate('/messages');
                          }
                          return;
                      } else if (myReq.status === 'REJECTED') {
@@ -433,7 +433,7 @@ export const useAutoMatch = (
 
         alert('🎉 Đã chốt kèo thành công! Chuyển tới phòng chat...');
         setSearchCriteria(null);
-        navigate('/tin-nhan');
+        navigate('/messages');
     } catch (e) {
         alert('Rất tiếc, có lỗi xảy ra hoặc đối phương đã hủy.');
         handleRejectPending(); 

@@ -31,9 +31,9 @@ const Footer = () => {
           <div>
             <h3 className="text-gray-900 font-bold text-lg mb-4 border-b border-gray-100 pb-2">Khám phá</h3>
             <ul className="space-y-3 text-sm">
-              <li><Link to="/tim-san" className="hover:text-green-600 transition">Tìm sân bóng</Link></li>
-              <li><Link to="/ghep-tran" className="hover:text-green-600 transition">Bảng tin ghép trận</Link></li>
-              <li><Link to="/ho-so" className="hover:text-green-600 transition">Lịch sử đặt sân</Link></li>
+              <li><Link to="/pitches" className="hover:text-green-600 transition">Tìm sân bóng</Link></li>
+              <li><Link to="/matches" className="hover:text-green-600 transition">Bảng tin ghép trận</Link></li>
+              <li><Link to="/profile" className="hover:text-green-600 transition">Lịch sử đặt sân</Link></li>
               <li><Link to="#" className="hover:text-green-600 transition">Bảng xếp hạng</Link></li>
             </ul>
           </div>
@@ -41,8 +41,8 @@ const Footer = () => {
           <div>
             <h3 className="text-gray-900 font-bold text-lg mb-4 border-b border-gray-100 pb-2">Dành cho đối tác</h3>
             <ul className="space-y-3 text-sm">
-              <li><Link to="/dang-ky" className="hover:text-green-600 transition">Đăng ký làm Chủ sân</Link></li>
-              <li><Link to="/chu-san" className="hover:text-green-600 transition">Kênh Quản lý Chủ sân</Link></li>
+              <li><Link to="/register" className="hover:text-green-600 transition">Đăng ký làm Chủ sân</Link></li>
+              <li><Link to="/owner" className="hover:text-green-600 transition">Kênh Quản lý Chủ sân</Link></li>
               <li><Link to="#" className="hover:text-green-600 transition">Quy chế hoạt động</Link></li>
               <li><Link to="#" className="hover:text-green-600 transition">Chính sách bảo mật</Link></li>
             </ul>
