@@ -1,66 +1,30 @@
-import { FaRobot, FaTimes, FaCheck, FaMapMarkerAlt, FaUserCircle, FaMoneyBillWave, FaFutbol, FaCalendarAlt, FaClock, FaCheckCircle, FaListAlt, FaHourglassHalf } from 'react-icons/fa';
+import { FaRobot, FaTimes, FaCheck, FaUserCircle, FaHourglassHalf } from 'react-icons/fa';
 import Button from '../common/Button';
+import MatchCard from '../common/MatchCard';
 
 type AutoMatchViewProps = {
-  aiStep: 'SEARCHING' | 'MATCH_FOUND' | 'WAITING_OPPONENT' | 'RECEIVE_REQUEST' | 'FINISHED';
+  aiStep: 'SEARCHING' | 'MATCH_FOUND' | 'WAITING_OPPONENT' | 'RECEIVE_REQUEST' | 'RESULTS' | 'FINISHED';
   aiResults: any[];
   pendingRequest: any;
   fields: any[];
   isPolling: boolean;
+  isProcessingMatch: boolean;
   onCancelSearch: () => void;
   onAcceptLiveMatch: () => void;
   onDeclineLiveMatch: () => void;
   onAcceptPending: () => void;
   onRejectPending: () => void;
   onAcceptStaticMatch: (matchId: string) => void;
+  onSkipStaticMatch: () => void;
   onBackToBoard: () => void;
   onOpenCreate: () => void;
 };
 
 const AutoMatchView = ({
-  aiStep,
-  aiResults,
-  pendingRequest,
-  fields,
-  isPolling,
-  onCancelSearch,
-  onAcceptLiveMatch,
-  onDeclineLiveMatch,
-  onAcceptPending,
-  onRejectPending,
-  onAcceptStaticMatch,
-  onBackToBoard,
-  onOpenCreate
+  aiStep, aiResults, pendingRequest, fields, isPolling, isProcessingMatch,
+  onCancelSearch, onAcceptLiveMatch, onDeclineLiveMatch, onAcceptPending, 
+  onRejectPending, onAcceptStaticMatch, onSkipStaticMatch, onBackToBoard, onOpenCreate
 }: AutoMatchViewProps) => {
-
-  const formatTimeStr = (timeStr: any) => {
-    if (!timeStr) return '';
-    if (Array.isArray(timeStr)) return `${timeStr[0].toString().padStart(2, '0')}:${(timeStr[1] || 0).toString().padStart(2, '0')}`;
-    const str = String(timeStr);
-    if (str.includes('T')) return str.split('T')[1].substring(0, 5);
-    if (str.includes(' ')) return str.split(' ')[1].substring(0, 5);
-    if (str.includes(':')) return str.substring(0, 5);
-    return str;
-  };
-
-  const formatDateStr = (dateStr: any) => {
-    if (!dateStr) return 'Chưa rõ';
-    if (Array.isArray(dateStr)) return `${dateStr[2].toString().padStart(2, '0')}/${dateStr[1].toString().padStart(2, '0')}/${dateStr[0]}`;
-    let str = String(dateStr);
-    if (str.includes('T')) str = str.split('T')[0];
-    else if (str.includes(' ')) str = str.split(' ')[0];
-    const parts = str.split('-');
-    return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : str;
-  };
-
-  const translateSkillLevel = (level: string) => {
-    switch(level) {
-      case 'BEGINNER': return 'Yếu / Vui vẻ';
-      case 'INTERMEDIATE': return 'Trung bình / Khá';
-      case 'ADVANCED': return 'Tốt / Chuyên nghiệp';
-      default: return level || 'Mọi trình độ';
-    }
-  };
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[70vh] relative">
@@ -77,11 +41,12 @@ const AutoMatchView = ({
                     </div>
                     
                     <div className="flex gap-4">
-                        <Button variant="secondary" onClick={onDeclineLiveMatch} className="flex-1 py-4 text-lg border-2 border-red-100 text-red-500 hover:bg-red-50 hover:border-red-300 rounded-xl font-bold transition-all">
+                        <Button disabled={isProcessingMatch} variant="secondary" onClick={onDeclineLiveMatch} className={`flex-1 py-4 text-lg border-2 border-red-100 text-red-500 hover:bg-red-50 hover:border-red-300 rounded-xl font-bold transition-all ${isProcessingMatch ? 'opacity-50 cursor-not-allowed' : ''}`}>
                             <FaTimes className="inline mr-2" /> Bỏ Qua
                         </Button>
-                        <Button variant="primary" onClick={onAcceptLiveMatch} className="flex-1 py-4 text-lg !bg-green-500 hover:!bg-green-600 rounded-xl font-bold shadow-lg shadow-green-200 transition-all transform hover:scale-105">
-                            <FaCheck className="inline mr-2" /> Chốt Kèo
+                        <Button disabled={isProcessingMatch} variant="primary" onClick={onAcceptLiveMatch} className={`flex-1 py-4 text-lg !bg-green-500 hover:!bg-green-600 rounded-xl font-bold shadow-lg shadow-green-200 transition-all transform hover:scale-105 ${isProcessingMatch ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            {isProcessingMatch ? <FaHourglassHalf className="inline mr-2 animate-spin" /> : <FaCheck className="inline mr-2" />} 
+                            {isProcessingMatch ? 'Đang Xử Lý...' : 'Chốt Kèo'}
                         </Button>
                     </div>
                 </div>
@@ -104,11 +69,12 @@ const AutoMatchView = ({
                     </div>
 
                     <div className="flex gap-4">
-                        <Button variant="secondary" onClick={onRejectPending} className="flex-1 py-4 text-lg border-2 border-red-100 text-red-500 hover:bg-red-50 hover:border-red-300 rounded-xl font-bold transition-all">
+                        <Button disabled={isProcessingMatch} variant="secondary" onClick={onRejectPending} className={`flex-1 py-4 text-lg border-2 border-red-100 text-red-500 hover:bg-red-50 hover:border-red-300 rounded-xl font-bold transition-all ${isProcessingMatch ? 'opacity-50 cursor-not-allowed' : ''}`}>
                             <FaTimes className="inline mr-2" /> Từ Chối
                         </Button>
-                        <Button variant="primary" onClick={onAcceptPending} className="flex-1 py-4 text-lg !bg-blue-500 hover:!bg-blue-600 rounded-xl font-bold shadow-lg shadow-blue-200 transition-all transform hover:scale-105">
-                            <FaCheck className="inline mr-2" /> Đồng Ý
+                        <Button disabled={isProcessingMatch} variant="primary" onClick={onAcceptPending} className={`flex-1 py-4 text-lg !bg-blue-500 hover:!bg-blue-600 rounded-xl font-bold shadow-lg shadow-blue-200 transition-all transform hover:scale-105 ${isProcessingMatch ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            {isProcessingMatch ? <FaHourglassHalf className="inline mr-2 animate-spin" /> : <FaCheck className="inline mr-2" />}
+                            {isProcessingMatch ? 'Đang Xử Lý...' : 'Đồng Ý'}
                         </Button>
                     </div>
                 </div>
@@ -154,67 +120,29 @@ const AutoMatchView = ({
 
         <div className="lg:w-2/3 bg-gray-50 rounded-3xl border border-gray-200 p-6 flex flex-col shadow-inner">
             <h3 className="font-bold text-gray-800 text-lg mb-6 flex items-center gap-2 border-b border-gray-200 pb-4">
-                <FaListAlt className="text-green-600"/> Bài Đăng Phù Hợp ({aiResults.length})
+                <FaRobot className="text-blue-600"/> Đề Xuất Phù Hợp ({aiResults.length})
             </h3>
             
-            {aiStep === 'SEARCHING' && aiResults.length === 0 && (
+            {aiResults.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
                     <FaRobot className="text-6xl mb-4 opacity-20" />
-                    <p className="text-lg">Không có bài đăng tĩnh nào khớp. Đợi radar quét người dùng trực tuyến...</p>
+                    <p className="text-lg">Không có bài đăng nào khớp. Đợi radar quét người dùng trực tuyến...</p>
                 </div>
-            )}
-
-            {aiStep === 'FINISHED' && (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                    <div className="w-20 h-20 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-200">
-                        <FaRobot className="text-4xl" />
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">Đã quét hết các gợi ý hiện có!</h3>
-                    <p className="text-gray-500 mb-6">Radar vẫn đang tiếp tục chạy ngầm để đón lõng đối thủ mới. Hoặc bạn có thể về lại bảng tin.</p>
-                    <div className="w-full max-w-sm flex gap-3 mx-auto">
-                        <Button variant="secondary" className="flex-1 rounded-xl bg-gray-100 text-gray-700" onClick={onBackToBoard}>Về Bảng Tin</Button>
-                        <Button variant="primary" className="flex-1 rounded-xl !bg-green-600 hover:!bg-green-700" onClick={onOpenCreate}>Đăng Tin Mới</Button>
-                    </div>
-                </div>
-            )}
-
-            {aiStep === 'SEARCHING' && aiResults.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 overflow-y-auto pb-4" style={{ scrollbarWidth: 'none' }}>
-                    {aiResults.map((res, idx) => (
-                        <div key={idx} className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col hover:shadow-lg hover:border-green-300 transition duration-300 transform hover:-translate-y-1 overflow-hidden">
-                            <div className="p-5 flex-1 flex flex-col">
-                                <div className="flex items-center justify-between mb-3">
-                                    <span className="bg-green-50 text-green-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-green-100 flex items-center gap-1 uppercase tracking-wide">
-                                        <FaCheckCircle /> Phù hợp
-                                    </span>
-                                    <span className="text-xs text-gray-400 font-bold uppercase">U:{res.fullMatch.userId.substring(0,6)}</span>
-                                </div>
-                                
-                                <h4 className="font-bold text-gray-800 text-lg mb-4 line-clamp-2 leading-snug">
-                                    "{res.fullMatch.message.replace('[LIVE_MATCH]', '').trim()}"
-                                </h4>
-                                
-                                <div className="space-y-2 text-sm text-gray-600 mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100 flex-1">
-                                    <div className="flex justify-between items-center">
-                                        <span className="flex items-center gap-2"><FaCalendarAlt className="text-red-400"/> {formatDateStr(res.fullMatch.date)}</span>
-                                        <span className="flex items-center gap-2"><FaClock className="text-orange-400"/> {formatTimeStr(res.fullMatch.timeStart)}</span>
-                                    </div>
-                                    <p className="flex items-center gap-2 truncate" title={fields.find(f => f.id === res.fullMatch.fieldId)?.name || 'Sân tự do'}>
-                                        <FaMapMarkerAlt className="text-green-500 flex-shrink-0" /> 
-                                        <span className="truncate">{fields.find(f => f.id === res.fullMatch.fieldId)?.name || 'Sân tự do'}</span>
-                                    </p>
-                                </div>
-
-                                <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 relative mt-auto">
-                                    <FaRobot className="absolute -top-2.5 -left-2 text-xl text-blue-400 bg-white rounded-full" />
-                                    <p className="text-xs text-blue-800 italic ml-2 line-clamp-2">"{res.aiExplanation}"</p>
-                                </div>
+            ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 overflow-y-auto pb-4 pr-2" style={{ scrollbarWidth: 'thin' }}>
+                    {aiResults.slice(0, 4).map((res, idx) => (
+                        <div key={idx} className="flex flex-col gap-3">
+                            <div className="bg-blue-50/80 p-3 rounded-xl border border-blue-100 relative">
+                                <FaRobot className="absolute -top-2.5 -left-2 text-xl text-blue-400 bg-white rounded-full" />
+                                <p className="text-xs text-blue-800 italic ml-3 font-medium">"{res.aiExplanation}"</p>
                             </div>
-                            <div className="p-4 bg-gray-50 border-t border-gray-100">
-                                <Button variant="primary" onClick={() => onAcceptStaticMatch(res.fullMatch.id)} className="w-full !bg-green-600 hover:!bg-green-700 shadow-md py-2.5 flex items-center justify-center gap-2 rounded-xl">
-                                    <FaCheck /> Nhận Kèo Này
-                                </Button>
-                            </div>
+                            <MatchCard 
+                                match={res.fullMatch} 
+                                fieldName={fields.find(f => f.id === res.fullMatch.fieldId)?.name}
+                                onApply={() => {
+                                    if(!isProcessingMatch) onAcceptStaticMatch(res.fullMatch.id);
+                                }} 
+                            />
                         </div>
                     ))}
                 </div>
