@@ -1,4 +1,4 @@
-import { FaRobot, FaTimes, FaCheck, FaUserCircle, FaHourglassHalf } from 'react-icons/fa';
+import { FaRobot, FaTimes, FaCheck, FaMapMarkerAlt, FaUserCircle, FaMoneyBillWave, FaFutbol, FaCalendarAlt, FaClock, FaCheckCircle, FaListAlt, FaHourglassHalf } from 'react-icons/fa';
 import Button from '../common/Button';
 import MatchCard from '../common/MatchCard';
 
@@ -15,16 +15,22 @@ type AutoMatchViewProps = {
   onAcceptPending: () => void;
   onRejectPending: () => void;
   onAcceptStaticMatch: (matchId: string) => void;
-  onSkipStaticMatch: () => void;
-  onBackToBoard: () => void;
-  onOpenCreate: () => void;
 };
 
 const AutoMatchView = ({
   aiStep, aiResults, pendingRequest, fields, isPolling, isProcessingMatch,
   onCancelSearch, onAcceptLiveMatch, onDeclineLiveMatch, onAcceptPending, 
-  onRejectPending, onAcceptStaticMatch, onSkipStaticMatch, onBackToBoard, onOpenCreate
+  onRejectPending, onAcceptStaticMatch
 }: AutoMatchViewProps) => {
+
+  const translateSkillLevel = (level: string) => {
+    switch(level) {
+      case 'BEGINNER': return 'Yếu / Vui vẻ';
+      case 'INTERMEDIATE': return 'Trung bình / Khá';
+      case 'ADVANCED': return 'Tốt / Chuyên nghiệp';
+      default: return level || 'Mọi trình độ';
+    }
+  };
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[70vh] relative">
@@ -126,7 +132,7 @@ const AutoMatchView = ({
             {aiResults.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
                     <FaRobot className="text-6xl mb-4 opacity-20" />
-                    <p className="text-lg">Không có bài đăng nào khớp. Đợi radar quét người dùng trực tuyến...</p>
+                    <p className="text-lg">Không có bài đăng tĩnh nào khớp. Đợi radar quét người dùng trực tuyến...</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 overflow-y-auto pb-4 pr-2" style={{ scrollbarWidth: 'thin' }}>

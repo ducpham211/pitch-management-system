@@ -38,10 +38,6 @@ const MatchBoard = () => {
   const autoMatch = useAutoMatch(currentUserId, (data) => setMatches(data), setViewMode);
 
   useEffect(() => {
-    if (autoMatch.isPolling && viewMode !== 'ai') setViewMode('ai');
-  }, [autoMatch.isPolling]);
-
-  useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
@@ -133,10 +129,10 @@ const MatchBoard = () => {
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
           <div className="bg-gray-100 p-1 rounded-lg flex overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-            <button onClick={() => { if(autoMatch.isPolling) autoMatch.handleCancelSearch(); setViewMode('all'); }} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'all' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}><FaGlobe /> Bảng chung</button>
-            <button onClick={() => { if(autoMatch.isPolling) autoMatch.handleCancelSearch(); setViewMode('my'); }} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'my' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}><FaListAlt /> Bài của tôi</button>
-            <button onClick={() => { if(autoMatch.isPolling) autoMatch.handleCancelSearch(); setViewMode('history'); }} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'history' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}><FaHistory /> Lịch sử</button>
-            {viewMode === 'ai' && <button className="flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap bg-white shadow-sm text-blue-600"><FaRobot className={autoMatch.isPolling ? "animate-spin" : ""} /> Đang Ghép Tự Động</button>}
+            <button onClick={() => setViewMode('all')} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'all' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}><FaGlobe /> Bảng chung</button>
+            <button onClick={() => setViewMode('my')} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'my' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}><FaListAlt /> Bài của tôi</button>
+            <button onClick={() => setViewMode('history')} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'history' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}><FaHistory /> Lịch sử</button>
+            {autoMatch.isPolling && <button onClick={() => setViewMode('ai')} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'ai' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}><FaRobot className="animate-spin" /> Đang Ghép Tự Động</button>}
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
             {viewMode !== 'ai' && (
@@ -171,9 +167,6 @@ const MatchBoard = () => {
           onAcceptPending={autoMatch.handleAcceptPending}
           onRejectPending={autoMatch.handleRejectPending}
           onAcceptStaticMatch={autoMatch.handleAcceptStaticSuggestion}
-          onSkipStaticMatch={autoMatch.handleSkipStaticMatch}
-          onBackToBoard={() => { autoMatch.handleCancelSearch(); setViewMode('all'); }}
-          onOpenCreate={() => { autoMatch.handleCancelSearch(); setIsCreateModalOpen(true); }}
         />
       ) : viewMode === 'history' ? (
         <div className="space-y-4 max-w-4xl mx-auto">
@@ -293,7 +286,7 @@ const MatchBoard = () => {
       <AutoMatchModal 
         isOpen={isAutoMatchModalOpen} 
         onClose={() => setIsAutoMatchModalOpen(false)} 
-        onSubmit={(criteria) => { setIsAutoMatchModalOpen(false); autoMatch.handleAutoMatchSubmit(criteria); }} 
+        onSubmit={autoMatch.handleAutoMatchSubmit} 
         fields={fields}
       />
 
