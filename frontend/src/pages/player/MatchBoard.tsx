@@ -286,7 +286,10 @@ const MatchBoard = () => {
       <AutoMatchModal 
         isOpen={isAutoMatchModalOpen} 
         onClose={() => setIsAutoMatchModalOpen(false)} 
-        onSubmit={autoMatch.handleAutoMatchSubmit} 
+        onSubmit={(criteria) => {
+            autoMatch.handleAutoMatchSubmit(criteria);
+            setIsAutoMatchModalOpen(false);
+        }} 
         fields={fields}
       />
 
