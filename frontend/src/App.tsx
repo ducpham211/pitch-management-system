@@ -10,6 +10,7 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Chat from './pages/player/Chat';
 import Profile from './pages/player/Profile';
+import TeamManagement from './pages/player/TeamManagement';
 import OwnerDashboard from './pages/owner/Dashboard';
 import AdminDashboard from './pages/admin/Dashboard';
 import PaymentSuccess from './pages/payment/PaymentSuccess';
@@ -34,6 +35,7 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/messages" element={<Chat />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/teams" element={<TeamManagement />} />
               <Route path="/owner/*" element={<OwnerDashboard />} />
               <Route path="/admin/*" element={<AdminDashboard />} />
               <Route path="/payment/success" element={<PaymentSuccess />} />

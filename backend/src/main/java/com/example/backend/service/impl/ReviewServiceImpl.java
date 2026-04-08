@@ -8,6 +8,7 @@ import com.example.backend.entity.Review;
 import com.example.backend.mapper.ReviewMapper;
 import com.example.backend.repository.ReviewRepository;
 import com.example.backend.service.ReviewService;
+import com.example.backend.exception.AppException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,7 +32,7 @@ public class ReviewServiceImpl implements ReviewService {
     public ReviewResponse createReview(String reviewerId, ReviewCreateRequest request) {
         if (reviewRepository.existsByMatchRequestIdAndReviewerId(request.getMatchRequestId(), reviewerId)) {
             // Ném lỗi 400 Bad Request để Frontend hiển thị chữ đỏ cho khách
-            throw new RuntimeException("Bạn đã đánh giá trận đấu này rồi, không thể đánh giá lại!");
+            throw new AppException(400, "Bạn đã đánh giá trận đấu này rồi, không thể đánh giá lại!");
             // Nếu bạn có custom AppException thì dùng: throw new AppException(400, "Bạn đã...");
         }
         Review review = reviewMapper.toEntity(request);

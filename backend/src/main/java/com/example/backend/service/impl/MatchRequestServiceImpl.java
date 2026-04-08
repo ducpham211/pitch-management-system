@@ -14,6 +14,7 @@ import com.example.backend.mapper.MatchRequestMapper;
 import com.example.backend.repository.MatchPostRepository;
 import com.example.backend.repository.MatchRequestRepository;
 import com.example.backend.repository.UserRepository;
+import com.example.backend.repository.ConversationRepository;
 import com.example.backend.service.ConversationService;
 import com.example.backend.service.MatchRequestService;
 import com.example.backend.service.NotificationService;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import com.example.backend.exception.AppException;
 
 @AllArgsConstructor
 @Service
@@ -32,6 +34,7 @@ public class MatchRequestServiceImpl implements MatchRequestService {
     private final MatchRequestMapper matchRequestMapper;
     private final MatchPostRepository matchPostRepository;
     private final ConversationService conversationService;
+    private final ConversationRepository conversationRepository;
     private final NotificationService notificationService;
     private final UserRepository userRepository;
 
@@ -44,15 +47,15 @@ public class MatchRequestServiceImpl implements MatchRequestService {
     @Transactional
     public MatchRequestResponse createMatchRequest(MatchRequestCreateRequest request) {
         MatchPost post = matchPostRepository.findById(request.getPostId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng!"));
+                .orElseThrow(() -> new AppException(404, "Không tìm thấy bài đăng!"));
 
         if (post.getUserId().equals(request.getRequesterId())) {
-            throw new RuntimeException("Không thể tự nhận kèo của chính mình!");
+            throw new AppException(400, "Không thể tự nhận kèo của chính mình!");
         }
 
         // Chặn người chơi gửi yêu cầu vào bài đăng đã đóng
         if (post.getStatus() == Enums.PostStatus.CLOSED) {
-            throw new RuntimeException("Bài đăng này đã đóng, không thể gửi yêu cầu ghép trận!");
+            throw new AppException(400, "Bài đăng này đã đóng, không thể gửi yêu cầu ghép trận!");
         }
 
         boolean isAlreadyRequested = matchRequestRepository.existsByPostIdAndRequesterId(
@@ -61,7 +64,7 @@ public class MatchRequestServiceImpl implements MatchRequestService {
         );
 
         if (isAlreadyRequested) {
-            throw new RuntimeException("Bạn đã gửi yêu cầu nhận kèo cho bài này rồi!");
+            throw new AppException(400, "Bạn đã gửi yêu cầu nhận kèo cho bài này rồi!");
         }
 
         MatchRequest matchRequest = matchRequestMapper.toEntity(request);
@@ -79,15 +82,23 @@ public class MatchRequestServiceImpl implements MatchRequestService {
         notificationService.createAndSendNotification(post.getUserId(), notifRequest);
 
         try {
-            ConversationCreateRequest chatRequest = new ConversationCreateRequest();
-            chatRequest.setType(Enums.ConversationType.DIRECT);
-            chatRequest.setCreatedAt(LocalDateTime.now());
-
-            conversationService.createDirectConversation(
-                    chatRequest,
+            boolean chatExists = conversationRepository.findDirectConversationBetweenUsers(
+                    Enums.ConversationType.DIRECT,
                     post.getUserId(),
-                    request.getRequesterId() 
-            );
+                    request.getRequesterId()
+            ).isPresent();
+
+            if (!chatExists) {
+                ConversationCreateRequest chatRequest = new ConversationCreateRequest();
+                chatRequest.setType(Enums.ConversationType.DIRECT);
+                chatRequest.setCreatedAt(LocalDateTime.now());
+
+                conversationService.createDirectConversation(
+                        chatRequest,
+                        post.getUserId(),
+                        request.getRequesterId() 
+                );
+            }
         } catch (Exception e) {
             System.err.println("Lỗi khi auto-create phòng chat: " + e.getMessage());
         }
@@ -100,23 +111,23 @@ public class MatchRequestServiceImpl implements MatchRequestService {
     public MatchRequestStatusResponse updateRequestStatus(String requestId, String currentUserId, MatchRequestStatusCreateRequest requestDTO) {
 
         MatchRequest request = matchRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy yêu cầu ghép trận này!"));
+                .orElseThrow(() -> new AppException(404, "Không tìm thấy yêu cầu ghép trận này!"));
 
         MatchPost post = matchPostRepository.findById(request.getPostId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng!"));
+                .orElseThrow(() -> new AppException(404, "Không tìm thấy bài đăng!"));
 
         if (!post.getUserId().equals(currentUserId)) {
-            throw new RuntimeException("Bạn không phải chủ bài đăng, không có quyền duyệt kèo này!");
+            throw new AppException(403, "Bạn không phải chủ bài đăng, không có quyền duyệt kèo này!");
         }
 
         // Lỗ hổng 3: Chặn duyệt lại yêu cầu đã xử lý
         if (request.getStatus() != Enums.RequestStatus.PENDING) {
-            throw new RuntimeException("Yêu cầu này đã được xử lý trước đó!");
+            throw new AppException(400, "Yêu cầu này đã được xử lý trước đó!");
         }
 
         // Lỗ hổng 1: Chặn "bắt cá 2 tay", nếu bài đăng đã đóng thì không cho Accept nữa
         if (requestDTO.getStatus() == Enums.RequestStatus.ACCEPTED && post.getStatus() == Enums.PostStatus.CLOSED) {
-            throw new RuntimeException("Bài đăng đã được chốt kèo với người khác!");
+            throw new AppException(400, "Bài đăng đã được chốt kèo với người khác!");
         }
 
         matchRequestMapper.updateEntityFromDto(requestDTO, request);

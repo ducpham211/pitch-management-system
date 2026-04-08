@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.example.backend.exception.AppException;
 
 @Slf4j
 @Service
@@ -33,14 +34,14 @@ public class MessageServiceImpl implements MessageService {
     @Transactional(readOnly = true)
     public List<MessageResponse> getMessages(String conversationId, String currentUserId) {
         Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new RuntimeException("Phòng trò chuyện không tồn tại"));
+                .orElseThrow(() -> new AppException(404, "Phòng trò chuyện không tồn tại"));
 
         boolean isMember = conversation.getMembers().stream()
                 .anyMatch(member -> member.getUserId().equals(currentUserId));
 
         if (!isMember) {
             log.warn("CẢNH BÁO BẢO MẬT: Người dùng {} truy cập trái phép", currentUserId);
-            throw new RuntimeException("Lỗi bảo mật: Cá nhân không thuộc cuộc trò chuyện này");
+            throw new AppException(403, "Lỗi bảo mật: Cá nhân không thuộc cuộc trò chuyện này");
         }
 
         // Tích hợp Redis: Đặt lại bộ đếm tin nhắn chưa đọc khi người dùng mở phòng trò chuyện
@@ -56,14 +57,14 @@ public class MessageServiceImpl implements MessageService {
     @Transactional
     public MessageResponse createMessage(String conversationId, String currentUserId, MessageCreateRequest request) {
         Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new RuntimeException("Phòng trò chuyện không tồn tại"));
+                .orElseThrow(() -> new AppException(404, "Phòng trò chuyện không tồn tại"));
 
         boolean isMember = conversation.getMembers().stream()
                 .anyMatch(member -> member.getUserId().equals(currentUserId));
 
         if (!isMember) {
             log.warn("CẢNH BÁO: Người dùng {} thao tác trái phép tại phòng {}", currentUserId, conversationId);
-            throw new RuntimeException("Lỗi bảo mật: Hành vi bị từ chối");
+            throw new AppException(403, "Lỗi bảo mật: Hành vi bị từ chối");
         }
 
         Message message = messageMapper.toEntity(request);

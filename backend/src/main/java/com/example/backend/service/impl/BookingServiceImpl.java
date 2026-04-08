@@ -105,10 +105,10 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     public void checkInBooking(String bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn đặt sân"));
+                .orElseThrow(() -> new AppException(404, "Không tìm thấy đơn đặt sân"));
 
         if (booking.getStatus() != Enums.BookingStatus.DEPOSIT_PAID) {
-            throw new RuntimeException("Trạng thái đơn không hợp lệ để Check-in. Đơn phải ở trạng thái ĐÃ CỌC.");
+            throw new AppException(400, "Trạng thái đơn không hợp lệ để Check-in. Đơn phải ở trạng thái ĐÃ CỌC.");
         }
 
         booking.setStatus(Enums.BookingStatus.COMPLETED);
@@ -119,10 +119,10 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     public String checkOutBooking(String bookingId, Enums.PaymentMethod method) {
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn đặt sân"));
+                .orElseThrow(() -> new AppException(404, "Không tìm thấy đơn đặt sân"));
 
         if (booking.getStatus() == Enums.BookingStatus.COMPLETED) {
-            throw new RuntimeException("Đơn này đã được thanh toán và hoàn tất trước đó rồi!");
+            throw new AppException(400, "Đơn này đã được thanh toán và hoàn tất trước đó rồi!");
         }
 
         long totalAmount = booking.getTotalAmount().longValue();
@@ -154,10 +154,10 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     public void markAsNoShow(String bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn"));
+                .orElseThrow(() -> new AppException(404, "Không tìm thấy đơn"));
 
         if (booking.getStatus() != Enums.BookingStatus.DEPOSIT_PAID) {
-            throw new RuntimeException("Chỉ có thể đánh dấu bùng kèo với đơn đã cọc.");
+            throw new AppException(400, "Chỉ có thể đánh dấu bùng kèo với đơn đã cọc.");
         }
 
         booking.setStatus(Enums.BookingStatus.CANCELLED);
@@ -174,7 +174,7 @@ public class BookingServiceImpl implements BookingService {
     
     @Transactional (readOnly = true)
     public List<BookingResponse> getBookings(String userId){
-        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new AppException(404, "Không tìm thấy user"));
         List<Booking> result =  bookingRepository.findByUserId(userId);
         return result.stream().map(booking -> {
             BookingResponse response = bookingMapper.toResponse(booking, null);
@@ -190,10 +190,10 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     public void completeBooking(String bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn đặt sân"));
+                .orElseThrow(() -> new AppException(404, "Không tìm thấy đơn đặt sân"));
 
         if (booking.getStatus() != Enums.BookingStatus.DEPOSIT_PAID) {
-            throw new RuntimeException("Đơn đặt sân chưa đặt cọc hoặc đã được xử lý!");
+            throw new AppException(400, "Đơn đặt sân chưa đặt cọc hoặc đã được xử lý!");
         }
 
         booking.setStatus(Enums.BookingStatus.COMPLETED);

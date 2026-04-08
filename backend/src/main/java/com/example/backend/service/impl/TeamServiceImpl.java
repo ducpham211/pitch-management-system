@@ -11,6 +11,8 @@ import com.example.backend.service.NotificationService;
 import com.example.backend.service.TeamService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.example.backend.exception.AppException;
+import java.util.List;
 
 @Service
 @AllArgsConstructor
@@ -32,9 +34,28 @@ public class TeamServiceImpl implements TeamService {
     }
     @Override
     public TeamResponse updateTeam(String teamId, TeamCreateRequest request){
-        Team team = teamRepository.findById(teamId).orElseThrow(() -> new RuntimeException("Team not found"));
+        Team team = teamRepository.findById(teamId).orElseThrow(() -> new AppException(404, "Không tìm thấy đội bóng"));
         teamMapper.updateEntityFromRequest(request, team);
         team = teamRepository.save(team);
         return teamMapper.toResponse(team);
+    }
+    @Override
+    public List<TeamResponse> getMyTeams(String userId) {
+        List<Team> teams = teamRepository.findByCaptainId(userId);
+        return teams.stream()
+                .map(teamMapper::toResponse)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    public void deleteTeam(String teamId, String userId) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new AppException(404, "Không tìm thấy đội bóng"));
+        
+        if (!team.getCaptainId().equals(userId)) {
+            throw new AppException(403, "Bạn không phải đội trưởng của đội này!");
+        }
+        
+        teamRepository.delete(team);
     }
 }

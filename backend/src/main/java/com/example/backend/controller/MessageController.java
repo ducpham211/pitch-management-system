@@ -3,7 +3,6 @@ package com.example.backend.controller;
 import com.example.backend.dto.request.MessageCreateRequest;
 import com.example.backend.dto.response.MessageResponse;
 import com.example.backend.service.MessageService;
-import com.example.backend.service.NotificationService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -19,15 +18,14 @@ public class MessageController {
     public ResponseEntity<MessageResponse> createMessage(
             @RequestBody MessageCreateRequest request,
             Authentication authentication) {
-        
+
         String currentUserId = authentication.getName();
-        
+
         MessageResponse response = messageService.createMessage(
-                request.getConversationId(), 
-                currentUserId, 
-                request
-        );
-        
+                request.getConversationId(),
+                currentUserId,
+                request);
+
         return ResponseEntity.ok(response);
     }
 

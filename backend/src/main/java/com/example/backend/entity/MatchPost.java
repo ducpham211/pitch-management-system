@@ -53,7 +53,7 @@ public class MatchPost {
     @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private User user;
 
-    @OneToMany(mappedBy = "post", fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "post", fetch = FetchType.LAZY)
     private List<MatchRequest> requests;
 
     public MatchPost() {}

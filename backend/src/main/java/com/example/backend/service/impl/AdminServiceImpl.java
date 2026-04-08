@@ -12,6 +12,7 @@ import com.example.backend.repository.*;
 import com.example.backend.service.AdminService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.example.backend.exception.AppException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -29,17 +30,17 @@ public class AdminServiceImpl implements AdminService {
     private final FieldMapper fieldMapper;
     public String adjudicateReview(String reviewId, AdminCreateRequest request) {
         Review review = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đánh giá này"));
+                .orElseThrow(() -> new AppException(404, "Không tìm thấy đánh giá này"));
 
         // Chốt chặn: Chỉ xử lý các review đang nằm chờ duyệt
         if (review.getStatus() != Enums.ReviewStatus.PENDING_ADMIN_REVIEW) {
-            throw new RuntimeException("Đánh giá này không ở trạng thái chờ duyệt!");
+            throw new AppException(400, "Đánh giá này không ở trạng thái chờ duyệt!");
         }
 
         if (request.isApprove()) {
             // 1. ADMIN ĐỒNG Ý PHẠT
             User reviewee = userRepository.findById(review.getRevieweeId())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy người bị đánh giá"));
+                    .orElseThrow(() -> new AppException(404, "Không tìm thấy người bị đánh giá"));
 
             // Lấy điểm hiện tại, nếu null thì mặc định là 100
             int currentScore = reviewee.getTrustScore() != null ? reviewee.getTrustScore() : 100;

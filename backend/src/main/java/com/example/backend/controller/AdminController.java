@@ -17,9 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -44,7 +42,8 @@ public class AdminController {
             Pageable pageable = PageRequest.of(page, size);
             Page<User> userPage = userRepository.findUsersByFilters(role, minTrustScore, pageable);
 
-            // Map thủ công để tránh trả về trực tiếp Entity User gây lỗi JSON và lộ Password
+            // Map thủ công để tránh trả về trực tiếp Entity User gây lỗi JSON và lộ
+            // Password
             Page<java.util.Map<String, Object>> safeResponse = userPage.map(u -> {
                 java.util.Map<String, Object> map = new java.util.HashMap<>();
                 map.put("id", u.getId());
@@ -88,6 +87,7 @@ public class AdminController {
         String message = adminService.adjudicateReview(reviewId, request);
         return ResponseEntity.ok(message);
     }
+
     @GetMapping("/fields")
     public ResponseEntity<List<FieldResponse>> getAllFields() {
         return ResponseEntity.ok(adminService.getAllFields());
