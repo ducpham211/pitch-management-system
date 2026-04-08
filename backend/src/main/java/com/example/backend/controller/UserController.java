@@ -29,7 +29,6 @@ public class UserController {
     @PutMapping("/{id}")
     public ResponseEntity<UserResponse> updateUser(@PathVariable("id") String userId,
             @RequestBody UserCreateRequest request) {
-        String userId = TokenUtils.getCurrentUserId();
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(404, "Không tìm thấy người dùng"));
         UserResponse response = userService.updateUser(userId, request);
