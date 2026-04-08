@@ -20,6 +20,7 @@ const Profile = () => {
       try {
         const profileRes = await axiosClient.get('/users/me');
         setUserProfile(profileRes.data);
+        console.log(profileRes.data);
         setUpdateData({ fullName: profileRes.data.fullName || '', phone: profileRes.data.phone || '' });
         
         const bookingsRes = await axiosClient.get('/bookings');

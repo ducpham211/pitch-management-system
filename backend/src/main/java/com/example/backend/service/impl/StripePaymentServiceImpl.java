@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import com.example.backend.exception.AppException;
 
 @Slf4j
 @Service
@@ -67,7 +68,7 @@ public class StripePaymentServiceImpl implements PaymentService {
     public PaymentResponse createCheckoutSession(String bookingId) {
         try {
             Booking booking = bookingRepository.findById(bookingId)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn"));
+                    .orElseThrow(() -> new AppException(404, "Không tìm thấy hóa đơn"));
 
             long totalAmount = booking.getTotalAmount().longValue();
             long depositAmount = (long) (totalAmount * 0.3);
@@ -103,7 +104,7 @@ public class StripePaymentServiceImpl implements PaymentService {
 
         } catch (Exception e) {
             log.error("Lỗi khi tạo phiên thanh toán Stripe: ", e);
-            throw new RuntimeException("Không thể tạo phiên thanh toán");
+            throw new AppException(400, "Không thể tạo phiên thanh toán");
         }
     }
 

@@ -6,6 +6,7 @@ import com.example.backend.utils.Enums;
 import com.example.backend.entity.User;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.service.AuthService;
+import com.example.backend.exception.AppException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,7 +59,7 @@ public class AuthServiceImpl implements AuthService {
 
             return new AuthResponse(null, "Đăng ký thành công!");
         } catch (Exception e) {
-            throw new RuntimeException("Lỗi đăng ký: " + e.getMessage());
+            throw new AppException(400, "Lỗi đăng ký: " + e.getMessage());
         }
     }
 
@@ -76,7 +77,7 @@ public class AuthServiceImpl implements AuthService {
 
             return new AuthResponse(cleanToken, "Đăng nhập thành công!");
         } catch (Exception e) {
-            throw new RuntimeException("Lỗi phân tích token từ Supabase");
+            throw new AppException(400, "Lỗi phân tích token từ Supabase");
         }
     }
 

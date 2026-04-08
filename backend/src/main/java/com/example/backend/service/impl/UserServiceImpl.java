@@ -11,6 +11,7 @@ import com.example.backend.service.NotificationService;
 import com.example.backend.service.UserService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.example.backend.exception.AppException;
 
 @AllArgsConstructor
 @Service
@@ -20,7 +21,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     @Override
     public UserResponse getUserById(String id) {
-        User response = userRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+        User response = userRepository.findById(id).orElseThrow(() -> new AppException(404, "User not found"));
         return userMapper.toResponse(response);
     }
 
@@ -38,7 +39,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse updateUser(String userId, UserCreateRequest request) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new AppException(404, "User not found"));
         userMapper.updateEntityFromRequest(request, user);
         User savedUser = userRepository.save(user);
         return userMapper.toResponse(savedUser);

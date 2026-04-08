@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaBars, FaTimes, FaFutbol, FaUserCircle, FaSignOutAlt, FaUser, FaBell, FaCheck, FaBellSlash } from 'react-icons/fa';
+import { FaBars, FaTimes, FaFutbol, FaUserCircle, FaSignOutAlt, FaUser, FaBell, FaCheck, FaBellSlash, FaShieldAlt } from 'react-icons/fa';
 import Button from './Button';
 import { useAuth } from '../../context/AuthContext';
 import { notificationApi } from '../../api/notificationApi';
@@ -151,8 +151,9 @@ const Navbar = () => {
                   {showDropdown && (
                     <div className="absolute right-0 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2 mt-0 z-50 overflow-hidden">
                       <Link to="/profile" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 transition"><FaUser className="text-sm" /> Hồ sơ cá nhân</Link>
-                      {user.role === 'OWNER' && <Link to="/owner" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"><FaFutbol className="text-sm" /> Kênh Chủ Sân</Link>}
-                      {user.role === 'ADMIN' && <Link to="/admin" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition"><FaCheck className="text-sm" /> Quản Trị Hệ Thống</Link>}
+                      <Link to="/teams" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 transition"><FaShieldAlt className="text-sm" /> Quản lý đội bóng</Link>
+                      {(user.role === 'OWNER' || user.role === 'ROLE_OWNER') && <Link to="/owner" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"><FaFutbol className="text-sm" /> Kênh Chủ Sân</Link>}
+                      {(user.role === 'ADMIN' || user.role === 'ROLE_ADMIN') && <Link to="/admin" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition"><FaCheck className="text-sm" /> Quản Trị Hệ Thống</Link>}
                       <hr className="my-1 border-gray-100" />
                       <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 w-full text-left text-red-600 hover:bg-red-50 transition"><FaSignOutAlt className="text-sm" /> Đăng xuất</button>
                     </div>
@@ -199,12 +200,12 @@ const Navbar = () => {
                   <Link to="/profile" onClick={() => setIsOpen(false)}>
                     <Button variant="secondary" className="w-full text-center border border-gray-300 py-3">Hồ sơ cá nhân</Button>
                   </Link>
-                  {user.role === 'OWNER' && (
+                  {(user.role === 'OWNER' || user.role === 'ROLE_OWNER') && (
                     <Link to="/owner" onClick={() => setIsOpen(false)}>
                       <Button variant="secondary" className="w-full text-center border border-blue-200 text-blue-600 bg-blue-50 py-3">Kênh Chủ Sân</Button>
                     </Link>
                   )}
-                  {user.role === 'ADMIN' && (
+                  {(user.role === 'ADMIN' || user.role === 'ROLE_ADMIN') && (
                     <Link to="/admin" onClick={() => setIsOpen(false)}>
                       <Button variant="secondary" className="w-full text-center border border-purple-200 text-purple-600 bg-purple-50 py-3">Quản Trị Hệ Thống</Button>
                     </Link>

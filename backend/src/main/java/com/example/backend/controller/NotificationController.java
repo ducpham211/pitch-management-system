@@ -5,9 +5,8 @@ import com.example.backend.dto.response.NotificationResponse;
 import com.example.backend.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
+import com.example.backend.utils.TokenUtils;
 import java.util.List;
 import java.util.Map;
 
@@ -20,33 +19,33 @@ public class NotificationController {
 
     @GetMapping
     public ResponseEntity<List<NotificationResponse>> getNotifications() {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = TokenUtils.getCurrentUserId();
         return ResponseEntity.ok(notificationService.getNotificationsByUserId(userId));
     }
 
     @GetMapping("/unread-count")
     public ResponseEntity<Map<String, Long>> getUnreadCount() {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = TokenUtils.getCurrentUserId();
         long count = notificationService.getUnreadCount(userId);
         return ResponseEntity.ok(Map.of("unreadCount", count));
     }
 
     @PutMapping("/{id}/read")
     public ResponseEntity<NotificationResponse> markAsRead(@PathVariable String id) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = TokenUtils.getCurrentUserId();
         return ResponseEntity.ok(notificationService.markAsRead(id, userId));
     }
 
     @PutMapping("/read-all")
     public ResponseEntity<Void> markAllAsRead() {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = TokenUtils.getCurrentUserId();
         notificationService.markAllAsRead(userId);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/test-send")
     public ResponseEntity<String> testSendNotification(@RequestBody NotificationCreateRequest request) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = TokenUtils.getCurrentUserId();
         notificationService.createAndSendNotification(userId, request);
         return ResponseEntity.ok("Notification sent successfully to user: " + userId);
     }

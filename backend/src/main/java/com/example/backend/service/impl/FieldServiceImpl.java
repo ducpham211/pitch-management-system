@@ -20,6 +20,7 @@ import com.example.backend.dto.request.TimeSlotUpdateRequest;
 import com.example.backend.entity.TimeSlot;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.example.backend.exception.AppException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -48,7 +49,7 @@ public class FieldServiceImpl implements FieldService {
     @Override
     public FieldDetailResponse getFieldById(String id) {
         Field field = fieldRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Field not found with id: " + id));
+                .orElseThrow(() -> new AppException(404, "Field not found with id: " + id));
 
         List<TimeSlotResponse> timeSlotResponses = field.getTimeSlots().stream()
                 .map(ts -> new TimeSlotResponse(ts.getId(), ts.getStartTime(), ts.getEndTime(), ts.getPrice(), ts.getStatus()))
@@ -63,7 +64,7 @@ public class FieldServiceImpl implements FieldService {
     @Override
     public List<TimeSlotAvailabilityResponse> getFieldAvailability(String id, LocalDate date) {
         Field field = fieldRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Field not found with id: " + id));
+                .orElseThrow(() -> new AppException(404, "Field not found with id: " + id));
 
         List<Booking> bookings = bookingRepository.findByFieldIdAndBookingDate(id, date);
 
@@ -95,7 +96,7 @@ public class FieldServiceImpl implements FieldService {
     @Override
     public FieldResponse updateField(String id, FieldUpdateRequest request) {
         Field field = fieldRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Field not found with id: " + id));
+                .orElseThrow(() -> new AppException(404, "Field not found with id: " + id));
 
         fieldMapper.updateEntityFromRequest(request, field);
         Field savedField = fieldRepository.save(field);
@@ -106,7 +107,7 @@ public class FieldServiceImpl implements FieldService {
     @Override
     public TimeSlotResponse createTimeSlot(String fieldId, TimeSlotCreateRequest request) {
         Field field = fieldRepository.findById(fieldId)
-                .orElseThrow(() -> new RuntimeException("Field not found with id: " + fieldId));
+                .orElseThrow(() -> new AppException(404, "Field not found with id: " + fieldId));
 
         TimeSlot timeSlot = timeSlotMapper.toEntity(request);
         timeSlot.setFieldId(fieldId);
@@ -119,13 +120,13 @@ public class FieldServiceImpl implements FieldService {
     @Override
     public TimeSlotResponse updateTimeSlot(String fieldId, String slotId, TimeSlotUpdateRequest request) {
         Field field = fieldRepository.findById(fieldId)
-                .orElseThrow(() -> new RuntimeException("Field not found with id: " + fieldId));
+                .orElseThrow(() -> new AppException(404, "Field not found with id: " + fieldId));
 
         TimeSlot timeSlot = timeSlotRepository.findById(slotId)
-                .orElseThrow(() -> new RuntimeException("TimeSlot not found with id: " + slotId));
+                .orElseThrow(() -> new AppException(404, "TimeSlot not found with id: " + slotId));
 
         if (!timeSlot.getFieldId().equals(fieldId)) {
-            throw new RuntimeException("TimeSlot does not belong to the specified Field");
+            throw new AppException(400, "TimeSlot does not belong to the specified Field");
         }
 
         timeSlotMapper.updateEntityFromRequest(request, timeSlot);
@@ -137,7 +138,7 @@ public class FieldServiceImpl implements FieldService {
     @Override
     public FieldResponse deleteField(String id) {
         Field field = fieldRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Field not found with id: " + id));
+                .orElseThrow(() -> new AppException(404, "Field not found with id: " + id));
 
         fieldRepository.delete(field);
         return fieldMapper.toResponse(field);
@@ -146,13 +147,13 @@ public class FieldServiceImpl implements FieldService {
     @Override
     public TimeSlotResponse deleteTimeSlot(String fieldId, String slotId) {
         Field field = fieldRepository.findById(fieldId)
-                .orElseThrow(() -> new RuntimeException("Field not found with id: " + fieldId));
+                .orElseThrow(() -> new AppException(404, "Field not found with id: " + fieldId));
 
         TimeSlot timeSlot = timeSlotRepository.findById(slotId)
-                .orElseThrow(() -> new RuntimeException("TimeSlot not found with id: " + slotId));
+                .orElseThrow(() -> new AppException(404, "TimeSlot not found with id: " + slotId));
 
         if (!timeSlot.getFieldId().equals(fieldId)) {
-            throw new RuntimeException("TimeSlot does not belong to the specified Field");
+            throw new AppException(400, "TimeSlot does not belong to the specified Field");
         }
 
         timeSlotRepository.delete(timeSlot);

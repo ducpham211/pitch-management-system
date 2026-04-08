@@ -21,7 +21,9 @@ import lombok.AllArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
+import java.time.LocalDateTime;
 import java.util.List;
+import com.example.backend.exception.AppException;
 
 @Service
 @AllArgsConstructor
@@ -50,9 +52,9 @@ public class MatchPostServiceImpl implements MatchPostService {
     }
     @Override
     public MatchPostResponse updateMatchPost(String postId, String currentUserId, MatchPostCreateRequest request){
-        MatchPost matchPost = matchPostRepository.findById(postId).orElseThrow(()-> new RuntimeException("Không tìm thấy bài đăng!"));
+        MatchPost matchPost = matchPostRepository.findById(postId).orElseThrow(()-> new AppException(404, "Không tìm thấy bài đăng!"));
         if(!matchPost.getUserId().equals(currentUserId)){
-            throw new RuntimeException("Bạn không phải chủ bài đăng, không có quyền sửa bài đăng này");
+            throw new AppException(403, "Bạn không phải chủ bài đăng, không có quyền sửa bài đăng này");
         }
         matchPostMapper.updateEntityFromRequest(request, matchPost);
         MatchPost savedMatchPost = matchPostRepository.save(matchPost);
@@ -60,9 +62,9 @@ public class MatchPostServiceImpl implements MatchPostService {
     }
     @Override
     public void deleteMatchPost(String postId, String currentUserId) {
-        MatchPost matchPost = matchPostRepository.findById(postId).orElseThrow(()-> new RuntimeException("Không tìm thấy bài đăng!"));
+        MatchPost matchPost = matchPostRepository.findById(postId).orElseThrow(()-> new AppException(404, "Không tìm thấy bài đăng!"));
         if(!matchPost.getUserId().equals(currentUserId)){
-            throw new RuntimeException("Không có quyền xóa bài viết này ");
+            throw new AppException(403, "Không có quyền xóa bài viết này ");
     }
         matchPostRepository.delete(matchPost);
     }
@@ -71,7 +73,7 @@ public class MatchPostServiceImpl implements MatchPostService {
 
         // 1. Lấy thông tin Uy tín của người đang tìm kèo
         User currentUser = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy User"));
+                .orElseThrow(() -> new AppException(404, "Không tìm thấy User"));
         int currentTrust = currentUser.getTrustScore() != null ? currentUser.getTrustScore() : 100;
 
         // 2. LỌC THÔ: Lấy top 15 trận từ Database bằng Pageable
