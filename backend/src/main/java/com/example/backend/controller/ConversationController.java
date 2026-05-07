@@ -9,7 +9,6 @@ import com.example.backend.service.NotificationService;
 import com.example.backend.utils.TokenUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -47,7 +46,8 @@ public class ConversationController {
     @PutMapping("/{conversationId}/read")
     public ResponseEntity<Void> markConversationAsRead(
             @PathVariable String conversationId) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = TokenUtils.getCurrentUserId();
+        ;
         notificationService.resetUnreadCount(userId, conversationId);
         return ResponseEntity.ok().build();
     }
