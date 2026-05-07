@@ -11,7 +11,8 @@ import com.example.backend.repository.BookingRepository;
 import com.example.backend.repository.PaymentRepository;
 import com.example.backend.repository.TimeSlotRepository;
 import com.example.backend.repository.UserRepository;
-import com.example.backend.service.NotificationService;
+import org.springframework.context.ApplicationEventPublisher;
+import com.example.backend.event.BookingNotificationEvent;
 import com.example.backend.utils.Enums;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,7 +57,7 @@ class BookingServiceImplTest {
     private PaymentRepository paymentRepository;
 
     @Mock
-    private NotificationService notificationService;
+    private ApplicationEventPublisher eventPublisher;
 
     @Mock
     private ValueOperations<String, String> valueOperations;
@@ -107,7 +108,8 @@ class BookingServiceImplTest {
         assertEquals("booking123", result.getBookingId());
         verify(timeSlotRepository, times(1)).save(any(TimeSlot.class));
         verify(bookingRepository, times(1)).save(any(Booking.class));
-        verify(notificationService, times(1)).createAndSendNotification(eq(userId), any());
+        verify(eventPublisher, times(1)).publishEvent(any(BookingNotificationEvent.class));
+        verify(redisTemplate, times(1)).delete(anyString()); // Verify finally block
     }
 
     @Test
