@@ -3,9 +3,12 @@ package com.example.backend.controller;
 import com.example.backend.dto.request.AuthRequest;
 import com.example.backend.dto.response.AuthResponse;
 import com.example.backend.service.AuthService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
+
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -38,9 +41,14 @@ public class AuthController {
     public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
         try {
             authService.forgotPassword(request.get("email"));
-            return ResponseEntity.ok(Map.of("message", "OTP đã được gửi đến email của bạn."));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "OTP đã được gửi đến email của bạn.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace(); 
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage() != null ? e.getMessage() : "Lỗi Server - Vui lòng kiểm tra terminal Backend");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 
@@ -48,9 +56,14 @@ public class AuthController {
     public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> request) {
         try {
             authService.verifyOtp(request.get("email"), request.get("otp"));
-            return ResponseEntity.ok(Map.of("message", "OTP hợp lệ."));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "OTP hợp lệ.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage() != null ? e.getMessage() : "Lỗi Server - Vui lòng kiểm tra terminal Backend");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 
@@ -58,9 +71,14 @@ public class AuthController {
     public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
         try {
             authService.resetPassword(request.get("email"), request.get("otp"), request.get("newPassword"));
-            return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công."));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Đổi mật khẩu thành công.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage() != null ? e.getMessage() : "Lỗi Server - Vui lòng kiểm tra terminal Backend");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 }
