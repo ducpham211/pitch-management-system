@@ -210,7 +210,7 @@ const Chat = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 h-[calc(100vh-14rem)]">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 h-[calc(100vh-8rem)]">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex h-full overflow-hidden">
         
         <div className="w-1/3 border-r border-gray-100 flex flex-col bg-gray-50">

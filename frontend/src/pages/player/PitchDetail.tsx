@@ -3,16 +3,31 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { FaFutbol, FaArrowLeft, FaCalendarAlt, FaClock, FaCheck, FaTimes } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import axiosClient from '../../api/axiosClient';
+import { useAuth } from '../../context/AuthContext';
+import PopupMessage from '../../components/common/PopupMessage';
 
 const PitchDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [pitch, setPitch] = useState<any>(null);
   
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const [popupInfo, setPopupInfo] = useState({
+    isOpen: false,
+    type: 'info' as 'success' | 'error' | 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const closePopup = () => {
+    setPopupInfo(prev => ({ ...prev, isOpen: false }));
+  };
 
   const formatTime = (isoString: any) => {
     if (!isoString) return '';
@@ -86,6 +101,20 @@ const PitchDetail = () => {
   }, [id, selectedDate]);
 
   const handleBooking = () => {
+    if (!user) {
+      setPopupInfo({
+        isOpen: true,
+        type: 'info',
+        title: 'Yêu cầu đăng nhập',
+        message: 'Bạn cần đăng nhập để có thể tiếp tục đặt sân!',
+        onConfirm: () => {
+          closePopup();
+          navigate('/login');
+        }
+      });
+      return;
+    }
+
     if (!selectedSlot) return;
     navigate(`/checkout/${id}`, {
       state: { pitch, selectedSlot, selectedDate }
@@ -195,6 +224,15 @@ const PitchDetail = () => {
           </Button>
         </div>
       </div>
+      
+      <PopupMessage
+        isOpen={popupInfo.isOpen}
+        onClose={closePopup}
+        type={popupInfo.type}
+        title={popupInfo.title}
+        message={popupInfo.message}
+        onConfirm={popupInfo.onConfirm}
+      />
     </div>
   );
 };
