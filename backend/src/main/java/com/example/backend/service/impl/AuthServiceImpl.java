@@ -160,6 +160,57 @@ public class AuthServiceImpl implements AuthService {
         redisTemplate.delete("OTP_" + email);
     }
 
+    @Override
+    public String getGoogleAuthUrl(String redirectTo) {
+        return supabaseUrl + "/auth/v1/authorize?provider=google&redirect_to=" + redirectTo;
+    }
+
+    @Override
+    public Map<String, Object> syncGoogleUser(String accessToken) {
+        String url = supabaseUrl + "/auth/v1/user";
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("apikey", supabaseKey);
+        headers.setBearerAuth(accessToken);
+        
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode userNode = mapper.readTree(response.getBody());
+
+            String userId = userNode.path("id").asText();
+            String email = userNode.path("email").asText();
+            String fetchedFullName = userNode.path("user_metadata").path("full_name").asText();
+            
+            if (fetchedFullName == null || fetchedFullName.isEmpty()) {
+                fetchedFullName = userNode.path("user_metadata").path("name").asText();
+            }
+            
+            final String finalFullName = (fetchedFullName != null && !fetchedFullName.isEmpty()) ? fetchedFullName : "Người dùng Google";
+
+            User user = userRepository.findByEmail(email).orElseGet(() -> {
+                User newUser = new User();
+                newUser.setId(userId);
+                newUser.setEmail(email);
+                newUser.setFullName(finalFullName);
+                newUser.setRole(Enums.UserRole.PLAYER);
+                return userRepository.save(newUser);
+            });
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("accessToken", accessToken);
+            result.put("userId", user.getId());
+            result.put("role", user.getRole().name());
+            result.put("email", user.getEmail());
+            
+            return result;
+        } catch (Exception e) {
+            throw new AppException(400, "Lỗi đồng bộ thông tin Google: " + e.getMessage());
+        }
+    }
+
     private HttpHeaders createHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

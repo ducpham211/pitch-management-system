@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaEnvelope, FaLock, FaGoogle, FaFacebook, FaKey } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import PopupMessage from '../../components/common/PopupMessage';
-import axios from 'axios'; // Sử dụng axios thuần thay vì axiosClient để tránh bị giật/reload do interceptor
+import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 
 const Login = () => {
@@ -30,6 +30,18 @@ const Login = () => {
 
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.replace('#', '?'));
+      const accessToken = params.get('access_token');
+      
+      if (accessToken) {
+        handleGoogleSync(accessToken);
+      }
+    }
+  }, []);
+
   const closePopup = () => {
     setPopupInfo(prev => ({ ...prev, isOpen: false }));
   };
@@ -49,7 +61,6 @@ const Login = () => {
     }
 
     try {
-      // Dùng axios gọi trực tiếp để không bị dính logic tự reload trang khi lỗi của axiosClient
       const response = await axios.post(`${API_URL}/auth/login`, {
         email,
         password
@@ -103,9 +114,45 @@ const Login = () => {
         message: errorMessage,
         onConfirm: () => {
           closePopup();
-          setPassword(''); // Chỉ xoá trống ô mật khẩu SAU KHI người dùng bấm Đóng popup
+          setPassword(''); 
         }
       });
+    }
+  };
+
+  const handleGoogleClick = async () => {
+    try {
+      const currentUrl = window.location.origin + window.location.pathname; 
+      const response = await axios.get(`${API_URL}/auth/google-url?redirectTo=${encodeURIComponent(currentUrl)}`);
+      window.location.href = response.data.url;
+    } catch (err) {
+      setPopupInfo({ isOpen: true, type: 'error', title: 'Lỗi', message: 'Không thể kết nối dịch vụ xác thực Google', onConfirm: closePopup });
+    }
+  };
+
+  const handleGoogleSync = async (token: string) => {
+    try {
+      const response = await axios.post(`${API_URL}/auth/google-sync`, { accessToken: token });
+      const { userId, role, email: userEmail, accessToken } = response.data;
+      
+      login(accessToken, { id: userId, email: userEmail, fullName: '', role: role });
+      
+      setPopupInfo({
+        isOpen: true,
+        type: 'success',
+        title: 'Thành công',
+        message: 'Đăng nhập bằng Google thành công!',
+        onConfirm: () => {
+          closePopup();
+          window.history.replaceState(null, '', window.location.pathname);
+          if (role === 'ADMIN') navigate('/admin');
+          else if (role === 'OWNER') navigate('/owner');
+          else navigate('/');
+        }
+      });
+    } catch (err: any) {
+      window.history.replaceState(null, '', window.location.pathname);
+      setPopupInfo({ isOpen: true, type: 'error', title: 'Thất bại', message: 'Lỗi đồng bộ tài khoản Google với hệ thống', onConfirm: closePopup });
     }
   };
 
@@ -223,7 +270,7 @@ const Login = () => {
               </div>
               
               <div className="grid grid-cols-2 gap-4 mt-6">
-                <button type="button" className="flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition text-gray-700 font-medium">
+                <button type="button" onClick={handleGoogleClick} className="flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition text-gray-700 font-medium">
                   <FaGoogle className="text-red-500" /> Google
                 </button>
                 <button type="button" className="flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition text-gray-700 font-medium">

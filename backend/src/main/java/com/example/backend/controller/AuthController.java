@@ -45,7 +45,7 @@ public class AuthController {
             response.put("message", "OTP đã được gửi đến email của bạn.");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            e.printStackTrace(); 
+            e.printStackTrace();
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("message", e.getMessage() != null ? e.getMessage() : "Lỗi Server - Vui lòng kiểm tra terminal Backend");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
@@ -79,6 +79,22 @@ public class AuthController {
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("message", e.getMessage() != null ? e.getMessage() : "Lỗi Server - Vui lòng kiểm tra terminal Backend");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @GetMapping("/google-url")
+    public ResponseEntity<?> getGoogleAuthUrl(@RequestParam String redirectTo) {
+        String url = authService.getGoogleAuthUrl(redirectTo);
+        return ResponseEntity.ok(Map.of("url", url));
+    }
+
+    @PostMapping("/google-sync")
+    public ResponseEntity<?> syncGoogleUser(@RequestBody Map<String, String> request) {
+        try {
+            Map<String, Object> response = authService.syncGoogleUser(request.get("accessToken"));
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 }
