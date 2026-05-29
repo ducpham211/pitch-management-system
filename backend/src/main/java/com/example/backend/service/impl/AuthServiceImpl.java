@@ -18,6 +18,8 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -29,6 +31,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Value("${supabase.anon.key}")
     private String supabaseKey;
+
+    @Value("${supabase.service.role.key}")
+    private String supabaseServiceKey;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -120,6 +125,23 @@ public class AuthServiceImpl implements AuthService {
         verifyOtp(email, otp);
         
         User user = userRepository.findByEmail(email).orElseThrow(() -> new AppException(404, "Không tìm thấy người dùng"));
+        
+        String url = supabaseUrl + "/auth/v1/admin/users/" + user.getId();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("apikey", supabaseServiceKey);
+        headers.setBearerAuth(supabaseServiceKey);
+
+        Map<String, String> body = new HashMap<>();
+        body.put("password", newPassword);
+
+        HttpEntity<Map<String, String>> entity = new HttpEntity<>(body, headers);
+        try {
+            restTemplate.exchange(url, HttpMethod.PUT, entity, String.class);
+        } catch (Exception e) {
+            throw new AppException(400, "Lỗi đồng bộ mật khẩu lên Supabase Auth: " + e.getMessage());
+        }
+
         user.setPassword(newPassword);
         userRepository.save(user);
         

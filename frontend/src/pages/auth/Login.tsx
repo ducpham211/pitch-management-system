@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { FaEnvelope, FaLock, FaGoogle, FaFacebook, FaKey } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import PopupMessage from '../../components/common/PopupMessage';
-import axiosClient from '../../api/axiosClient';
+import axios from 'axios'; // Sử dụng axios thuần thay vì axiosClient để tránh bị giật/reload do interceptor
 import { useAuth } from '../../context/AuthContext';
 
 const Login = () => {
@@ -28,6 +28,8 @@ const Login = () => {
     onConfirm: () => {}
   });
 
+  const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+
   const closePopup = () => {
     setPopupInfo(prev => ({ ...prev, isOpen: false }));
   };
@@ -47,7 +49,8 @@ const Login = () => {
     }
 
     try {
-      const response = await axiosClient.post('/auth/login', {
+      // Dùng axios gọi trực tiếp để không bị dính logic tự reload trang khi lỗi của axiosClient
+      const response = await axios.post(`${API_URL}/auth/login`, {
         email,
         password
       });
@@ -80,17 +83,28 @@ const Login = () => {
     } catch (err: any) {
       let errorMessage = 'Sai email hoặc mật khẩu. Vui lòng thử lại.';
       if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
+         if (err.response.data.message.includes('token') || err.response.data.message.includes('Supabase')) {
+            errorMessage = 'Sai email hoặc mật khẩu. Vui lòng thử lại.';
+         } else {
+            errorMessage = err.response.data.message;
+         }
       } else if (typeof err.response?.data === 'string') {
-        errorMessage = err.response.data;
+          if (err.response.data.includes('token') || err.response.data.includes('Supabase')) {
+              errorMessage = 'Sai email hoặc mật khẩu. Vui lòng thử lại.';
+          } else {
+              errorMessage = err.response.data;
+          }
       }
 
       setPopupInfo({
         isOpen: true,
         type: 'error',
-        title: 'Thất bại',
+        title: 'Đăng nhập thất bại',
         message: errorMessage,
-        onConfirm: closePopup
+        onConfirm: () => {
+          closePopup();
+          setPassword(''); // Chỉ xoá trống ô mật khẩu SAU KHI người dùng bấm Đóng popup
+        }
       });
     }
   };
@@ -102,7 +116,7 @@ const Login = () => {
       return;
     }
     try {
-      await axiosClient.post('/auth/forgot-password', { email: forgotEmail });
+      await axios.post(`${API_URL}/auth/forgot-password`, { email: forgotEmail });
       setPopupInfo({ isOpen: true, type: 'success', title: 'Thành công', message: 'Mã OTP đã được gửi đến email của bạn.', onConfirm: closePopup });
       setStep('forgot-otp');
     } catch (err: any) {
@@ -117,7 +131,7 @@ const Login = () => {
       return;
     }
     try {
-      await axiosClient.post('/auth/verify-otp', { email: forgotEmail, otp });
+      await axios.post(`${API_URL}/auth/verify-otp`, { email: forgotEmail, otp });
       setStep('forgot-reset');
     } catch (err: any) {
       setPopupInfo({ isOpen: true, type: 'error', title: 'Lỗi', message: err.response?.data?.message || 'OTP không hợp lệ', onConfirm: closePopup });
@@ -135,7 +149,7 @@ const Login = () => {
       return;
     }
     try {
-      await axiosClient.post('/auth/reset-password', { email: forgotEmail, otp, newPassword });
+      await axios.post(`${API_URL}/auth/reset-password`, { email: forgotEmail, otp, newPassword });
       setPopupInfo({
         isOpen: true,
         type: 'success',
@@ -209,10 +223,10 @@ const Login = () => {
               </div>
               
               <div className="grid grid-cols-2 gap-4 mt-6">
-                <button className="flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition text-gray-700 font-medium">
+                <button type="button" className="flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition text-gray-700 font-medium">
                   <FaGoogle className="text-red-500" /> Google
                 </button>
-                <button className="flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition text-gray-700 font-medium">
+                <button type="button" className="flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition text-gray-700 font-medium">
                   <FaFacebook className="text-blue-600" /> Facebook
                 </button>
               </div>

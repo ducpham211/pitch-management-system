@@ -29,6 +29,7 @@ const Register = () => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // 1. Kiểm tra thiếu thông tin
     if (!name || !email || !password || !confirmPassword) {
       setPopupInfo({
         isOpen: true,
@@ -39,6 +40,20 @@ const Register = () => {
       });
       return;
     }
+    
+    // 2. Chặn sớm mật khẩu yếu ở Frontend
+    if (password.length < 6) {
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Mật khẩu quá ngắn',
+        message: 'Mật khẩu phải chứa ít nhất 6 ký tự.',
+        onConfirm: closePopup
+      });
+      return;
+    }
+
+    // 3. Kiểm tra khớp mật khẩu
     if (password !== confirmPassword) {
       setPopupInfo({
         isOpen: true,
@@ -69,9 +84,36 @@ const Register = () => {
       });
     } catch (err: any) {
       let errorMessage = 'Đã xảy ra lỗi kết nối đến máy chủ. Vui lòng thử lại.';
-      if (err.response?.data?.message) {
+      
+      const errString = (
+        err.response?.data?.message || 
+        JSON.stringify(err.response?.data) || 
+        err.message || 
+        ''
+      ).toLowerCase();
+
+      // Bắt lỗi trùng email
+      if (
+        errString.includes('user_already_exists') || 
+        errString.includes('already registered') || 
+        errString.includes('already exists') || 
+        errString.includes('duplicate')
+      ) {
+        errorMessage = 'Email này đã được sử dụng. Vui lòng chọn email khác.';
+      } 
+      // Bắt lỗi mật khẩu yếu từ Backend
+      else if (
+        errString.includes('weak_password') || 
+        errString.includes('at least 6 characters')
+      ) {
+        errorMessage = 'Mật khẩu quá yếu. Mật khẩu phải chứa ít nhất 6 ký tự.';
+      } 
+      // Các lỗi khác do backend tự định nghĩa dạng message chuẩn
+      else if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
-      } else if (typeof err.response?.data === 'string') {
+      } 
+      // Lỗi text trơn
+      else if (typeof err.response?.data === 'string') {
         errorMessage = err.response.data;
       }
       
