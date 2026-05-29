@@ -14,6 +14,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -28,6 +34,12 @@ public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private JavaMailSender mailSender;
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
     @Override
     public AuthResponse register(AuthRequest request) {
@@ -79,6 +91,39 @@ public class AuthServiceImpl implements AuthService {
         } catch (Exception e) {
             throw new AppException(400, "Lỗi phân tích token từ Supabase");
         }
+    }
+
+    @Override
+    public void forgotPassword(String email) {
+        userRepository.findByEmail(email).orElseThrow(() -> new AppException(404, "Không tìm thấy người dùng với email này"));
+        
+        String otp = String.format("%06d", new Random().nextInt(999999));
+        redisTemplate.opsForValue().set("OTP_" + email, otp, 5, TimeUnit.MINUTES);
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(email);
+        message.setSubject("Mã OTP Khôi Phục Mật Khẩu");
+        message.setText("Mã OTP của bạn là: " + otp + ". Mã này có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này cho người khác.");
+        mailSender.send(message);
+    }
+
+    @Override
+    public void verifyOtp(String email, String otp) {
+        String savedOtp = redisTemplate.opsForValue().get("OTP_" + email);
+        if (savedOtp == null || !savedOtp.equals(otp)) {
+            throw new AppException(400, "OTP không hợp lệ hoặc đã hết hạn");
+        }
+    }
+
+    @Override
+    public void resetPassword(String email, String otp, String newPassword) {
+        verifyOtp(email, otp);
+        
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new AppException(404, "Không tìm thấy người dùng"));
+        user.setPassword(newPassword);
+        userRepository.save(user);
+        
+        redisTemplate.delete("OTP_" + email);
     }
 
     private HttpHeaders createHeaders() {
