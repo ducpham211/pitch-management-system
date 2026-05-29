@@ -9,9 +9,13 @@ import ConfirmApplyModal from '../../components/match/ConfirmApplyModal';
 import AutoMatchView from '../../components/match/AutoMatchView';
 import { useAutoMatch } from '../../hooks/useAutoMatch';
 import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import PopupMessage from '../../components/common/PopupMessage';
 
 const MatchBoard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
   const [matches, setMatches] = useState<any[]>([]);
   const [fields, setFields] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<'all' | 'my' | 'ai' | 'history'>('all');
@@ -22,7 +26,34 @@ const MatchBoard = () => {
   const [applyingMatch, setApplyingMatch] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [popupInfo, setPopupInfo] = useState({
+    isOpen: false,
+    type: 'info' as 'success' | 'error' | 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+
+  const closePopup = () => {
+    setPopupInfo(prev => ({ ...prev, isOpen: false }));
+  };
+
+  useEffect(() => {
+    if (!user && !localStorage.getItem('accessToken')) {
+      setPopupInfo({
+        isOpen: true,
+        type: 'info',
+        title: 'Yêu cầu đăng nhập',
+        message: 'Bạn cần đăng nhập để xem bảng tin và tham gia ghép trận!',
+        onConfirm: () => {
+          closePopup();
+          navigate('/login');
+        }
+      });
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -306,6 +337,15 @@ const MatchBoard = () => {
         match={applyingMatch} 
         onClose={() => setApplyingMatch(null)} 
         onConfirm={() => { setApplyingMatch(null); navigate('/messages'); }} 
+      />
+
+      <PopupMessage
+        isOpen={popupInfo.isOpen}
+        onClose={closePopup}
+        type={popupInfo.type}
+        title={popupInfo.title}
+        message={popupInfo.message}
+        onConfirm={popupInfo.onConfirm}
       />
     </div>
   );

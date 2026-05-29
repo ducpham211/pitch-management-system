@@ -1,12 +1,44 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaSearch, FaHandshake, FaCreditCard, FaStar } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import PitchCard from '../../components/common/PitchCard';
 import { MOCK_PITCHES } from '../../mocks/pitchData';
+import { useAuth } from '../../context/AuthContext';
+import PopupMessage from '../../components/common/PopupMessage';
 
 const Home = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const featuredPitches = MOCK_PITCHES.slice(0, 4);
+
+  const [popupInfo, setPopupInfo] = useState({
+    isOpen: false,
+    type: 'info' as 'success' | 'error' | 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const closePopup = () => {
+    setPopupInfo(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleProtectedLinkClick = (e: React.MouseEvent) => {
+    if (!user) {
+      e.preventDefault(); // Ngăn chuyển trang
+      setPopupInfo({
+        isOpen: true,
+        type: 'info',
+        title: 'Yêu cầu đăng nhập',
+        message: 'Bạn cần đăng nhập để tham gia ghép trận và xem bảng tin!',
+        onConfirm: () => {
+          closePopup();
+          navigate('/login');
+        }
+      });
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl flex flex-col gap-16">
@@ -25,7 +57,7 @@ const Home = () => {
                 Bắt đầu Tìm Sân
               </Button>
             </Link>
-            <Link to="/matches" className="w-full sm:w-auto">
+            <Link to="/matches" onClick={handleProtectedLinkClick} className="w-full sm:w-auto">
               <Button variant="secondary" className="text-lg px-8 py-4 shadow-md border border-gray-300 w-full bg-white hover:bg-gray-50">
                 Tham Gia Ghép Trận
               </Button>
@@ -56,7 +88,7 @@ const Home = () => {
           <p className="text-gray-600 leading-relaxed mb-6 flex-1">
             Đăng tin tìm đối thủ, lướt bảng tin nhận kèo và thương lượng trực tiếp qua hệ thống chat nội bộ.
           </p>
-          <Link to="/matches" className="w-full">
+          <Link to="/matches" onClick={handleProtectedLinkClick} className="w-full">
             <Button variant="primary" className="w-full !bg-green-600 hover:!bg-green-700">Đến Bảng Tin</Button>
           </Link>
         </div>
@@ -121,6 +153,14 @@ const Home = () => {
         </div>
       </div>
 
+      <PopupMessage
+        isOpen={popupInfo.isOpen}
+        onClose={closePopup}
+        type={popupInfo.type}
+        title={popupInfo.title}
+        message={popupInfo.message}
+        onConfirm={popupInfo.onConfirm}
+      />
     </div>
   );
 };
