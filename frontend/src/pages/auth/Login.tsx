@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaEnvelope, FaLock, FaGoogle, FaFacebook, FaKey } from 'react-icons/fa';
+import { FaEnvelope, FaLock, FaGoogle, FaKey } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import PopupMessage from '../../components/common/PopupMessage';
 import axios from 'axios';
@@ -269,12 +269,9 @@ const Login = () => {
                 <span className="relative bg-white px-4 text-sm text-gray-500">Hoặc đăng nhập bằng</span>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 mt-6">
+              <div className="grid grid-cols-1 gap-4 mt-6">
                 <button type="button" onClick={handleGoogleClick} className="flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition text-gray-700 font-medium">
                   <FaGoogle className="text-red-500" /> Google
-                </button>
-                <button type="button" className="flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition text-gray-700 font-medium">
-                  <FaFacebook className="text-blue-600" /> Facebook
                 </button>
               </div>
             </div>
