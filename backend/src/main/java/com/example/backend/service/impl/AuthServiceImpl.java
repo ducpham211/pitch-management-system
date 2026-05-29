@@ -15,8 +15,9 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import jakarta.mail.internet.MimeMessage;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -34,6 +35,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Value("${supabase.service.role.key}")
     private String supabaseServiceKey;
+
+    @Value("${spring.mail.username}")
+    private String senderEmail;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -94,7 +98,7 @@ public class AuthServiceImpl implements AuthService {
 
             return new AuthResponse(cleanToken, "Đăng nhập thành công!");
         } catch (Exception e) {
-            throw new AppException(400, "Lỗi phân tích token từ Supabase");
+            throw new AppException(400, "Lỗi đăng nhập hoặc sai thông tin tài khoản");
         }
     }
 
@@ -105,11 +109,19 @@ public class AuthServiceImpl implements AuthService {
         String otp = String.format("%06d", new Random().nextInt(999999));
         redisTemplate.opsForValue().set("OTP_" + email, otp, 5, TimeUnit.MINUTES);
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(email);
-        message.setSubject("Mã OTP Khôi Phục Mật Khẩu");
-        message.setText("Mã OTP của bạn là: " + otp + ". Mã này có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này cho người khác.");
-        mailSender.send(message);
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            
+            helper.setFrom(senderEmail, "Pitch IE303");
+            helper.setTo(email);
+            helper.setSubject("Mã OTP Khôi Phục Mật Khẩu");
+            helper.setText("Mã OTP của bạn là: " + otp + ". Mã này có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này cho người khác.");
+            
+            mailSender.send(message);
+        } catch (Exception e) {
+            throw new AppException(500, "Lỗi khi gửi email: " + e.getMessage());
+        }
     }
 
     @Override
