@@ -52,73 +52,90 @@ graph TD
 
 **Prerequisites:**
 
-- **Java 21**
-- **Node.js 18+** (nvm recommended)
-- **PostgreSQL 15+** (Or use a cloud service like Supabase)
-- **Docker & Docker Compose** (to run local Redis)
+- **Docker & Docker Compose** (Recommended)
+- **Java 21** (Only needed if running backend locally)
+- **Node.js 20+** (Only needed if running frontend locally)
 
-### Step 1: Clone the repository and setup environment
+---
 
-```bash
-git clone https://github.com/ducpham211/pitch-management-system.git
-cd pitch-management-system
-```
+### 🐳 Option 1: Quick Start with Docker (Recommended)
 
-Run Redis Server via Docker (Required for Lock system and Cache):
+To build and run the entire stack (Backend, Frontend, and Redis) all at once:
 
-```bash
-docker-compose up -d --build
-# Or run manually if not using compose:
-# docker run -d -p 6379:6379 redis
-```
+1. **Clone the repository:**
 
-### Step 2: Run the Backend (Spring Boot)
+   ```bash
+   git clone https://github.com/ducpham211/pitch-management-system.git
+   cd pitch-management-system
+   ```
 
-```bash
-cd backend
-```
+2. **Configure Backend environment:**
+   Create a `.env` file inside the `backend/` directory and configure your Database connection (e.g., Supabase) and other credentials:
 
-Create a `.env` file (or configure directly in `application.yml`) with the following parameters:
+   ```env
+   DB_URL=jdbc:postgresql://<host>:5432/postgres
+   DB_USERNAME=postgres
+   DB_PASSWORD=your_database_password
+   JWT_SECRET=your_super_secret_key_for_jwt_auth_12345
+   SUPABASE_URL=https://<project>.supabase.co
+   ```
 
-```env
-DB_URL=jdbc:postgresql://localhost:5432/pitch_db
-DB_USERNAME=postgres
-DB_PASSWORD=your_password
-JWT_SECRET=your_super_secret_key_for_jwt_auth_12345
-REDIS_HOST=localhost
-STRIPE_SECRET_KEY=sk_test_...
-SUPABASE_URL=https://<project>.supabase.co
-```
+3. **Run the system:**
+   At the project root directory, run:
 
-Run the backend project:
+   ```bash
+   docker compose up -d --build
+   ```
 
-```bash
-./mvnw clean install
-./mvnw spring-boot:run
-```
+4. **Access the application:**
+   - **Frontend:** [http://localhost:3000](http://localhost:3000)
+   - **Backend API:** [http://localhost:8080](http://localhost:8080)
 
-### Step 3: Run the Frontend (React)
+---
 
-Open a new terminal, return to the root directory and navigate to the frontend folder:
+### 💻 Option 2: Manual / Local Development Setup
+
+#### Step 1: Start Redis
+
+The Backend requires Redis for local caching and lock management:
 
 ```bash
-cd frontend
-npm install
+docker run -d -p 6379:6379 --name local-redis redis:latest
 ```
 
-Create a `.env` file for the frontend:
+#### Step 2: Run the Backend (Spring Boot)
 
-```env
-VITE_API_BASE_URL=http://localhost:8080/api
-VITE_WS_BASE_URL=ws://localhost:8080/ws
-```
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+2. Create a `.env` file as shown in Option 1, but make sure to set:
+   ```env
+   REDIS_HOST=localhost
+   ```
+3. Run the backend service:
+   ```bash
+   ./mvnw clean install
+   ./mvnw spring-boot:run
+   ```
 
-Run the user interface:
+#### Step 3: Run the Frontend (React Vite)
 
-```bash
-npm run dev
-# Open your browser at http://localhost:5173
-```
+1. Open a new terminal, navigate to the frontend directory:
+   ```bash
+   cd frontend
+   npm install
+   ```
+2. Create a `.env` file inside the `frontend/` directory:
+   ```env
+   VITE_API_BASE_URL=http://localhost:8080/api
+   VITE_WS_URL=http://localhost:8080/ws
+   ```
+3. Start the Vite development server:
+   ```bash
+   npm run dev
+   # Open browser at http://localhost:5173
+   ```
 
 ## ⚙️ Environment Variables
 
@@ -178,4 +195,4 @@ frontend/
 
 **Pham Viet Duc** - [GitHub](https://github.com/ducpham211)
 
-- [LinkedIn](https://linkedin.com/in/viet-duc-pham)
+- [LinkedIn](https://www.linkedin.com/in/viet-duc-pham-898459337/)
