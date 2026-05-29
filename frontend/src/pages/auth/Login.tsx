@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaEnvelope, FaLock, FaGoogle, FaFacebook } from 'react-icons/fa';
 import Button from '../../components/common/Button';
+import PopupMessage from '../../components/common/PopupMessage';
 import axiosClient from '../../api/axiosClient';
 import { useAuth } from '../../context/AuthContext';
 
@@ -10,14 +11,29 @@ const Login = () => {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [popupInfo, setPopupInfo] = useState({
+    isOpen: false,
+    type: 'info' as 'success' | 'error' | 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const closePopup = () => {
+    setPopupInfo(prev => ({ ...prev, isOpen: false }));
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     
     if (!email || !password) {
-      setError('Vui lòng điền đầy đủ email và mật khẩu.');
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng điền đầy đủ email và mật khẩu.',
+        onConfirm: closePopup
+      });
       return;
     }
 
@@ -36,21 +52,37 @@ const Login = () => {
         role: role
       });
 
-      if (role === 'ADMIN') {
-        navigate('/admin');
-      } else if (role === 'OWNER') {
-        navigate('/owner');
-      } else {
-        navigate('/');
-      }
+      setPopupInfo({
+        isOpen: true,
+        type: 'success',
+        title: 'Thành công',
+        message: 'Đăng nhập thành công!',
+        onConfirm: () => {
+          closePopup();
+          if (role === 'ADMIN') {
+            navigate('/admin');
+          } else if (role === 'OWNER') {
+            navigate('/owner');
+          } else {
+            navigate('/');
+          }
+        }
+      });
     } catch (err: any) {
+      let errorMessage = 'Sai email hoặc mật khẩu. Vui lòng thử lại.';
       if (err.response?.data?.message) {
-        setError(err.response.data.message);
+        errorMessage = err.response.data.message;
       } else if (typeof err.response?.data === 'string') {
-        setError(err.response.data);
-      } else {
-        setError('Sai email hoặc mật khẩu. Vui lòng thử lại.');
+        errorMessage = err.response.data;
       }
+
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Thất bại',
+        message: errorMessage,
+        onConfirm: closePopup
+      });
     }
   };
 
@@ -58,12 +90,6 @@ const Login = () => {
     <div className="flex items-center justify-center min-h-[80vh] px-4">
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 w-full max-w-md">
         <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">Đăng Nhập</h2>
-        
-        {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-6 text-center">
-            {error}
-          </div>
-        )}
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div className="relative">
@@ -128,6 +154,15 @@ const Login = () => {
           </Link>
         </div>
       </div>
+
+      <PopupMessage
+        isOpen={popupInfo.isOpen}
+        onClose={closePopup}
+        type={popupInfo.type}
+        title={popupInfo.title}
+        message={popupInfo.message}
+        onConfirm={popupInfo.onConfirm}
+      />
     </div>
   );
 };

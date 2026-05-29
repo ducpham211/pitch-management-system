@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaEnvelope, FaLock, FaUser } from 'react-icons/fa';
 import Button from '../../components/common/Button';
+import PopupMessage from '../../components/common/PopupMessage';
 import axios from 'axios';
 
 const Register = () => {
@@ -10,20 +11,42 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  
+  const [popupInfo, setPopupInfo] = useState({
+    isOpen: false,
+    type: 'info' as 'success' | 'error' | 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
   
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
+  const closePopup = () => {
+    setPopupInfo(prev => ({ ...prev, isOpen: false }));
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     
     if (!name || !email || !password || !confirmPassword) {
-      setError('Vui lòng điền đầy đủ thông tin.');
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng điền đầy đủ thông tin.',
+        onConfirm: closePopup
+      });
       return;
     }
     if (password !== confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp.');
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Lỗi xác nhận',
+        message: 'Mật khẩu xác nhận không khớp.',
+        onConfirm: closePopup
+      });
       return;
     }
 
@@ -34,16 +57,31 @@ const Register = () => {
         fullName: name
       });
 
-      alert(response.data.message || 'Đăng ký tài khoản thành công!');
-      navigate('/login');
+      setPopupInfo({
+        isOpen: true,
+        type: 'success',
+        title: 'Thành công!',
+        message: response.data.message || 'Đăng ký tài khoản thành công!',
+        onConfirm: () => {
+            closePopup();
+            navigate('/login');
+        }
+      });
     } catch (err: any) {
+      let errorMessage = 'Đã xảy ra lỗi kết nối đến máy chủ. Vui lòng thử lại.';
       if (err.response?.data?.message) {
-        setError(err.response.data.message);
+        errorMessage = err.response.data.message;
       } else if (typeof err.response?.data === 'string') {
-        setError(err.response.data);
-      } else {
-        setError('Đã xảy ra lỗi kết nối đến máy chủ. Vui lòng thử lại.');
+        errorMessage = err.response.data;
       }
+      
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Đăng ký thất bại',
+        message: errorMessage,
+        onConfirm: closePopup
+      });
     }
   };
 
@@ -52,12 +90,6 @@ const Register = () => {
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 w-full max-w-md">
         <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">Tạo Tài Khoản</h2>
         
-        {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-6 text-center">
-            {error}
-          </div>
-        )}
-
         <form onSubmit={handleRegister} className="space-y-5">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
@@ -123,6 +155,15 @@ const Register = () => {
           </Link>
         </div>
       </div>
+      
+      <PopupMessage
+        isOpen={popupInfo.isOpen}
+        onClose={closePopup}
+        type={popupInfo.type}
+        title={popupInfo.title}
+        message={popupInfo.message}
+        onConfirm={popupInfo.onConfirm}
+      />
     </div>
   );
 };
