@@ -3,7 +3,6 @@ import { FaPlus, FaTrophy, FaEdit, FaTrash, FaStar, FaShieldAlt, FaUsers, FaEnve
 import Button from '../../components/common/Button';
 import PopupMessage from '../../components/common/PopupMessage';
 import { teamApi, type TeamCreateRequest } from '../../api/teamApi';
-import PopupMessage from '../../components/common/PopupMessage';
 
 const TeamManagement = () => {
   const [teams, setTeams] = useState<any[]>([]);
@@ -119,7 +118,7 @@ const TeamManagement = () => {
       } catch (error: any) {
         showPopup('error', 'Lỗi', error.response?.data || 'Có lỗi khi xóa đội');
       }
-    });
+    }
   };
 
   // --- MEMBER MANAGEMENT ---
