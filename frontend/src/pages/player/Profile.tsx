@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaHistory, FaCheckCircle, FaTimesCircle, FaClock, FaStar } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import axiosClient from '../../api/axiosClient';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import PopupMessage from '../../components/common/PopupMessage';
 
 const Profile = () => {
@@ -35,6 +35,14 @@ const Profile = () => {
   };
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    if (searchParams.get('tab') === 'history') {
+      setActiveTab('history');
+    }
+  }, [location]);
 
   useEffect(() => {
     const fetchProfileAndBookings = async () => {

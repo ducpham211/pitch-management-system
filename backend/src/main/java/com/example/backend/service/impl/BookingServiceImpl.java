@@ -94,7 +94,7 @@ public class BookingServiceImpl implements BookingService {
 
             eventPublisher.publishEvent(new BookingNotificationEvent(
                     userId, 
-                    "🎉 Đặt sân thành công (Chờ thanh toán)!", 
+                    "Đặt sân thành công (Chờ thanh toán)!", 
                     content, 
                     Enums.NotificationType.BOOKING_UPDATE
             ));

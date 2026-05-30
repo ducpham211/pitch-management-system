@@ -11,8 +11,7 @@ public class Enums {
     public enum PostType { FIND_OPPONENT, FIND_MEMBER }
     public enum PostStatus { OPEN, MATCHED, CLOSED, EXPIRED }
     public enum RequestStatus { PENDING, ACCEPTED, REJECTED }
-    public enum NotificationType { SYSTEM, BOOKING_UPDATE, MATCH_REQUEST, NEW_MESSAGE, USER_UPDATE, PAYMENT_UPDATE }
+    public enum NotificationType { SYSTEM, BOOKING_UPDATE, MATCH_REQUEST, NEW_MESSAGE, USER_UPDATE, PAYMENT_UPDATE, TEAM_INVITE }
     public enum ReviewStatus {AUTO_PASSED, PENDING_ADMIN_REVIEW, PENALIZED}
     public enum ConversationType { DIRECT, MATCH_GROUP, TEAM }
 }
-

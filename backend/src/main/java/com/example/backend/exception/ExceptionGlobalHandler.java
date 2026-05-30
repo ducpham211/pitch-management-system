@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.HttpClientErrorException;
 
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.example.backend.controller")
 public class ExceptionGlobalHandler {
 
     // 1. Bắt lỗi nghiệp vụ chung do mình tự ném ra (AppException)

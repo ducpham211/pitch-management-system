@@ -21,6 +21,8 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.example.backend.exception.AppException;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
+import com.example.backend.event.BookingNotificationEvent;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -39,6 +41,8 @@ public class TeamServiceImpl implements TeamService {
     // Repository cho hệ thống Chat
     private final ConversationRepository conversationRepository;
     private final ConversationMemberRepository conversationMemberRepository;
+    
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public TeamResponse createTeam(String userId, TeamCreateRequest request) {
@@ -65,7 +69,7 @@ public class TeamServiceImpl implements TeamService {
         
         // 4. GỬI THÔNG BÁO
         NotificationCreateRequest notifRequest = new NotificationCreateRequest();
-        notifRequest.setTitle("🎉 Tạo đội bóng thành công");
+        notifRequest.setTitle("Tạo đội bóng thành công");
         notifRequest.setContent("Bạn đã tạo thành công đội bóng " + team.getName() + " và nhóm chat đội.");
         notifRequest.setType(Enums.NotificationType.BOOKING_UPDATE);
         notificationService.createAndSendNotification(userId, notifRequest);
@@ -180,13 +184,16 @@ public class TeamServiceImpl implements TeamService {
         if (teamMemberRepository.findByTeamIdAndUserId(teamId, userToInvite.getId()).isPresent()) {
             throw new AppException(400, "Người dùng này đã ở trong đội hoặc đã được mời");
         }
-
+        User captain = userRepository.findById(captainId)
+                .orElseThrow(() -> new AppException(404, "Không tìm thấy đội trưởng"));
         TeamMember member = new TeamMember();
         member.setTeamId(teamId);
         member.setUserId(userToInvite.getId());
         member.setStatus("PENDING");
         member.setCreatedAt(LocalDateTime.now());
         teamMemberRepository.save(member);
+        String content = "Bạn đã được mời vào đội " + team.getName() + " bởi " + captain.getFullName();
+        eventPublisher.publishEvent(new BookingNotificationEvent(userToInvite.getId(), "Lời mời tham gia đội", content, Enums.NotificationType.TEAM_INVITE));
     }
 
     @Override

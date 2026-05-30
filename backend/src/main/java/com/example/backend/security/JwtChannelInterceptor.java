@@ -2,6 +2,7 @@ package com.example.backend.security;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -14,6 +15,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 
+@Slf4j
 @Component
 public class JwtChannelInterceptor implements ChannelInterceptor {
 
@@ -23,6 +25,8 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         
         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
             String authHeader = accessor.getFirstNativeHeader("Authorization");
+            log.info("STOMP CONNECT - Auth Header received: {}", authHeader != null ? "Yes (length=" + authHeader.length() + ")" : "No");
+            
             if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
                 String token = authHeader.substring(7);
                 try {
@@ -43,15 +47,21 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
                             userId = jsonNode.get("username").asText();
                         }
 
+                        log.info("STOMP CONNECT - Resolved userId: {}", userId);
                         if (userId != null) {
                             UsernamePasswordAuthenticationToken authentication = 
                                     new UsernamePasswordAuthenticationToken(userId, null, new ArrayList<>());
                             accessor.setUser(authentication);
+                            log.info("STOMP CONNECT - Successfully authenticated Principal name: {}", authentication.getName());
                         }
+                    } else {
+                        log.warn("STOMP CONNECT - Invalid token format (number of parts is {})", chunks.length);
                     }
                 } catch (Exception e) {
-                    // Log or ignore authentication failure
+                    log.error("STOMP CONNECT - Error parsing STOMP JWT token: ", e);
                 }
+            } else {
+                log.warn("STOMP CONNECT - No Bearer token found in headers");
             }
         }
         return message;

@@ -48,14 +48,18 @@ const Navbar = () => {
       connectHeaders: {
         Authorization: `Bearer ${token}`
       },
-      debug: () => {},
+      debug: (str) => {
+        console.log('[STOMP Navbar]', str);
+      },
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
     });
 
     client.onConnect = () => {
+      console.log('[STOMP Navbar] Connected successfully');
       client.subscribe('/user/queue/notifications', (message) => {
+        console.log('[STOMP Navbar] Received message:', message.body);
         try {
           const newNotif = JSON.parse(message.body);
           setNotifications(prev => {
@@ -66,6 +70,15 @@ const Navbar = () => {
           console.error('Error parsing WS notification:', e);
         }
       });
+    };
+
+    client.onStompError = (frame) => {
+      console.error('[STOMP Navbar] Broker error:', frame.headers['message']);
+      console.error('[STOMP Navbar] Details:', frame.body);
+    };
+
+    client.onWebSocketClose = (evt) => {
+      console.warn('[STOMP Navbar] Connection closed:', evt);
     };
 
     client.activate();
@@ -101,9 +114,13 @@ const Navbar = () => {
     try {
       await notificationApi.markAsRead(n.id);
       fetchNotifications();
+      setShowNotif(false);
       if ((n.type === 'MATCH_REQUEST' || n.type === 'NEW_MESSAGE') && n.senderId) {
-        setShowNotif(false);
         navigate(`/messages?partnerId=${n.senderId}`);
+      } else if (n.type === 'TEAM_INVITE') {
+        navigate('/teams');
+      } else if (n.type === 'BOOKING_UPDATE' || n.type === 'PAYMENT_UPDATE') {
+        navigate('/profile?tab=history');
       }
     } catch (error) {
       console.error(error);
