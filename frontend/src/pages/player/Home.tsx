@@ -1,16 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaSearch, FaHandshake, FaCreditCard, FaStar } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import PitchCard from '../../components/common/PitchCard';
-import { MOCK_PITCHES } from '../../mocks/pitchData';
 import { useAuth } from '../../context/AuthContext';
 import PopupMessage from '../../components/common/PopupMessage';
+import axiosClient from '../../api/axiosClient';
 
 const Home = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const featuredPitches = MOCK_PITCHES.slice(0, 4);
+  const [featuredPitches, setFeaturedPitches] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFeaturedPitches = async () => {
+      try {
+        const res = await axiosClient.get('/fields');
+        const data = res.data.content || res.data || [];
+        setFeaturedPitches(data.slice(0, 4));
+      } catch (error) {
+        console.error('Lỗi khi tải sân nổi bật:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchFeaturedPitches();
+  }, []);
+
+  const translateFieldType = (type: string) => {
+    switch(type) {
+      case 'FIVE_A_SIDE': return 'Sân 5 người';
+      case 'SEVEN_A_SIDE': return 'Sân 7 người';
+      case 'ELEVEN_A_SIDE': return 'Sân 11 người';
+      default: return type;
+    }
+  };
 
   const [popupInfo, setPopupInfo] = useState({
     isOpen: false,
@@ -117,21 +142,32 @@ const Home = () => {
             Xem tất cả &rarr;
           </Link>
         </div>
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredPitches.map((pitch) => (
-            <PitchCard
-              key={pitch.id}
-              id={pitch.id}
-              name={pitch.name}
-              location={pitch.location}
-              type={pitch.type}
-              price={pitch.price}
-              onActionClick={() => navigate(`/pitches/${pitch.id}`)}
-            />
-          ))}
+          {isLoading ? (
+            <div className="col-span-full text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              <p className="text-gray-500 text-lg">Đang tải danh sách sân nổi bật...</p>
+            </div>
+          ) : featuredPitches.length > 0 ? (
+            featuredPitches.map((pitch) => (
+              <PitchCard
+                key={pitch.id}
+                id={pitch.id}
+                name={pitch.name}
+                coverImage={pitch.coverImage}
+                location="Cơ sở chính"
+                type={translateFieldType(pitch.type)}
+                price="Theo ca đá"
+                onActionClick={() => navigate(`/pitches/${pitch.id}`)}
+              />
+            ))
+          ) : (
+            <div className="col-span-full text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              <p className="text-gray-500 text-lg">Chưa có sân bóng nổi bật nào.</p>
+            </div>
+          )}
         </div>
-        
+
         <div className="mt-6 text-center md:hidden">
           <Link to="/pitches" className="text-green-600 font-bold hover:underline">
             Xem tất cả sân bóng &rarr;

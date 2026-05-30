@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/payments/webhook").permitAll()
                         .requestMatchers("/api/payments/**").authenticated()
                         .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/api/chat/**").permitAll()
                         // Bất kỳ API nào khác đều yêu cầu phải có Token hợp lệ
                         .anyRequest().authenticated()
                 );

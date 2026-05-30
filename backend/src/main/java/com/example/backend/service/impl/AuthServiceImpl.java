@@ -3,6 +3,7 @@ package com.example.backend.service.impl;
 import com.example.backend.dto.request.AuthRequest;
 import com.example.backend.dto.response.AuthResponse;
 import com.example.backend.utils.Enums;
+import com.example.backend.utils.HashUtils;
 import com.example.backend.entity.User;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.service.AuthService;
@@ -74,7 +75,7 @@ public class AuthServiceImpl implements AuthService {
                 newUser.setEmail(request.getEmail());
                 newUser.setRole(Enums.UserRole.PLAYER);
                 newUser.setFullName(request.getFullName());
-                newUser.setPassword(request.getPassword());
+                newUser.setPassword(HashUtils.hashSHA256(request.getPassword()));
                 userRepository.save(newUser);
             }
 
@@ -154,7 +155,7 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(400, "Lỗi đồng bộ mật khẩu lên Supabase Auth: " + e.getMessage());
         }
 
-        user.setPassword(newPassword);
+        user.setPassword(HashUtils.hashSHA256(newPassword));
         userRepository.save(user);
         
         redisTemplate.delete("OTP_" + email);
