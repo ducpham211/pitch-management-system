@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FaPlus, FaTrophy, FaEdit, FaTrash, FaStar, FaShieldAlt, FaUsers, FaEnvelope, FaCheck, FaTimes, FaClock } from 'react-icons/fa';
+import { FaPlus, FaTrophy, FaEdit, FaTrash, FaStar, FaShieldAlt, FaUsers, FaEnvelope, FaCheck, FaTimes, FaClock, FaSpinner } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import PopupMessage from '../../components/common/PopupMessage';
 import { teamApi, type TeamCreateRequest } from '../../api/teamApi';
@@ -32,6 +32,12 @@ const TeamManagement = () => {
   const closePopup = () => {
     setPopupInfo(prev => ({ ...prev, isOpen: false }));
   };
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+  const [deletingTeamId, setDeletingTeamId] = useState<string | null>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [respondingInvitationId, setRespondingInvitationId] = useState<string | null>(null);
 
   // Trạng thái cho Quản lý Thành viên
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
@@ -110,6 +116,7 @@ const TeamManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       if (editingTeam) {
         await teamApi.updateTeam(editingTeam.id, formData);
@@ -122,6 +129,8 @@ const TeamManagement = () => {
       fetchTeamsAndInvitations();
     } catch (error: any) {
       showPopup('error', 'Thất bại', error.response?.data || 'Có lỗi xảy ra');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -136,12 +145,15 @@ const TeamManagement = () => {
         confirmLabel: 'Đồng ý',
         onConfirm: async () => {
           closePopup();
+          setDeletingTeamId(id);
           try {
             await teamApi.deleteTeam(id);
             showPopup('success', 'Đã xóa', 'Giải tán đội thành công!');
             fetchTeamsAndInvitations();
           } catch (error: any) {
             showPopup('error', 'Lỗi', error.response?.data || 'Có lỗi khi xóa đội');
+          } finally {
+            setDeletingTeamId(null);
           }
         }
       }
@@ -170,6 +182,7 @@ const TeamManagement = () => {
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail) return;
+    setIsInviting(true);
     try {
       await teamApi.inviteMember(selectedTeam.id, inviteEmail);
       showPopup('success', 'Đã gửi lời mời', `Đã gửi lời mời đến email: ${inviteEmail}`);
@@ -177,6 +190,8 @@ const TeamManagement = () => {
       fetchTeamMembers(selectedTeam.id);
     } catch (error: any) {
       showPopup('error', 'Lỗi', error.response?.data?.message || error.response?.data || 'Không thể mời thành viên này');
+    } finally {
+      setIsInviting(false);
     }
   };
 
@@ -191,12 +206,15 @@ const TeamManagement = () => {
         confirmLabel: 'Đồng ý',
         onConfirm: async () => {
           closePopup();
+          setRemovingMemberId(memberId);
           try {
             await teamApi.removeMember(selectedTeam.id, memberId);
             showPopup('success', 'Thành công', 'Đã xóa thành viên khỏi đội');
             fetchTeamMembers(selectedTeam.id);
           } catch (error) {
             showPopup('error', 'Lỗi', 'Có lỗi khi xóa thành viên');
+          } finally {
+            setRemovingMemberId(null);
           }
         }
       }
@@ -204,12 +222,15 @@ const TeamManagement = () => {
   };
 
   const handleInvitationResponse = async (invitationId: string, accept: boolean) => {
+    setRespondingInvitationId(invitationId);
     try {
       await teamApi.respondToInvitation(invitationId, accept);
       showPopup('success', 'Thành công', accept ? 'Bạn đã gia nhập đội!' : 'Đã từ chối lời mời');
       fetchTeamsAndInvitations();
     } catch (error) {
       showPopup('error', 'Lỗi', 'Có lỗi khi phản hồi lời mời');
+    } finally {
+      setRespondingInvitationId(null);
     }
   };
 
@@ -288,14 +309,29 @@ const TeamManagement = () => {
                   
                   {team.isCaptain && (
                     <div className="flex gap-2 relative z-10">
-                      <button onClick={() => handleOpenMemberModal(team)} className="p-2 text-green-500 bg-green-50 hover:bg-green-600 hover:text-white rounded-xl transition-all duration-200" title="Quản lý thành viên">
+                      <button 
+                        disabled={deletingTeamId !== null}
+                        onClick={() => handleOpenMemberModal(team)} 
+                        className={`p-2 text-green-500 bg-green-50 hover:bg-green-600 hover:text-white rounded-xl transition-all duration-200 ${deletingTeamId !== null ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                        title="Quản lý thành viên"
+                      >
                         <FaUsers />
                       </button>
-                      <button onClick={() => handleOpenModal(team)} className="p-2 text-blue-500 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl transition-all duration-200" title="Chỉnh sửa đội">
+                      <button 
+                        disabled={deletingTeamId !== null}
+                        onClick={() => handleOpenModal(team)} 
+                        className={`p-2 text-blue-500 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl transition-all duration-200 ${deletingTeamId !== null ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                        title="Chỉnh sửa đội"
+                      >
                         <FaEdit />
                       </button>
-                      <button onClick={() => handleDelete(team.id, team.name)} className="p-2 text-red-500 bg-red-50 hover:bg-red-600 hover:text-white rounded-xl transition-all duration-200" title="Giải tán đội">
-                        <FaTrash />
+                      <button 
+                        disabled={deletingTeamId !== null}
+                        onClick={() => handleDelete(team.id, team.name)} 
+                        className={`p-2 text-red-500 bg-red-50 hover:bg-red-600 hover:text-white rounded-xl transition-all duration-200 flex items-center justify-center min-w-[32px] ${deletingTeamId !== null ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                        title="Giải tán đội"
+                      >
+                        {deletingTeamId === team.id ? <FaSpinner className="animate-spin text-sm" /> : <FaTrash />}
                       </button>
                     </div>
                   )}
@@ -320,10 +356,20 @@ const TeamManagement = () => {
                   <p className="text-sm text-gray-500 mt-1">Đội trưởng: <span className="font-medium text-gray-700">{inv.captainName}</span></p>
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={() => handleInvitationResponse(inv.id, true)} variant="primary" className="flex-1 py-2 px-2 bg-green-500! hover:bg-green-600! flex items-center justify-center gap-1 text-sm">
-                    <FaCheck /> Tham gia
+                  <Button 
+                    disabled={respondingInvitationId !== null}
+                    onClick={() => handleInvitationResponse(inv.id, true)} 
+                    variant="primary" 
+                    className="flex-1 py-2 px-2 bg-green-500! hover:bg-green-600! flex items-center justify-center gap-1 text-sm disabled:opacity-55 disabled:cursor-not-allowed"
+                  >
+                    {respondingInvitationId === inv.id ? <FaSpinner className="animate-spin" /> : <><FaCheck /> Tham gia</>}
                   </Button>
-                  <Button onClick={() => handleInvitationResponse(inv.id, false)} variant="secondary" className="flex-1 py-2 px-2 flex items-center justify-center gap-1 text-sm text-red-500 border-red-200 hover:bg-red-50">
+                  <Button 
+                    disabled={respondingInvitationId !== null}
+                    onClick={() => handleInvitationResponse(inv.id, false)} 
+                    variant="secondary" 
+                    className="flex-1 py-2 px-2 flex items-center justify-center gap-1 text-sm text-red-500 border-red-200 hover:bg-red-50 disabled:opacity-55 disabled:cursor-not-allowed"
+                  >
                     <FaTimes /> Từ chối
                   </Button>
                 </div>
@@ -372,8 +418,23 @@ const TeamManagement = () => {
               </div>
 
               <div className="flex gap-3 pt-4">
-                <Button type="button" variant="secondary" className="flex-1 py-3" onClick={() => setIsModalOpen(false)}>Hủy bỏ</Button>
-                <Button type="submit" variant="primary" className="flex-1 py-3 bg-green-600! hover:bg-green-700!">{editingTeam ? 'Lưu Thay Đổi' : 'Xác Nhận Tạo'}</Button>
+                <Button 
+                  disabled={isSubmitting}
+                  type="button" 
+                  variant="secondary" 
+                  className="flex-1 py-3 disabled:opacity-55" 
+                  onClick={() => setIsModalOpen(false)}
+                >
+                  Hủy bỏ
+                </Button>
+                <Button 
+                  disabled={isSubmitting}
+                  type="submit" 
+                  variant="primary" 
+                  className="flex-1 py-3 bg-green-600! hover:bg-green-700! flex items-center justify-center gap-2 disabled:opacity-55"
+                >
+                  {isSubmitting ? <FaSpinner className="animate-spin text-xl" /> : (editingTeam ? 'Lưu Thay Đổi' : 'Xác Nhận Tạo')}
+                </Button>
               </div>
             </form>
           </div>
@@ -396,13 +457,19 @@ const TeamManagement = () => {
             {/* Khung Mời Thành Viên */}
             <form onSubmit={handleInvite} className="flex gap-2 mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
               <input 
+                disabled={isInviting}
                 type="email" required 
                 placeholder="Nhập email người dùng..."
-                className="flex-1 px-4 py-2 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-sm"
+                className="flex-1 px-4 py-2 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-sm disabled:opacity-60"
                 value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
               />
-              <Button type="submit" variant="primary" className="bg-blue-600! hover:bg-blue-700! px-4 py-2 text-sm whitespace-nowrap">
-                Gửi lời mời
+              <Button 
+                disabled={isInviting}
+                type="submit" 
+                variant="primary" 
+                className="bg-blue-600! hover:bg-blue-700! px-4 py-2 text-sm whitespace-nowrap flex items-center justify-center gap-1 min-w-[100px] disabled:opacity-55"
+              >
+                {isInviting ? <FaSpinner className="animate-spin" /> : 'Gửi lời mời'}
               </Button>
             </form>
 
@@ -426,8 +493,13 @@ const TeamManagement = () => {
                     {member.userId === selectedTeam.captainId ? (
                       <span className="text-xs font-bold text-yellow-600 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-200">Đội Trưởng</span>
                     ) : (
-                      <button onClick={() => handleRemoveMember(member.id)} className="text-red-400 hover:text-red-600 p-2 bg-red-50 rounded-lg transition" title="Xóa thành viên">
-                        <FaTrash className="text-sm" />
+                      <button 
+                        disabled={removingMemberId !== null}
+                        onClick={() => handleRemoveMember(member.id)} 
+                        className={`text-red-400 hover:text-red-600 p-2 bg-red-50 rounded-lg transition flex items-center justify-center min-w-[32px] ${removingMemberId !== null ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                        title="Xóa thành viên"
+                      >
+                        {removingMemberId === member.id ? <FaSpinner className="animate-spin text-sm" /> : <FaTrash className="text-sm" />}
                       </button>
                     )}
                   </div>
