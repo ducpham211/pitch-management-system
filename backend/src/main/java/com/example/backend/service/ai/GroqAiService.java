@@ -235,7 +235,7 @@ public class GroqAiService {
 
         } catch (Exception e) {
             log.error("Lỗi hệ thống khi xử lý Chatbot: ", e);
-            return new ChatResponse("Hệ thống trợ lý ảo đang bảo trì. Vui lòng thử lại sau.", null);
+            return new ChatResponse("Lỗi hệ thống: " + e.toString(), null);
         }
     }
 }

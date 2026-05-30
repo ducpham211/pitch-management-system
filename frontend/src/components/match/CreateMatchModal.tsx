@@ -24,6 +24,13 @@ const CreateMatchModal = ({ isOpen, onClose, onSubmit, fields }: CreateMatchModa
 
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setError('');
+    }
+  }, [isOpen]);
 
   const standardSlots = [
     { start: '06:00', end: '07:30' },
@@ -109,7 +116,7 @@ const CreateMatchModal = ({ isOpen, onClose, onSubmit, fields }: CreateMatchModa
     e.preventDefault();
 
     if (!newPost.timeStartStr || !newPost.timeEndStr) {
-        alert('Vui lòng chọn khung giờ hợp lệ!');
+        setError('Vui lòng chọn khung giờ hợp lệ!');
         return;
     }
 
@@ -133,6 +140,7 @@ const CreateMatchModal = ({ isOpen, onClose, onSubmit, fields }: CreateMatchModa
     };
 
     onSubmit(formattedPost);
+    onClose();
 
     setNewPost({ 
       message: '', date: '', timeStartStr: '18:00', timeEndStr: '19:30', 
@@ -185,6 +193,11 @@ const CreateMatchModal = ({ isOpen, onClose, onSubmit, fields }: CreateMatchModa
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-left">
+              {error}
+            </div>
+          )}
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Mục đích</label>

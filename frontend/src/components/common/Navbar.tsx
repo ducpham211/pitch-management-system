@@ -5,6 +5,8 @@ import Button from './Button';
 import PopupMessage from './PopupMessage';
 import { useAuth } from '../../context/AuthContext';
 import { notificationApi } from '../../api/notificationApi';
+import SockJS from 'sockjs-client';
+import { Client } from '@stomp/stompjs';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,6 +29,8 @@ const Navbar = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const SOCKET_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws';
+
   useEffect(() => {
     if (user) {
       fetchNotifications();
@@ -34,6 +38,44 @@ const Navbar = () => {
       return () => clearInterval(interval);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const token = localStorage.getItem('accessToken');
+    const client = new Client({
+      webSocketFactory: () => new SockJS(SOCKET_URL),
+      connectHeaders: {
+        Authorization: `Bearer ${token}`
+      },
+      debug: () => {},
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+    });
+
+    client.onConnect = () => {
+      client.subscribe('/user/queue/notifications', (message) => {
+        try {
+          const newNotif = JSON.parse(message.body);
+          setNotifications(prev => {
+            if (prev.some(n => n.id === newNotif.id)) return prev;
+            return [newNotif, ...prev];
+          });
+        } catch (e) {
+          console.error('Error parsing WS notification:', e);
+        }
+      });
+    };
+
+    client.activate();
+
+    return () => {
+      if (client.active) {
+        client.deactivate();
+      }
+    };
+  }, [user, SOCKET_URL]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -55,10 +97,14 @@ const Navbar = () => {
     }
   };
 
-  const handleRead = async (id: string) => {
+  const handleRead = async (n: any) => {
     try {
-      await notificationApi.markAsRead(id);
+      await notificationApi.markAsRead(n.id);
       fetchNotifications();
+      if ((n.type === 'MATCH_REQUEST' || n.type === 'NEW_MESSAGE') && n.senderId) {
+        setShowNotif(false);
+        navigate(`/messages?partnerId=${n.senderId}`);
+      }
     } catch (error) {
       console.error(error);
     }
@@ -167,7 +213,7 @@ const Navbar = () => {
                             notifications.map((n: any) => {
                               const isRead = n.read === true || n.isRead === true;
                               return (
-                                <div key={n.id} onClick={() => handleRead(n.id)} className={`p-4 border-b border-gray-50 text-sm cursor-pointer transition flex items-start gap-3 ${isRead ? 'bg-white opacity-70 hover:bg-gray-50' : 'bg-green-50/40 hover:bg-green-50'}`}>
+                                <div key={n.id} onClick={() => handleRead(n)} className={`p-4 border-b border-gray-50 text-sm cursor-pointer transition flex items-start gap-3 ${isRead ? 'bg-white opacity-70 hover:bg-gray-50' : 'bg-green-50/40 hover:bg-green-50'}`}>
                                   <div className={`w-2 h-2 mt-1.5 rounded-full shrink-0 ${isRead ? 'bg-transparent' : 'bg-green-500'}`}></div>
                                   <div className="flex-1">
                                     <p className={`text-gray-800 ${isRead ? '' : 'font-bold'}`}>{n.title}</p>

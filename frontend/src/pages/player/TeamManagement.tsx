@@ -3,6 +3,7 @@ import { FaPlus, FaTrophy, FaEdit, FaTrash, FaStar, FaShieldAlt, FaUsers, FaEnve
 import Button from '../../components/common/Button';
 import PopupMessage from '../../components/common/PopupMessage';
 import { teamApi, type TeamCreateRequest } from '../../api/teamApi';
+import PopupMessage from '../../components/common/PopupMessage';
 
 const TeamManagement = () => {
   const [teams, setTeams] = useState<any[]>([]);
@@ -27,6 +28,27 @@ const TeamManagement = () => {
     description: '',
     level: 'BEGINNER'
   });
+
+  const [popupInfo, setPopupInfo] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    showCancel?: boolean;
+    cancelLabel?: string;
+    confirmLabel?: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const closePopup = () => {
+    setPopupInfo(prev => ({ ...prev, isOpen: false }));
+  };
 
   useEffect(() => {
     fetchTeamsAndInvitations();
@@ -97,7 +119,7 @@ const TeamManagement = () => {
       } catch (error: any) {
         showPopup('error', 'Lỗi', error.response?.data || 'Có lỗi khi xóa đội');
       }
-    }
+    });
   };
 
   // --- MEMBER MANAGEMENT ---

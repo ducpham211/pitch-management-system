@@ -7,7 +7,8 @@ const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
 export const useAutoMatch = (
     currentUserId: string, 
     onMatchesFetched: (matches: any[]) => void,
-    onChangeViewMode: (mode: 'all' | 'history' | 'ai') => void
+    onChangeViewMode: (mode: 'all' | 'history' | 'ai') => void,
+    onShowAlert?: (info: { type: 'success' | 'error' | 'info' | 'warning', title: string, message: string }) => void
 ) => {
   const navigate = useNavigate();
   
@@ -19,6 +20,7 @@ export const useAutoMatch = (
   const [searchCriteria, setSearchCriteria] = useState<any>(null);
   const [silentPostId, setSilentPostId] = useState<string | null>(null);
   const [skippedMatchIds, setSkippedMatchIds] = useState<string[]>([]);
+  const [skippedUserIds, setSkippedUserIds] = useState<string[]>([]);
   
   const [pendingRequest, setPendingRequest] = useState<any>(null);
   const [foundLivePost, setFoundLivePost] = useState<any>(null);
@@ -27,6 +29,7 @@ export const useAutoMatch = (
   const searchCriteriaRef = useRef<any>(null);
   const silentPostIdRef = useRef<string | null>(null);
   const skippedMatchIdsRef = useRef<string[]>([]);
+  const skippedUserIdsRef = useRef<string[]>([]);
   const currentUserIdRef = useRef<string>('');
   const aiStepRef = useRef<string>('SEARCHING');
   const waitingForPostIdRef = useRef<string | null>(null);
@@ -34,6 +37,7 @@ export const useAutoMatch = (
   useEffect(() => { searchCriteriaRef.current = searchCriteria; }, [searchCriteria]);
   useEffect(() => { silentPostIdRef.current = silentPostId; }, [silentPostId]);
   useEffect(() => { skippedMatchIdsRef.current = skippedMatchIds; }, [skippedMatchIds]);
+  useEffect(() => { skippedUserIdsRef.current = skippedUserIds; }, [skippedUserIds]);
   useEffect(() => { currentUserIdRef.current = currentUserId; }, [currentUserId]);
   useEffect(() => { aiStepRef.current = aiStep; }, [aiStep]);
   useEffect(() => { waitingForPostIdRef.current = waitingForPostId; }, [waitingForPostId]);
@@ -141,14 +145,20 @@ export const useAutoMatch = (
              
              if (mySilentPost && mySilentPost.requests && mySilentPost.requests.length > 0) {
                  const pending = mySilentPost.requests.find((r: any) => r.status === 'PENDING');
-                 if (pending && aiStepRef.current !== 'RECEIVE_REQUEST') {
-                     if (isMounted) {
-                         setPendingRequest(pending);
-                         setFoundLivePost(null);
-                         setAiStep('RECEIVE_REQUEST');
-                         onChangeViewMode('ai');
+                 if (pending) {
+                     if (skippedUserIdsRef.current.includes(pending.requesterId)) {
+                         try {
+                             await axios.put(`${API_URL}/match-requests/${pending.id}/status`, { status: 'REJECTED' }, config);
+                         } catch(e) {}
+                     } else if (aiStepRef.current !== 'RECEIVE_REQUEST') {
+                         if (isMounted) {
+                             setPendingRequest(pending);
+                             setFoundLivePost(null);
+                             setAiStep('RECEIVE_REQUEST');
+                             onChangeViewMode('ai');
+                         }
+                         return;
                      }
-                     return;
                  }
              }
         }
@@ -158,33 +168,42 @@ export const useAutoMatch = (
              if (targetPost) {
                  const myReq = targetPost.requests?.find((r: any) => r.requesterId === currentUserIdRef.current);
                  if (myReq) {
-                     if (myReq.status === 'ACCEPTED') {
-                         if (isMounted) {
-                             setIsPolling(false);
-                             setIsProcessingMatch(true); 
-                             alert('🎉 Đối phương đã chốt kèo! Chuyển đến phòng chat...');
-                             
-                             if (silentPostIdRef.current) {
-                                 try { await axios.delete(`${API_URL}/match-posts/${silentPostIdRef.current}`, config); } catch(e) {}
-                             }
-                             setSilentPostId(null);
-                             setWaitingForPostId(null);
-                             localStorage.removeItem('autoMatch_silentPostId');
-                             localStorage.removeItem('autoMatch_criteria');
-                             localStorage.removeItem('autoMatch_waitingForPostId');
-                             
-                             setIsProcessingMatch(false);
-                             navigate('/messages');
-                         }
-                         return;
-                     } else if (myReq.status === 'REJECTED') {
-                         if (isMounted) {
-                             setSkippedMatchIds(prev => [...prev, waitingForPostIdRef.current!]);
-                             setWaitingForPostId(null);
-                             localStorage.removeItem('autoMatch_waitingForPostId');
-                             setAiStep('SEARCHING');
-                         }
-                     }
+                      if (myReq.status === 'ACCEPTED') {
+                          if (isMounted) {
+                              setIsPolling(false);
+                              setIsProcessingMatch(true); 
+                              if (onShowAlert) {
+                                  onShowAlert({ type: 'success', title: 'Thành công', message: '🎉 Đối phương đã chốt kèo! Chuyển đến phòng chat...' });
+                              } else {
+                                  alert('🎉 Đối phương đã chốt kèo! Chuyển đến phòng chat...');
+                              }
+                              
+                              if (silentPostIdRef.current) {
+                                  try { await axios.delete(`${API_URL}/match-posts/${silentPostIdRef.current}`, config); } catch(e) {}
+                              }
+                              setSilentPostId(null);
+                              setWaitingForPostId(null);
+                              localStorage.removeItem('autoMatch_silentPostId');
+                              localStorage.removeItem('autoMatch_criteria');
+                              localStorage.removeItem('autoMatch_waitingForPostId');
+                              
+                              setIsProcessingMatch(false);
+                              navigate('/messages');
+                          }
+                          return;
+                      } else if (myReq.status === 'REJECTED') {
+                          if (isMounted) {
+                              if (onShowAlert) {
+                                  onShowAlert({ type: 'error', title: 'Từ chối', message: 'Đối thủ đã từ chối yêu cầu ghép trận.' });
+                              } else {
+                                  alert('Đối thủ đã từ chối yêu cầu ghép trận.');
+                              }
+                              setSkippedMatchIds(prev => [...prev, waitingForPostIdRef.current!]);
+                              setWaitingForPostId(null);
+                              localStorage.removeItem('autoMatch_waitingForPostId');
+                              setAiStep('SEARCHING');
+                          }
+                      }
                  }
              } else {
                  if (isMounted) {
@@ -339,7 +358,11 @@ export const useAutoMatch = (
             setAiStep('WAITING_OPPONENT');
             setIsPolling(true);
         } catch (e) {
-            alert('Đối phương đã rời đi hoặc từ chối, Radar tiếp tục quét...');
+            if (onShowAlert) {
+                onShowAlert({ type: 'info', title: 'Radar quét tiếp', message: 'Đối phương đã rời đi hoặc từ chối, Radar tiếp tục quét...' });
+            } else {
+                alert('Đối phương đã rời đi hoặc từ chối, Radar tiếp tục quét...');
+            }
             setSkippedMatchIds(prev => [...prev, foundLivePost.id]);
             setFoundLivePost(null);
             setAiStep('SEARCHING');
@@ -353,6 +376,9 @@ export const useAutoMatch = (
     setIsProcessingMatch(true);
     if (foundLivePost) {
         setSkippedMatchIds(prev => [...prev, foundLivePost.id]);
+        if (foundLivePost.userId) {
+            setSkippedUserIds(prev => [...prev, foundLivePost.userId]);
+        }
         setFoundLivePost(null);
     }
     setAiStep('SEARCHING');
@@ -380,11 +406,19 @@ export const useAutoMatch = (
             localStorage.removeItem('autoMatch_waitingForPostId');
         }
 
-        alert('🎉 Đã gửi yêu cầu ghép trận! Đang chờ đối phương xác nhận. Bạn có thể xem ở tab Lịch Sử.');
+        if (onShowAlert) {
+            onShowAlert({ type: 'success', title: 'Thành công', message: '🎉 Đã gửi yêu cầu ghép trận! Đang chờ đối phương xác nhận. Bạn có thể xem ở tab Lịch Sử.' });
+        } else {
+            alert('🎉 Đã gửi yêu cầu ghép trận! Đang chờ đối phương xác nhận. Bạn có thể xem ở tab Lịch Sử.');
+        }
         setSearchCriteria(null);
         onChangeViewMode('history');
     } catch (error) {
-        alert('Trận này đã bị đóng hoặc bạn đã gửi yêu cầu rồi!');
+        if (onShowAlert) {
+            onShowAlert({ type: 'error', title: 'Lỗi', message: 'Trận này đã bị đóng hoặc bạn đã gửi yêu cầu rồi!' });
+        } else {
+            alert('Trận này đã bị đóng hoặc bạn đã gửi yêu cầu rồi!');
+        }
         setSkippedMatchIds(prev => [...prev, matchId]);
         setIsPolling(true);
     } finally {
@@ -430,11 +464,19 @@ export const useAutoMatch = (
             localStorage.removeItem('autoMatch_waitingForPostId');
         }
 
-        alert('🎉 Đã chốt kèo thành công! Chuyển tới phòng chat...');
+        if (onShowAlert) {
+            onShowAlert({ type: 'success', title: 'Thành công', message: '🎉 Đã chốt kèo thành công! Chuyển tới phòng chat...' });
+        } else {
+            alert('🎉 Đã chốt kèo thành công! Chuyển tới phòng chat...');
+        }
         setSearchCriteria(null);
         navigate('/messages');
     } catch (e) {
-        alert('Rất tiếc, có lỗi xảy ra hoặc đối phương đã hủy.');
+        if (onShowAlert) {
+            onShowAlert({ type: 'error', title: 'Lỗi', message: 'Rất tiếc, có lỗi xảy ra hoặc đối phương đã hủy.' });
+        } else {
+            alert('Rất tiếc, có lỗi xảy ra hoặc đối phương đã hủy.');
+        }
         handleRejectPending(); 
     } finally {
         setIsProcessingMatch(false);

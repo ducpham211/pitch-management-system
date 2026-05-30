@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { FaPaperPlane, FaUserCircle, FaCheck, FaCheckDouble, FaRobot, FaUsers } from 'react-icons/fa';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
+import PopupMessage from '../../components/common/PopupMessage';
 
 const Chat = () => {
   const [conversations, setConversations] = useState<any[]>([]);
@@ -16,11 +17,34 @@ const Chat = () => {
   const [botMessages, setBotMessages] = useState<any[]>([
     { id: 'init-bot', content: 'Xin chào! Tôi là trợ lý AI. Bạn cần hỗ trợ gì?', senderId: 'bot', createdAt: new Date().toISOString() }
   ]);
+
+  const [popupInfo, setPopupInfo] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    showCancel?: boolean;
+    cancelLabel?: string;
+    confirmLabel?: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const closePopup = () => {
+    setPopupInfo(prev => ({ ...prev, isOpen: false }));
+  };
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stompClientRef = useRef<Client | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);  
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const partnerIdParam = searchParams.get('partnerId');
 
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
   const SOCKET_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws';
@@ -51,7 +75,16 @@ const Chat = () => {
         const botConversation = { id: 'bot', partnerName: 'Trợ lý AI (Bot)', lastMessage: 'Tôi có thể giúp gì cho bạn?', isBot: true, updatedAt: new Date() };
         setConversations([botConversation, ...convs]);
         
-        if (convs.length > 0 && !activeConv) {
+        if (partnerIdParam) {
+          const matchingConv = convs.find((c: any) => c.partnerId === partnerIdParam);
+          if (matchingConv) {
+            setActiveConv(matchingConv.id);
+          } else if (convs.length > 0 && !activeConv) {
+            setActiveConv(convs[0].id);
+          } else if (!activeConv) {
+            setActiveConv('bot');
+          }
+        } else if (convs.length > 0 && !activeConv) {
           setActiveConv(convs[0].id);
         } else if (!activeConv) {
           setActiveConv('bot');
@@ -64,7 +97,7 @@ const Chat = () => {
       }
     };
     fetchConversations();
-  }, [API_URL, activeConv]);
+  }, [API_URL, activeConv, partnerIdParam]);
 
   useEffect(() => {
     if (activeConv === 'bot') {
@@ -190,7 +223,14 @@ const Chat = () => {
       
     } catch (err) {
       console.error(err);
-      alert('Không thể gửi tin nhắn lúc này.');
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Thất bại',
+        message: 'Không thể gửi tin nhắn lúc này.',
+        onConfirm: closePopup,
+        showCancel: false
+      });
     }
   };
 
@@ -341,6 +381,17 @@ const Chat = () => {
         </div>
 
       </div>
+      <PopupMessage
+        isOpen={popupInfo.isOpen}
+        onClose={closePopup}
+        type={popupInfo.type}
+        title={popupInfo.title}
+        message={popupInfo.message}
+        onConfirm={popupInfo.onConfirm}
+        showCancel={popupInfo.showCancel}
+        cancelLabel={popupInfo.cancelLabel}
+        confirmLabel={popupInfo.confirmLabel}
+      />
     </div>
   );
 };
