@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FaPaperPlane, FaUserCircle, FaCheck, FaCheckDouble, FaRobot } from 'react-icons/fa';
+import { FaPaperPlane, FaUserCircle, FaCheck, FaCheckDouble, FaRobot, FaUsers } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import SockJS from 'sockjs-client';
@@ -245,6 +245,7 @@ const Chat = () => {
   };
 
   const getPartnerName = (conv: any) => {
+    if (conv.type === 'TEAM' && conv.name) return conv.name;
     if (conv.partnerName) return conv.partnerName;
     return 'Đối tác giao hữu';
   };
@@ -268,8 +269,8 @@ const Chat = () => {
                   className={`p-4 border-b border-gray-100 cursor-pointer transition-colors ${activeConv === conv.id ? 'bg-green-50 border-l-4 border-l-green-500' : 'hover:bg-gray-100'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 ${conv.isBot ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'} rounded-full flex items-center justify-center font-bold`}>
-                      {conv.isBot ? <FaRobot size={24} /> : getPartnerName(conv).charAt(0).toUpperCase()}
+                    <div className={`w-12 h-12 ${conv.isBot ? 'bg-blue-100 text-blue-600' : (conv.type === 'TEAM' ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-600')} rounded-full flex items-center justify-center font-bold`}>
+                      {conv.isBot ? <FaRobot size={24} /> : (conv.type === 'TEAM' ? <FaUsers size={24} /> : getPartnerName(conv).charAt(0).toUpperCase())}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline">
@@ -289,7 +290,7 @@ const Chat = () => {
             <>
               <div className="p-4 border-b border-gray-100 bg-white flex items-center justify-between shadow-sm z-10">
                 <div className="flex items-center gap-3">
-                  {activeConv === 'bot' ? <FaRobot className="text-4xl text-blue-500" /> : <FaUserCircle className="text-4xl text-gray-400" />}
+                  {activeConv === 'bot' ? <FaRobot className="text-4xl text-blue-500" /> : (conversations.find(c => c.id === activeConv)?.type === 'TEAM' ? <FaUsers className="text-4xl text-green-500" /> : <FaUserCircle className="text-4xl text-gray-400" />)}
                   <div>
                     <h3 className="font-bold text-gray-800">
                       {getPartnerName(conversations.find(c => c.id === activeConv) || {})}
@@ -306,19 +307,41 @@ const Chat = () => {
                   messages.map((msg, idx) => {
                     const isMine = msg.senderId === currentUserId;
                     const isLastMsg = idx === messages.length - 1;
+                    const currentConv = conversations.find(c => c.id === activeConv);
+                    const isTeamChat = currentConv?.type === 'TEAM';
+
                     return (
-                      <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${isMine ? 'bg-green-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'}`}>
-                          <p className="whitespace-pre-wrap">{msg.content || msg.text}</p>
-                          <div className={`flex items-center justify-end gap-1 mt-1 ${isMine ? 'text-green-100' : 'text-gray-400'}`}>
-                            <span className="text-[10px]">{formatTime(msg.createdAt || msg.timestamp)}</span>
-                            {isMine && (
-                                <span className="text-[10px]" title={isLastMsg ? "Đã nhận" : "Đã xem"}>
-                                    {isLastMsg ? <FaCheck /> : <FaCheckDouble className="text-blue-200" />}
-                                </span>
-                            )}
+                      <div key={msg.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} w-full`}>
+                        
+                        {/* HIỂN THỊ TÊN NGƯỜI GỬI TRONG GROUP CHAT */}
+                        {!isMine && isTeamChat && (
+                          <span className="text-xs text-gray-500 font-medium mb-1 ml-2">
+                            {msg.senderName || 'Thành viên'}
+                          </span>
+                        )}
+
+                        <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} w-full`}>
+                          <div className={`max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${isMine ? 'bg-green-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'}`}>
+                            <p className="whitespace-pre-wrap">{msg.content || msg.text}</p>
+                            <div className={`flex items-center justify-end gap-1 mt-1 ${isMine ? 'text-green-100' : 'text-gray-400'}`}>
+                              <span className="text-[10px]">{formatTime(msg.createdAt || msg.timestamp)}</span>
+                              
+                              {/* ICON ĐÃ NHẬN / ĐÃ XEM */}
+                              {isMine && (
+                                  <span className="text-[10px]" title={isLastMsg ? "Đã nhận" : "Đã xem"}>
+                                      {isLastMsg ? <FaCheck /> : <FaCheckDouble className="text-blue-200" />}
+                                  </span>
+                              )}
+                            </div>
                           </div>
                         </div>
+
+                        {/* HIỂN THỊ NHỮNG AI ĐÃ XEM TIN NHẮN (TRONG GROUP CHAT) */}
+                        {isMine && isTeamChat && msg.readByNames && msg.readByNames.length > 0 && (
+                          <span className="text-[10px] text-gray-400 mt-1 mr-2 italic">
+                            Đã xem: {msg.readByNames.join(', ')}
+                          </span>
+                        )}
                       </div>
                     );
                   })
