@@ -3,9 +3,9 @@
   
   <br/>
   
-  # 🏆 Pitch Management System (Hệ thống Quản lý Đặt Sân Bóng Đá)
+  # 🏆 Pitch Management System
   
-  **Nền tảng kết nối trực tiếp chủ sân và người chơi, tích hợp thuật toán ghép trận thông minh và quản lý thanh toán tự động.**
+  **A platform connecting pitch owners and players directly, integrating a smart matchmaking algorithm and automated payment management.**
 
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.0-brightgreen.svg?logo=springboot)](https://spring.io/projects/spring-boot)
 [![React](https://img.shields.io/badge/React-18.x-blue.svg?logo=react)](https://reactjs.org/)
@@ -48,77 +48,94 @@ graph TD
 | Cache     | Redis (Dockerized)                  |
 | Real-time | WebSocket (STOMP)                   |
 
-## 🚀 Getting Started (Hướng dẫn cài đặt chi tiết)
+## 🚀 Getting Started
 
-**Yêu cầu hệ thống (Prerequisites):**
+**Prerequisites:**
 
-- **Java 21**
-- **Node.js 18+** (Khuyến nghị dùng nvm)
-- **PostgreSQL 15+** (Hoặc dùng dịch vụ cloud như Supabase)
-- **Docker & Docker Compose** (để chạy Redis nội bộ)
+- **Docker & Docker Compose** (Recommended)
+- **Java 21** (Only needed if running backend locally)
+- **Node.js 20+** (Only needed if running frontend locally)
 
-### Bước 1: Clone dự án và thiết lập môi trường
+---
 
-```bash
-git clone https://github.com/ducpham211/pitch-management-system.git
-cd pitch-management-system
-```
+### 🐳 Option 1: Quick Start with Docker (Recommended)
 
-Khởi chạy Redis Server qua Docker (Bắt buộc cho hệ thống Lock và Cache):
+To build and run the entire stack (Backend, Frontend, and Redis) all at once:
 
-```bash
-docker-compose up -d --build
-# Hoặc chạy lệnh thủ công nếu không dùng compose:
-# docker run -d -p 6379:6379 redis
-```
+1. **Clone the repository:**
 
-### Bước 2: Khởi chạy Backend (Spring Boot)
+   ```bash
+   git clone https://github.com/ducpham211/pitch-management-system.git
+   cd pitch-management-system
+   ```
 
-```bash
-cd backend
-```
+2. **Configure Backend environment:**
+   Create a `.env` file inside the `backend/` directory and configure your Database connection (e.g., Supabase) and other credentials:
 
-Tạo file `.env` (hoặc cấu hình trực tiếp vào `application.yml`) với các thông số sau:
+   ```env
+   DB_URL=jdbc:postgresql://<host>:5432/postgres
+   DB_USERNAME=postgres
+   DB_PASSWORD=your_database_password
+   JWT_SECRET=your_super_secret_key_for_jwt_auth_12345
+   SUPABASE_URL=https://<project>.supabase.co
+   ```
 
-```env
-DB_URL=jdbc:postgresql://localhost:5432/pitch_db
-DB_USERNAME=postgres
-DB_PASSWORD=your_password
-JWT_SECRET=your_super_secret_key_for_jwt_auth_12345
-REDIS_HOST=localhost
-STRIPE_SECRET_KEY=sk_test_...
-SUPABASE_URL=https://<project>.supabase.co
-```
+3. **Run the system:**
+   At the project root directory, run:
 
-Chạy project backend:
+   ```bash
+   docker compose up -d --build
+   ```
 
-```bash
-./mvnw clean install
-./mvnw spring-boot:run
-```
+4. **Access the application:**
+   - **Frontend:** [http://localhost:3000](http://localhost:3000)
+   - **Backend API:** [http://localhost:8080](http://localhost:8080)
 
-### Bước 3: Khởi chạy Frontend (React)
+---
 
-Mở một terminal mới, quay lại thư mục gốc và vào thư mục frontend:
+### 💻 Option 2: Manual / Local Development Setup
+
+#### Step 1: Start Redis
+
+The Backend requires Redis for local caching and lock management:
 
 ```bash
-cd frontend
-npm install
+docker run -d -p 6379:6379 --name local-redis redis:latest
 ```
 
-Tạo file `.env` cho frontend:
+#### Step 2: Run the Backend (Spring Boot)
 
-```env
-VITE_API_BASE_URL=http://localhost:8080/api
-VITE_WS_BASE_URL=ws://localhost:8080/ws
-```
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+2. Create a `.env` file as shown in Option 1, but make sure to set:
+   ```env
+   REDIS_HOST=localhost
+   ```
+3. Run the backend service:
+   ```bash
+   ./mvnw clean install
+   ./mvnw spring-boot:run
+   ```
 
-Chạy giao diện người dùng:
+#### Step 3: Run the Frontend (React Vite)
 
-```bash
-npm run dev
-# Mở trình duyệt tại http://localhost:5173
-```
+1. Open a new terminal, navigate to the frontend directory:
+   ```bash
+   cd frontend
+   npm install
+   ```
+2. Create a `.env` file inside the `frontend/` directory:
+   ```env
+   VITE_API_BASE_URL=http://localhost:8080/api
+   VITE_WS_URL=http://localhost:8080/ws
+   ```
+3. Start the Vite development server:
+   ```bash
+   npm run dev
+   # Open browser at http://localhost:5173
+   ```
 
 ## ⚙️ Environment Variables
 
@@ -132,23 +149,23 @@ npm run dev
 | `STRIPE_SECRET_KEY` | Stripe Payment Key              |
 | `SUPABASE_URL`      | Supabase API URL                |
 
-## 📂 Project Structure (Cấu trúc dự án)
+## 📂 Project Structure
 
-Hệ thống được chia làm 2 repository con (Monorepo-style) đặt trong cùng 1 thư mục gốc:
+The system is divided into 2 sub-repositories (Monorepo-style) located in the same root directory:
 
 ### 1. Backend (`/backend`)
 
 ```text
 backend/
 ├── src/main/java/com/example/backend/
-│   ├── controller/     # Nơi tiếp nhận Request và trả về Response (REST API)
-│   ├── service/        # Chứa toàn bộ Business Logic cốt lõi
-│   ├── repository/     # Interface giao tiếp với PostgreSQL (JPA/Hibernate)
-│   ├── security/       # Cấu hình bảo mật Spring Security & xử lý JWT
-│   ├── dto/            # Các Data Transfer Object nhận/gửi data (Kèm MapStruct)
-│   ├── entity/         # Class ánh xạ trực tiếp với bảng trong Database
-│   └── exception/      # Xử lý Global Exception (ControllerAdvice)
-└── db/migration/       # Các script SQL Flyway để versioning database
+│   ├── controller/     # Handles incoming Requests and returns Responses (REST API)
+│   ├── service/        # Contains all core Business Logic
+│   ├── repository/     # Interfaces for PostgreSQL communication (JPA/Hibernate)
+│   ├── security/       # Spring Security configuration & JWT processing
+│   ├── dto/            # Data Transfer Objects for receiving/sending data (with MapStruct)
+│   ├── entity/         # Classes mapping directly to Database tables
+│   └── exception/      # Global Exception handling (ControllerAdvice)
+└── db/migration/       # Flyway SQL scripts for database versioning
 ```
 
 ### 2. Frontend (`/frontend`)
@@ -156,13 +173,13 @@ backend/
 ```text
 frontend/
 ├── src/
-│   ├── components/     # Các thành phần UI dùng chung (Buttons, Modals, Navbar...)
-│   ├── pages/          # Các trang chính (Home, Booking, MatchFinder, Dashboard...)
-│   ├── hooks/          # Custom React Hooks (Ví dụ: useAuth, useWebSocket)
-│   ├── services/       # Các file gọi API tới Backend (Axios instances)
-│   ├── store/          # Quản lý Global State (Redux / Zustand)
-│   └── utils/          # Các hàm hỗ trợ format ngày tháng, tiền tệ...
-└── tailwind.config.js  # Cấu hình UI framework
+│   ├── components/     # Shared UI components (Buttons, Modals, Navbar...)
+│   ├── pages/          # Main pages (Home, Booking, MatchFinder, Dashboard...)
+│   ├── hooks/          # Custom React Hooks (e.g., useAuth, useWebSocket)
+│   ├── services/       # API call files to the Backend (Axios instances)
+│   ├── store/          # Global State management (Redux / Zustand)
+│   └── utils/          # Utility functions for formatting dates, currency, etc.
+└── tailwind.config.js  # UI framework configuration
 ```
 
 ## 🔌 API Overview
@@ -178,4 +195,4 @@ frontend/
 
 **Pham Viet Duc** - [GitHub](https://github.com/ducpham211)
 
-- [LinkedIn](https://linkedin.com/in/viet-duc-pham)
+- [LinkedIn](https://www.linkedin.com/in/viet-duc-pham-898459337/)
