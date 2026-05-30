@@ -18,6 +18,9 @@ public class Conversation {
     @Enumerated(EnumType.STRING)
     private Enums.ConversationType type;
 
+    @Column(name = "name")
+    private String name;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

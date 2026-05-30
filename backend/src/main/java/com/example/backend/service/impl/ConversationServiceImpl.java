@@ -10,6 +10,7 @@ import com.example.backend.repository.ConversationMemberRepository;
 import com.example.backend.repository.ConversationRepository;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.service.ConversationService;
+import com.example.backend.utils.Enums;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,12 +38,23 @@ public class ConversationServiceImpl implements ConversationService {
         return conversations.stream()
                 .map(conv -> {
                     ConversationResponse response = conversationMapper.toConversationResponse(conv, currentUserId);
-                    if (response.getPartnerId() != null) {
+                    
+                    // FIX: Xử lý hiển thị Tên cho Chat Nhóm và Chat Cá Nhân
+                    if (conv.getType() == Enums.ConversationType.TEAM) {
+                        // Nếu là chat nhóm (Team) -> Lấy tên nhóm
+                        response.setPartnerName(conv.getName());
+                    } else if (response.getPartnerId() != null) {
+                        // Nếu là chat 1-1 -> Tìm tên đối tác
                         userRepository.findById(response.getPartnerId()).ifPresent(user -> {
                             response.setPartnerName(user.getFullName() != null && !user.getFullName().isEmpty() 
                                     ? user.getFullName() : "Người dùng " + user.getId().substring(0, 6));
                         });
                     }
+
+                    // Đảm bảo type và name được truyền xuống (Để FE đổi Icon và Tên)
+                    response.setType(conv.getType());
+                    response.setName(conv.getName());
+                    
                     return response;
                 })
                 .sorted((c1, c2) -> c2.getUpdatedAt().compareTo(c1.getUpdatedAt()))

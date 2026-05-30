@@ -7,15 +7,20 @@ import com.example.backend.utils.Enums;
 import com.example.backend.entity.Team;
 import com.example.backend.entity.TeamMember;
 import com.example.backend.entity.User;
+import com.example.backend.entity.Conversation;
+import com.example.backend.entity.ConversationMember;
 import com.example.backend.mapper.TeamMapper;
 import com.example.backend.repository.TeamRepository;
 import com.example.backend.repository.TeamMemberRepository;
 import com.example.backend.repository.UserRepository;
+import com.example.backend.repository.ConversationRepository;
+import com.example.backend.repository.ConversationMemberRepository;
 import com.example.backend.service.NotificationService;
 import com.example.backend.service.TeamService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.example.backend.exception.AppException;
+
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -28,17 +33,42 @@ public class TeamServiceImpl implements TeamService {
     private final NotificationService notificationService;
     private final UserRepository userRepository;
     private final TeamMemberRepository teamMemberRepository;
+    
+    // Repository cho hệ thống Chat
+    private final ConversationRepository conversationRepository;
+    private final ConversationMemberRepository conversationMemberRepository;
 
     @Override
     public TeamResponse createTeam(String userId, TeamCreateRequest request) {
         Team team = teamMapper.toEntity(request);
         team.setCaptainId(userId);
         team.setCreatedAt(LocalDateTime.now());
+        
+        // 1. TẠO NHÓM CHAT TRƯỚC
+        Conversation conv = new Conversation();
+        conv.setType(Enums.ConversationType.TEAM);
+        conv.setName(team.getName()); // Lấy tên đội làm tên nhóm chat
+        conv.setCreatedAt(LocalDateTime.now());
+        conv = conversationRepository.save(conv);
+
+        // 2. LƯU ĐỘI BÓNG VỚI CONVERSATION_ID
+        team.setConversationId(conv.getId());
         team = teamRepository.save(team);
         
+        // 3. THÊM ĐỘI TRƯỞNG VÀO NHÓM CHAT
+        User captain = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(404, "Không tìm thấy người dùng"));
+        ConversationMember captainMember = new ConversationMember();
+        captainMember.setConversationId(conv.getId());
+        captainMember.setUserId(userId);
+        captainMember.setConversation(conv);
+        captainMember.setUser(captain);
+        conversationMemberRepository.save(captainMember);
+        
+        // 4. GỬI THÔNG BÁO
         NotificationCreateRequest notifRequest = new NotificationCreateRequest();
         notifRequest.setTitle("🎉 Tạo đội bóng thành công");
-        notifRequest.setContent("Bạn đã tạo thành công đội bóng " + team.getName());
+        notifRequest.setContent("Bạn đã tạo thành công đội bóng " + team.getName() + " và nhóm chat đội.");
         notifRequest.setType(Enums.NotificationType.BOOKING_UPDATE);
         notificationService.createAndSendNotification(userId, notifRequest);
         
@@ -58,6 +88,15 @@ public class TeamServiceImpl implements TeamService {
 
         teamMapper.updateEntityFromRequest(request, team);
         team = teamRepository.save(team);
+        
+        // (Tùy chọn) Cập nhật tên nhóm chat nếu tên đội bóng thay đổi
+        if (team.getConversationId() != null) {
+            Conversation conv = conversationRepository.findById(team.getConversationId()).orElse(null);
+            if (conv != null) {
+                conv.setName(team.getName());
+                conversationRepository.save(conv);
+            }
+        }
         
         TeamResponse res = teamMapper.toResponse(team);
         res.setIsCaptain(true);
@@ -96,7 +135,16 @@ public class TeamServiceImpl implements TeamService {
         if (!team.getCaptainId().equals(userId)) {
             throw new AppException(403, "Bạn không phải đội trưởng của đội này!");
         }
+        
+        // Lưu lại id conversation để xóa sau khi xóa đội
+        String conversationId = team.getConversationId();
+        
         teamRepository.delete(team);
+        
+        // Xóa luôn nhóm chat khi giải tán đội
+        if (conversationId != null) {
+            conversationRepository.deleteById(conversationId);
+        }
     }
 
     @Override
@@ -108,7 +156,6 @@ public class TeamServiceImpl implements TeamService {
             map.put("userId", member.getUserId());
             map.put("status", member.getStatus());
             if (member.getUser() != null) {
-                // SỬA: getUser().getFullName() thay vì getName()
                 map.put("userName", member.getUser().getFullName());
                 map.put("userEmail", member.getUser().getEmail());
             }
@@ -160,7 +207,13 @@ public class TeamServiceImpl implements TeamService {
             throw new AppException(400, "Thành viên không thuộc đội này");
         }
 
-        teamMemberRepository.delete(member);
+        String removedUserId = member.getUserId();
+        teamMemberRepository.delete(member); // Xóa khỏi đội bóng
+        
+        // KICK KHỎI NHÓM CHAT
+        if (team.getConversationId() != null) {
+            conversationMemberRepository.deleteByConversationIdAndUserId(team.getConversationId(), removedUserId);
+        }
     }
 
     @Override
@@ -172,7 +225,6 @@ public class TeamServiceImpl implements TeamService {
             if (inv.getTeam() != null) {
                 map.put("teamName", inv.getTeam().getName());
                 if (inv.getTeam().getCaptain() != null) {
-                    // SỬA: getCaptain().getFullName() thay vì getName()
                     map.put("captainName", inv.getTeam().getCaptain().getFullName());
                 }
             }
@@ -192,6 +244,24 @@ public class TeamServiceImpl implements TeamService {
         if (accept) {
             invitation.setStatus("ACCEPTED");
             teamMemberRepository.save(invitation);
+            
+            // THÊM VÀO NHÓM CHAT
+            Team team = teamRepository.findById(invitation.getTeamId())
+                    .orElseThrow(() -> new AppException(404, "Không tìm thấy đội bóng"));
+            
+            if (team.getConversationId() != null) {
+                Conversation conv = conversationRepository.findById(team.getConversationId())
+                        .orElseThrow(() -> new AppException(404, "Không tìm thấy nhóm chat"));
+                User user = userRepository.findById(userId)
+                        .orElseThrow(() -> new AppException(404, "Không tìm thấy người dùng"));
+                
+                ConversationMember newMember = new ConversationMember();
+                newMember.setConversationId(conv.getId());
+                newMember.setUserId(userId);
+                newMember.setConversation(conv);
+                newMember.setUser(user);
+                conversationMemberRepository.save(newMember);
+            }
         } else {
             teamMemberRepository.delete(invitation);
         }
