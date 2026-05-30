@@ -20,6 +20,7 @@ import com.example.backend.service.TeamService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.example.backend.exception.AppException;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
+@Transactional
 public class TeamServiceImpl implements TeamService {
     private final TeamRepository teamRepository;
     private final TeamMapper teamMapper;
@@ -56,13 +58,9 @@ public class TeamServiceImpl implements TeamService {
         team = teamRepository.save(team);
         
         // 3. THÊM ĐỘI TRƯỞNG VÀO NHÓM CHAT
-        User captain = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(404, "Không tìm thấy người dùng"));
         ConversationMember captainMember = new ConversationMember();
         captainMember.setConversationId(conv.getId());
         captainMember.setUserId(userId);
-        captainMember.setConversation(conv);
-        captainMember.setUser(captain);
         conversationMemberRepository.save(captainMember);
         
         // 4. GỬI THÔNG BÁO
@@ -136,14 +134,14 @@ public class TeamServiceImpl implements TeamService {
             throw new AppException(403, "Bạn không phải đội trưởng của đội này!");
         }
         
-        // Lưu lại id conversation để xóa sau khi xóa đội
         String conversationId = team.getConversationId();
         
-        teamRepository.delete(team);
+        // Sử dụng bulk delete của JPQL để xóa nhanh qua 1 câu lệnh, tránh N+1 Select/Delete của Hibernate
+        teamRepository.deleteTeamById(teamId);
         
-        // Xóa luôn nhóm chat khi giải tán đội
+        // Xóa nhóm chat bằng bulk delete để tránh Hibernate SELECT
         if (conversationId != null) {
-            conversationRepository.deleteById(conversationId);
+            conversationRepository.deleteConversationById(conversationId);
         }
     }
 
