@@ -13,7 +13,25 @@ const TeamManagement = () => {
   const [editingTeam, setEditingTeam] = useState<any | null>(null);
 
   // Trạng thái cho Popup Message
-  const [popup, setPopup] = useState<{ isOpen: boolean; type: 'success' | 'error' | 'info'; title: string; message: string; }>({ isOpen: false, type: 'success', title: '', message: '' });
+  const [popupInfo, setPopupInfo] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+    showCancel?: boolean;
+    cancelLabel?: string;
+    confirmLabel?: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  });
+
+  const closePopup = () => {
+    setPopupInfo(prev => ({ ...prev, isOpen: false }));
+  };
 
   // Trạng thái cho Quản lý Thành viên
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
@@ -27,27 +45,6 @@ const TeamManagement = () => {
     description: '',
     level: 'BEGINNER'
   });
-
-  const [popupInfo, setPopupInfo] = useState<{
-    isOpen: boolean;
-    type: 'success' | 'error' | 'info' | 'warning';
-    title: string;
-    message: string;
-    onConfirm: () => void;
-    showCancel?: boolean;
-    cancelLabel?: string;
-    confirmLabel?: string;
-  }>({
-    isOpen: false,
-    type: 'info',
-    title: '',
-    message: '',
-    onConfirm: () => {}
-  });
-
-  const closePopup = () => {
-    setPopupInfo(prev => ({ ...prev, isOpen: false }));
-  };
 
   useEffect(() => {
     fetchTeamsAndInvitations();
@@ -69,8 +66,27 @@ const TeamManagement = () => {
     }
   };
 
-  const showPopup = (type: 'success' | 'error' | 'info', title: string, message: string) => {
-    setPopup({ isOpen: true, type, title, message });
+  const showPopup = (
+    type: 'success' | 'error' | 'info' | 'warning',
+    title: string,
+    message: string,
+    options?: {
+      onConfirm?: () => void;
+      showCancel?: boolean;
+      cancelLabel?: string;
+      confirmLabel?: string;
+    }
+  ) => {
+    setPopupInfo({
+      isOpen: true,
+      type,
+      title,
+      message,
+      onConfirm: options?.onConfirm,
+      showCancel: options?.showCancel,
+      cancelLabel: options?.cancelLabel,
+      confirmLabel: options?.confirmLabel
+    });
   };
 
   const handleOpenModal = (team?: any) => {
@@ -109,16 +125,27 @@ const TeamManagement = () => {
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (window.confirm(`Bạn có chắc chắn muốn giải tán đội "${name}" không? Hành động này không thể hoàn tác.`)) {
-      try {
-        await teamApi.deleteTeam(id);
-        showPopup('success', 'Đã xóa', 'Giải tán đội thành công!');
-        fetchTeamsAndInvitations();
-      } catch (error: any) {
-        showPopup('error', 'Lỗi', error.response?.data || 'Có lỗi khi xóa đội');
+  const handleDelete = (id: string, name: string) => {
+    showPopup(
+      'warning',
+      'Giải tán đội bóng',
+      `Bạn có chắc chắn muốn giải tán đội "${name}" không? Hành động này không thể hoàn tác.`,
+      {
+        showCancel: true,
+        cancelLabel: 'Hủy',
+        confirmLabel: 'Đồng ý',
+        onConfirm: async () => {
+          closePopup();
+          try {
+            await teamApi.deleteTeam(id);
+            showPopup('success', 'Đã xóa', 'Giải tán đội thành công!');
+            fetchTeamsAndInvitations();
+          } catch (error: any) {
+            showPopup('error', 'Lỗi', error.response?.data || 'Có lỗi khi xóa đội');
+          }
+        }
       }
-    }
+    );
   };
 
   // --- MEMBER MANAGEMENT ---
@@ -153,16 +180,27 @@ const TeamManagement = () => {
     }
   };
 
-  const handleRemoveMember = async (memberId: string) => {
-    if (window.confirm('Bạn có muốn xóa thành viên này khỏi đội không?')) {
-      try {
-        await teamApi.removeMember(selectedTeam.id, memberId);
-        showPopup('success', 'Thành công', 'Đã xóa thành viên khỏi đội');
-        fetchTeamMembers(selectedTeam.id);
-      } catch (error) {
-        showPopup('error', 'Lỗi', 'Có lỗi khi xóa thành viên');
+  const handleRemoveMember = (memberId: string) => {
+    showPopup(
+      'warning',
+      'Xóa thành viên',
+      'Bạn có muốn xóa thành viên này khỏi đội không?',
+      {
+        showCancel: true,
+        cancelLabel: 'Hủy',
+        confirmLabel: 'Đồng ý',
+        onConfirm: async () => {
+          closePopup();
+          try {
+            await teamApi.removeMember(selectedTeam.id, memberId);
+            showPopup('success', 'Thành công', 'Đã xóa thành viên khỏi đội');
+            fetchTeamMembers(selectedTeam.id);
+          } catch (error) {
+            showPopup('error', 'Lỗi', 'Có lỗi khi xóa thành viên');
+          }
+        }
       }
-    }
+    );
   };
 
   const handleInvitationResponse = async (invitationId: string, accept: boolean) => {
@@ -187,11 +225,15 @@ const TeamManagement = () => {
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <PopupMessage 
-        isOpen={popup.isOpen}
-        type={popup.type}
-        title={popup.title}
-        message={popup.message}
-        onClose={() => setPopup({ ...popup, isOpen: false })}
+        isOpen={popupInfo.isOpen}
+        type={popupInfo.type}
+        title={popupInfo.title}
+        message={popupInfo.message}
+        onClose={closePopup}
+        onConfirm={popupInfo.onConfirm}
+        showCancel={popupInfo.showCancel}
+        cancelLabel={popupInfo.cancelLabel}
+        confirmLabel={popupInfo.confirmLabel}
       />
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
