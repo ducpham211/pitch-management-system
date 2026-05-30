@@ -72,7 +72,7 @@ public class BookingServiceImpl implements BookingService {
                 String lockKey = "lock:booking:slot_" + timeSlotId;
                 redisTemplate.opsForValue().set(lockKey, LOCK_VALUE, LOCK_TIMEOUT_MINUTES, TimeUnit.MINUTES);
                 
-                return bookingMapper.toResponse(savedBooking);
+                return bookingMapper.toResponse(savedBooking, "Vui lòng thanh toán trong 5 phút!");
             }
         }
 
