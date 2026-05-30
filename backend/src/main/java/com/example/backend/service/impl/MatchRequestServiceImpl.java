@@ -79,6 +79,7 @@ public class MatchRequestServiceImpl implements MatchRequestService {
         notifRequest.setTitle("Có lời mời giao hữu mới!");
         notifRequest.setContent(requesterName + " đã gửi yêu cầu nhận kèo của bạn tại sân " + fieldCode);
         notifRequest.setType(Enums.NotificationType.MATCH_REQUEST);
+        notifRequest.setSenderId(request.getRequesterId());
         notificationService.createAndSendNotification(post.getUserId(), notifRequest);
 
         try {
@@ -147,6 +148,7 @@ public class MatchRequestServiceImpl implements MatchRequestService {
             notifReq.setTitle("Kèo giao hữu đã được chốt!");
             notifReq.setContent("Tin vui! " + hostName + " đã CHỐT KÈO giao hữu với đội của bạn tại sân " + fieldCode + "!");
             notifReq.setType(Enums.NotificationType.MATCH_REQUEST);
+            notifReq.setSenderId(currentUserId);
             notificationService.createAndSendNotification(request.getRequesterId(), notifReq);
 
             // Lỗ hổng 2: TỰ ĐỘNG TỪ CHỐI (REJECT) các đối thủ khác đang chờ

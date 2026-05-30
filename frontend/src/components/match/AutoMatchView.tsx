@@ -145,12 +145,12 @@ const AutoMatchView = ({
                     <p className="text-lg">Không có bài đăng tĩnh nào khớp. Đợi radar quét người dùng trực tuyến...</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 overflow-y-auto pb-4 pr-2" style={{ scrollbarWidth: 'thin' }}>
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 overflow-y-auto p-2 pb-4" style={{ scrollbarWidth: 'thin' }}>
                     {aiResults.slice(0, 4).map((res, idx) => (
                         <div key={idx} className="flex flex-col gap-3">
-                            <div className="bg-blue-50/80 p-3 rounded-xl border border-blue-100 relative">
-                                <FaRobot className="absolute -top-2.5 -left-2 text-xl text-blue-400 bg-white rounded-full" />
-                                <p className="text-xs text-blue-800 italic ml-3 font-medium">"{res.aiExplanation}"</p>
+                            <div className="bg-blue-50/80 p-3 rounded-xl border border-blue-100 flex items-start gap-2">
+                                <FaRobot className="text-xl text-blue-500 shrink-0 mt-0.5" />
+                                <p className="text-xs text-blue-800 italic font-medium">"{res.aiExplanation || res.aiReason}"</p>
                             </div>
                             <MatchCard 
                                 match={res.fullMatch} 

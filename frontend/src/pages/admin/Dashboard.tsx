@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FaUsers, FaGavel, FaCheck, FaBan, FaFilter, FaStar } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import { adminApi } from '../../api/adminApi';
+import PopupMessage from '../../components/common/PopupMessage';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<'users' | 'reviews'>('users');
@@ -25,6 +26,26 @@ const AdminDashboard = () => {
   const [adjudicateModal, setAdjudicateModal] = useState<{isOpen: boolean, review: any}>({isOpen: false, review: null});
   const [customPenalty, setCustomPenalty] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [popupInfo, setPopupInfo] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    showCancel?: boolean;
+    cancelLabel?: string;
+    confirmLabel?: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const closePopup = () => {
+    setPopupInfo(prev => ({ ...prev, isOpen: false }));
+  };
 
   const truncateId = (id: string) => id ? id.substring(0, 6).toUpperCase() : 'N/A';
 
@@ -82,13 +103,25 @@ const AdminDashboard = () => {
       }
 
       const res = await adminApi.adjudicateReview(adjudicateModal.review.id, payload);
-      alert(res.data || 'Đã xử lý thành công!');
+      setPopupInfo({
+        isOpen: true,
+        type: 'success',
+        title: 'Thành công',
+        message: typeof res.data === 'string' ? res.data : 'Đã xử lý thành công!',
+        onConfirm: closePopup
+      });
       
       setAdjudicateModal({isOpen: false, review: null});
       setCustomPenalty('');
       fetchReviews(); // Tải lại danh sách
     } catch (error: any) {
-      alert('Lỗi xử lý: ' + (error.response?.data?.message || 'Không rõ nguyên nhân'));
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Thất bại',
+        message: 'Lỗi xử lý: ' + (error.response?.data?.message || 'Không rõ nguyên nhân'),
+        onConfirm: closePopup
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -292,6 +325,14 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+      <PopupMessage
+        isOpen={popupInfo.isOpen}
+        onClose={closePopup}
+        type={popupInfo.type}
+        title={popupInfo.title}
+        message={popupInfo.message}
+        onConfirm={popupInfo.onConfirm}
+      />
     </div>
   );
 };

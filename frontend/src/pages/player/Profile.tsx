@@ -3,6 +3,7 @@ import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaHistory, FaCheckCircle, 
 import Button from '../../components/common/Button';
 import axiosClient from '../../api/axiosClient';
 import { useNavigate } from 'react-router-dom';
+import PopupMessage from '../../components/common/PopupMessage';
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState<'info' | 'history'>('info');
@@ -12,6 +13,26 @@ const Profile = () => {
   
   const [updateData, setUpdateData] = useState({ fullName: '', phone: '' });
   const [isUpdating, setIsUpdating] = useState(false);
+  const [popupInfo, setPopupInfo] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    showCancel?: boolean;
+    cancelLabel?: string;
+    confirmLabel?: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const closePopup = () => {
+    setPopupInfo(prev => ({ ...prev, isOpen: false }));
+  };
 
   const navigate = useNavigate();
 
@@ -51,10 +72,24 @@ const Profile = () => {
         fullName: updateData.fullName, 
         phone: updateData.phone,
       });
-      alert('🎉 Đã cập nhật thông tin cá nhân thành công!');
+      setPopupInfo({
+        isOpen: true,
+        type: 'success',
+        title: 'Thành công',
+        message: '🎉 Đã cập nhật thông tin cá nhân thành công!',
+        onConfirm: closePopup,
+        showCancel: false
+      });
       setUserProfile({ ...userProfile, ...updateData });
     } catch (error: any) {
-      alert('Cập nhật thất bại: ' + (error.response?.data?.message || 'Có lỗi xảy ra.'));
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Thất bại',
+        message: 'Cập nhật thất bại: ' + (error.response?.data?.message || 'Có lỗi xảy ra.'),
+        onConfirm: closePopup,
+        showCancel: false
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -213,6 +248,17 @@ const Profile = () => {
           )}
         </div>
       </div>
+      <PopupMessage
+        isOpen={popupInfo.isOpen}
+        onClose={closePopup}
+        type={popupInfo.type}
+        title={popupInfo.title}
+        message={popupInfo.message}
+        onConfirm={popupInfo.onConfirm}
+        showCancel={popupInfo.showCancel}
+        cancelLabel={popupInfo.cancelLabel}
+        confirmLabel={popupInfo.confirmLabel}
+      />
     </div>
   );
 };

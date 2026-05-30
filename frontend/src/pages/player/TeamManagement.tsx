@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FaPlus, FaTrophy, FaEdit, FaTrash, FaStar, FaShieldAlt } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import { teamApi, type TeamCreateRequest } from '../../api/teamApi';
+import PopupMessage from '../../components/common/PopupMessage';
 
 const TeamManagement = () => {
   const [teams, setTeams] = useState<any[]>([]);
@@ -14,6 +15,27 @@ const TeamManagement = () => {
     description: '',
     level: 'BEGINNER'
   });
+
+  const [popupInfo, setPopupInfo] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    showCancel?: boolean;
+    cancelLabel?: string;
+    confirmLabel?: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const closePopup = () => {
+    setPopupInfo(prev => ({ ...prev, isOpen: false }));
+  };
 
   useEffect(() => {
     fetchTeams();
@@ -55,28 +77,77 @@ const TeamManagement = () => {
     try {
       if (editingTeam) {
         await teamApi.updateTeam(editingTeam.id, formData);
-        alert('Cập nhật đội thành công!');
+        setPopupInfo({
+          isOpen: true,
+          type: 'success',
+          title: 'Thành công',
+          message: 'Cập nhật đội thành công!',
+          onConfirm: () => {
+            closePopup();
+            setIsModalOpen(false);
+            fetchTeams();
+          },
+          showCancel: false
+        });
       } else {
         await teamApi.createTeam(formData);
-        alert('Tạo đội mới thành công!');
+        setPopupInfo({
+          isOpen: true,
+          type: 'success',
+          title: 'Thành công',
+          message: 'Tạo đội mới thành công!',
+          onConfirm: () => {
+            closePopup();
+            setIsModalOpen(false);
+            fetchTeams();
+          },
+          showCancel: false
+        });
       }
-      setIsModalOpen(false);
-      fetchTeams();
     } catch (error: any) {
-      alert(error.response?.data || 'Có lỗi xảy ra');
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Thất bại',
+        message: error.response?.data?.message || error.response?.data || 'Có lỗi xảy ra',
+        onConfirm: closePopup,
+        showCancel: false
+      });
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (window.confirm(`Bạn có chắc chắn muốn giải tán đội "${name}" không? Hành động này không thể hoàn tác.`)) {
-      try {
-        await teamApi.deleteTeam(id);
-        alert('Giải tán đội thành công!');
-        fetchTeams();
-      } catch (error: any) {
-        alert('Có lỗi khi xóa đội');
+  const handleDelete = (id: string, name: string) => {
+    setPopupInfo({
+      isOpen: true,
+      type: 'warning',
+      title: 'Giải tán đội bóng',
+      message: `Bạn có chắc chắn muốn giải tán đội "${name}" không? Hành động này không thể hoàn tác.`,
+      showCancel: true,
+      onConfirm: async () => {
+        closePopup();
+        try {
+          await teamApi.deleteTeam(id);
+          setPopupInfo({
+            isOpen: true,
+            type: 'success',
+            title: 'Thành công',
+            message: 'Giải tán đội thành công!',
+            onConfirm: closePopup,
+            showCancel: false
+          });
+          fetchTeams();
+        } catch (error: any) {
+          setPopupInfo({
+            isOpen: true,
+            type: 'error',
+            title: 'Thất bại',
+            message: 'Có lỗi khi xóa đội',
+            onConfirm: closePopup,
+            showCancel: false
+          });
+        }
       }
-    }
+    });
   };
 
   const translateLevel = (level: string) => {
@@ -200,6 +271,17 @@ const TeamManagement = () => {
           </div>
         </div>
       )}
+      <PopupMessage
+        isOpen={popupInfo.isOpen}
+        onClose={closePopup}
+        type={popupInfo.type}
+        title={popupInfo.title}
+        message={popupInfo.message}
+        onConfirm={popupInfo.onConfirm}
+        showCancel={popupInfo.showCancel}
+        cancelLabel={popupInfo.cancelLabel}
+        confirmLabel={popupInfo.confirmLabel}
+      />
     </div>
   );
 };

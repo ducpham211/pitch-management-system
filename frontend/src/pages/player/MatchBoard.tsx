@@ -26,9 +26,18 @@ const MatchBoard = () => {
   const [applyingMatch, setApplyingMatch] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [popupInfo, setPopupInfo] = useState({
+  const [popupInfo, setPopupInfo] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    showCancel?: boolean;
+    cancelLabel?: string;
+    confirmLabel?: string;
+  }>({
     isOpen: false,
-    type: 'info' as 'success' | 'error' | 'info',
+    type: 'info',
     title: '',
     message: '',
     onConfirm: () => {}
@@ -66,7 +75,21 @@ const MatchBoard = () => {
     }
   }, []);
 
-  const autoMatch = useAutoMatch(currentUserId, (data) => setMatches(data), setViewMode);
+  const autoMatch = useAutoMatch(
+    currentUserId, 
+    (data) => setMatches(data), 
+    setViewMode,
+    (info) => {
+      setPopupInfo({
+        isOpen: true,
+        type: info.type,
+        title: info.title,
+        message: info.message,
+        onConfirm: closePopup,
+        showCancel: false
+      });
+    }
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -96,22 +119,51 @@ const MatchBoard = () => {
       setMatches(res.data.content || res.data || []);
       setIsCreateModalOpen(false);
     } catch (error) {
-      alert('Không thể tạo bài đăng. Vui lòng thử lại!');
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Thất bại',
+        message: 'Không thể tạo bài đăng. Vui lòng thử lại!',
+        onConfirm: closePopup
+      });
     }
   };
 
-  const handleAcceptRequest = async (requestId: string) => {
-    if (!window.confirm('Bạn chắc chắn muốn chốt kèo với người này? Bài đăng sẽ tự động đóng lại.')) return;
-    try {
-      const token = localStorage.getItem('accessToken');
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      await axios.put(`${API_URL}/match-requests/${requestId}/status`, { status: 'ACCEPTED' }, config);
-      alert('Chốt kèo thành công! Bài đăng đã được đóng.');
-      const res = await axios.get(`${API_URL}/match-posts?size=100`, config);
-      setMatches(res.data.content || res.data || []);
-    } catch (error: any) {
-      alert(error.response?.data?.message || 'Có lỗi xảy ra khi chốt kèo!');
-    }
+  const handleAcceptRequest = (requestId: string) => {
+    setPopupInfo({
+      isOpen: true,
+      type: 'warning',
+      title: 'Xác nhận chốt kèo',
+      message: 'Bạn chắc chắn muốn chốt kèo với người này? Bài đăng sẽ tự động đóng lại.',
+      showCancel: true,
+      onConfirm: async () => {
+        closePopup();
+        try {
+          const token = localStorage.getItem('accessToken');
+          const config = { headers: { Authorization: `Bearer ${token}` } };
+          await axios.put(`${API_URL}/match-requests/${requestId}/status`, { status: 'ACCEPTED' }, config);
+          setPopupInfo({
+            isOpen: true,
+            type: 'success',
+            title: 'Thành công',
+            message: 'Chốt kèo thành công! Bài đăng đã được đóng.',
+            onConfirm: closePopup,
+            showCancel: false
+          });
+          const res = await axios.get(`${API_URL}/match-posts?size=100`, config);
+          setMatches(res.data.content || res.data || []);
+        } catch (error: any) {
+          setPopupInfo({
+            isOpen: true,
+            type: 'error',
+            title: 'Thất bại',
+            message: error.response?.data?.message || 'Có lỗi xảy ra khi chốt kèo!',
+            onConfirm: closePopup,
+            showCancel: false
+          });
+        }
+      }
+    });
   };
 
   const formatTimeStr = (timeStr: any) => {
@@ -346,6 +398,9 @@ const MatchBoard = () => {
         title={popupInfo.title}
         message={popupInfo.message}
         onConfirm={popupInfo.onConfirm}
+        showCancel={popupInfo.showCancel}
+        cancelLabel={popupInfo.cancelLabel}
+        confirmLabel={popupInfo.confirmLabel}
       />
     </div>
   );

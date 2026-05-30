@@ -97,7 +97,12 @@ public class AuthServiceImpl implements AuthService {
 
             String cleanToken = rootNode.path("access_token").asText();
 
-            return new AuthResponse(cleanToken, "Đăng nhập thành công!");
+            User user = userRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new AppException(404, "Không tìm thấy người dùng"));
+
+            return new AuthResponse(cleanToken, "Đăng nhập thành công!", user.getId(), user.getRole().name());
+        } catch (AppException e) {
+            throw e;
         } catch (Exception e) {
             throw new AppException(400, "Lỗi đăng nhập hoặc sai thông tin tài khoản");
         }

@@ -7,6 +7,7 @@ import PitchesTab from '../../components/owner/PitchesTab';
 import BookingsTab from '../../components/owner/BookingsTab';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import PopupMessage from '../../components/common/PopupMessage';
 
 const OwnerDashboard = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'pitches' | 'bookings'>('overview');
@@ -22,16 +23,33 @@ const OwnerDashboard = () => {
 
   const [isLoadingPitches, setIsLoadingPitches] = useState(false);
   const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+  const [popupInfo, setPopupInfo] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    showCancel?: boolean;
+    cancelLabel?: string;
+    confirmLabel?: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const closePopup = () => {
+    setPopupInfo(prev => ({ ...prev, isOpen: false }));
+  };
 
   const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
   useEffect(() => {
-    if (activeTab === 'pitches') fetchPitches();
-    if (activeTab === 'bookings') {
-      fetchPitches();
-      fetchBookings();
-    }
+    fetchPitches();
+    fetchBookings();
   }, [activeTab]);
 
   const fetchPitches = async () => {
@@ -69,7 +87,13 @@ const OwnerDashboard = () => {
       setIsDetailModalOpen(true);
     } catch (error) {
       console.error('Lỗi khi lấy thông tin chi tiết sân:', error);
-      alert('Không thể tải thông tin sân');
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Thất bại',
+        message: 'Không thể tải thông tin sân',
+        onConfirm: closePopup
+      });
     }
   };
 
@@ -82,22 +106,50 @@ const OwnerDashboard = () => {
       setIsPitchModalOpen(true);
     } catch (error) {
       console.error('Lỗi khi lấy thông tin chi tiết sân:', error);
-      alert('Không thể tải thông tin sân');
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Thất bại',
+        message: 'Không thể tải thông tin sân',
+        onConfirm: closePopup
+      });
     }
   };
 
-  const handleDeletePitch = async (id: string) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa sân này không? (Lưu ý: Không thể hoàn tác)')) {
-      try {
-        const token = localStorage.getItem('accessToken');
-        await axios.delete(`${API_URL}/fields/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-        alert("Đã xóa sân thành công!");
-        fetchPitches();
-      } catch (error) {
-        console.error("Lỗi xóa sân:", error);
-        alert("Xóa sân thất bại. Có thể sân này đang có đơn đặt.");
+  const handleDeletePitch = (id: string) => {
+    setPopupInfo({
+      isOpen: true,
+      type: 'warning',
+      title: 'Xác nhận xóa sân',
+      message: 'Bạn có chắc chắn muốn xóa sân này không? (Lưu ý: Không thể hoàn tác)',
+      showCancel: true,
+      onConfirm: async () => {
+        closePopup();
+        try {
+          const token = localStorage.getItem('accessToken');
+          await axios.delete(`${API_URL}/fields/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+          setPopupInfo({
+            isOpen: true,
+            type: 'success',
+            title: 'Thành công',
+            message: 'Đã xóa sân thành công!',
+            onConfirm: closePopup,
+            showCancel: false
+          });
+          fetchPitches();
+        } catch (error) {
+          console.error("Lỗi xóa sân:", error);
+          setPopupInfo({
+            isOpen: true,
+            type: 'error',
+            title: 'Thất bại',
+            message: 'Xóa sân thất bại. Có thể sân này đang có đơn đặt.',
+            onConfirm: closePopup,
+            showCancel: false
+          });
+        }
       }
-    }
+    });
   };
 
   const handleSavePitch = async (pitchData: any, deletedSlotIds: string[]) => {
@@ -147,47 +199,128 @@ const OwnerDashboard = () => {
       setIsPitchModalOpen(false);
       setEditingPitch(null);
       fetchPitches();
-      alert('Lưu sân thành công!');
+      setPopupInfo({
+        isOpen: true,
+        type: 'success',
+        title: 'Thành công',
+        message: 'Lưu sân thành công!',
+        onConfirm: closePopup
+      });
     } catch (error: any) {
       console.error('Lỗi lưu sân:', error);
-      alert(error.response?.data?.message || error.response?.data || 'Lỗi khi lưu sân. Vui lòng thử lại.');
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Thất bại',
+        message: error.response?.data?.message || error.response?.data || 'Lỗi khi lưu sân. Vui lòng thử lại.',
+        onConfirm: closePopup
+      });
     }
   };
 
-  const handleCheckIn = async (bookingId: string) => {
-    if (!window.confirm('Xác nhận khách đã đến nhận sân?')) return;
-    try {
-      const token = localStorage.getItem('accessToken');
-      await axios.put(`${API_URL}/bookings/${bookingId}/check-in`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      alert("Check-in thành công! Khách đã nhận sân.");
-      fetchBookings();
-    } catch (error: any) {
-      alert(error.response?.data || "Lỗi khi Check-in");
-    }
+  const handleCheckIn = (bookingId: string) => {
+    setPopupInfo({
+      isOpen: true,
+      type: 'warning',
+      title: 'Xác nhận Check-in',
+      message: 'Xác nhận khách đã đến nhận sân?',
+      showCancel: true,
+      onConfirm: async () => {
+        closePopup();
+        try {
+          const token = localStorage.getItem('accessToken');
+          await axios.put(`${API_URL}/bookings/${bookingId}/check-in`, {}, { headers: { Authorization: `Bearer ${token}` } });
+          setPopupInfo({
+            isOpen: true,
+            type: 'success',
+            title: 'Thành công',
+            message: 'Check-in thành công! Khách đã nhận sân.',
+            onConfirm: closePopup,
+            showCancel: false
+          });
+          fetchBookings();
+        } catch (error: any) {
+          setPopupInfo({
+            isOpen: true,
+            type: 'error',
+            title: 'Thất bại',
+            message: error.response?.data || 'Lỗi khi Check-in',
+            onConfirm: closePopup,
+            showCancel: false
+          });
+        }
+      }
+    });
   };
 
-  const handleNoShow = async (bookingId: string) => {
-    if (!window.confirm('Đánh dấu khách KHÔNG ĐẾN và tịch thu cọc? Hành động này sẽ nhả lại sân trống.')) return;
-    try {
-      const token = localStorage.getItem('accessToken');
-      await axios.put(`${API_URL}/bookings/${bookingId}/no-show`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      alert("Đã tịch thu cọc thành công!");
-      fetchBookings();
-    } catch (error: any) {
-      alert(error.response?.data || "Lỗi khi Hủy đơn");
-    }
+  const handleNoShow = (bookingId: string) => {
+    setPopupInfo({
+      isOpen: true,
+      type: 'warning',
+      title: 'Tịch thu cọc',
+      message: 'Đánh dấu khách KHÔNG ĐẾN và tịch thu cọc? Hành động này sẽ nhả lại sân trống.',
+      showCancel: true,
+      onConfirm: async () => {
+        closePopup();
+        try {
+          const token = localStorage.getItem('accessToken');
+          await axios.put(`${API_URL}/bookings/${bookingId}/no-show`, {}, { headers: { Authorization: `Bearer ${token}` } });
+          setPopupInfo({
+            isOpen: true,
+            type: 'success',
+            title: 'Thành công',
+            message: 'Đã tịch thu cọc thành công!',
+            onConfirm: closePopup,
+            showCancel: false
+          });
+          fetchBookings();
+        } catch (error: any) {
+          setPopupInfo({
+            isOpen: true,
+            type: 'error',
+            title: 'Thất bại',
+            message: error.response?.data || 'Lỗi khi Hủy đơn',
+            onConfirm: closePopup,
+            showCancel: false
+          });
+        }
+      }
+    });
   };
 
-  const handleCheckOut = async (bookingId: string) => {
-    if (!window.confirm('Xác nhận thu nốt tiền mặt và Hoàn tất đơn này?')) return;
-    try {
-      const token = localStorage.getItem('accessToken');
-      await axios.post(`${API_URL}/bookings/${bookingId}/check-out?method=CASH`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      alert("Đã Check-out và thu đủ tiền thành công!");
-      fetchBookings();
-    } catch (error: any) {
-      alert(error.response?.data || "Lỗi khi Check-out");
-    }
+  const handleCheckOut = (bookingId: string) => {
+    setPopupInfo({
+      isOpen: true,
+      type: 'warning',
+      title: 'Xác nhận Check-out',
+      message: 'Xác nhận thu nốt tiền mặt và Hoàn tất đơn này?',
+      showCancel: true,
+      onConfirm: async () => {
+        closePopup();
+        try {
+          const token = localStorage.getItem('accessToken');
+          await axios.post(`${API_URL}/bookings/${bookingId}/check-out?method=CASH`, {}, { headers: { Authorization: `Bearer ${token}` } });
+          setPopupInfo({
+            isOpen: true,
+            type: 'success',
+            title: 'Thành công',
+            message: 'Đã Check-out và thu đủ tiền thành công!',
+            onConfirm: closePopup,
+            showCancel: false
+          });
+          fetchBookings();
+        } catch (error: any) {
+          setPopupInfo({
+            isOpen: true,
+            type: 'error',
+            title: 'Thất bại',
+            message: error.response?.data || 'Lỗi khi Check-out',
+            onConfirm: closePopup,
+            showCancel: false
+          });
+        }
+      }
+    });
   };
 
   const translateFieldType = (type: string) => {
@@ -217,7 +350,7 @@ const OwnerDashboard = () => {
       </div>
 
       <div className="w-full md:w-3/4">
-        {activeTab === 'overview' && <OverviewTab />}
+        {activeTab === 'overview' && <OverviewTab bookings={bookings} isLoading={isLoadingBookings} />}
         
         {activeTab === 'pitches' && (
           <PitchesTab 
@@ -302,6 +435,17 @@ const OwnerDashboard = () => {
           </div>
         </div>
       )}
+      <PopupMessage
+        isOpen={popupInfo.isOpen}
+        onClose={closePopup}
+        type={popupInfo.type}
+        title={popupInfo.title}
+        message={popupInfo.message}
+        onConfirm={popupInfo.onConfirm}
+        showCancel={popupInfo.showCancel}
+        cancelLabel={popupInfo.cancelLabel}
+        confirmLabel={popupInfo.confirmLabel}
+      />
     </div>
   );
 };

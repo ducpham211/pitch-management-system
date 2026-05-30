@@ -3,6 +3,7 @@ import { FaArrowLeft, FaMoneyBillWave, FaCreditCard, FaCheckCircle } from 'react
 import { useState } from 'react';
 import Button from '../../components/common/Button';
 import axiosClient from '../../api/axiosClient';
+import PopupMessage from '../../components/common/PopupMessage';
 
 interface Pitch {
   id: string;
@@ -34,6 +35,26 @@ const Checkout = () => {
 
   const [paymentMethod, setPaymentMethod] = useState<'momo' | 'stripe'>('stripe');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [popupInfo, setPopupInfo] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    showCancel?: boolean;
+    cancelLabel?: string;
+    confirmLabel?: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const closePopup = () => {
+    setPopupInfo(prev => ({ ...prev, isOpen: false }));
+  };
 
   const pitch = state?.pitch;
   const slot = state?.slot || state?.selectedSlot;
@@ -89,12 +110,26 @@ const Checkout = () => {
         }
       }
 
-      alert('🎉 Đặt sân thành công! Bạn đã chọn thanh toán qua MoMo (Đang phát triển).');
-      navigate('/profile');
+      setPopupInfo({
+        isOpen: true,
+        type: 'success',
+        title: 'Thành công',
+        message: '🎉 Đặt sân thành công! Bạn đã chọn thanh toán qua MoMo (Đang phát triển).',
+        onConfirm: () => {
+          closePopup();
+          navigate('/profile');
+        }
+      });
 
     } catch (error: any) {
       console.error(error);
-      alert('Lỗi đặt sân: ' + (error.response?.data?.message || error.response?.data || error.message || 'Đã xảy ra lỗi kết nối.'));
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Lỗi đặt sân',
+        message: error.response?.data?.message || error.response?.data || error.message || 'Đã xảy ra lỗi kết nối.',
+        onConfirm: closePopup
+      });
       setIsProcessing(false);
     }
   };
@@ -206,6 +241,14 @@ const Checkout = () => {
           </p>
         </div>
       </div>
+      <PopupMessage
+        isOpen={popupInfo.isOpen}
+        onClose={closePopup}
+        type={popupInfo.type}
+        title={popupInfo.title}
+        message={popupInfo.message}
+        onConfirm={popupInfo.onConfirm}
+      />
     </div>
   );
 };
