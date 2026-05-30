@@ -15,6 +15,7 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
     List<Booking> findByFieldIdAndBookingDate(String fieldId, LocalDate bookingDate);
     List<Booking> findByStatusAndCreatedAtBefore(Enums.BookingStatus status, LocalDateTime deadline);
     List<Booking> findByUserId(String userId);
+    List<Booking> findByTimeSlotIdAndUserIdAndStatus(String timeSlotId, String userId, Enums.BookingStatus status);
     @Query("SELECT COALESCE(SUM(b.totalAmount), 0) FROM Booking b WHERE b.status = 'COMPLETED'")
     java.math.BigDecimal calculateTotalSystemRevenue();
 

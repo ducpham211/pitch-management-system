@@ -56,6 +56,26 @@ public class BookingServiceImpl implements BookingService {
 
         Enums.TimeSlotStatus currentStatus = slot.getStatus() != null ? slot.getStatus() : Enums.TimeSlotStatus.AVAILABLE;
 
+        if (currentStatus == Enums.TimeSlotStatus.PENDING) {
+            // Kiểm tra xem có phải chính user này đang có đơn đặt sân PENDING cho slot này hay không
+            List<Booking> userPendingBookings = bookingRepository.findByTimeSlotIdAndUserIdAndStatus(timeSlotId, userId, Enums.BookingStatus.PENDING);
+            if (!userPendingBookings.isEmpty()) {
+                // Nếu có, cho phép đi tiếp (tái sử dụng đơn hàng cũ)
+                Booking existingBooking = userPendingBookings.get(0);
+                
+                // Gia hạn/cập nhật thời gian tạo mới của đơn hàng để tránh bị cronjob hủy quá sớm
+                existingBooking.setCreatedAt(LocalDateTime.now());
+                existingBooking.setUpdatedAt(LocalDateTime.now());
+                Booking savedBooking = bookingRepository.save(existingBooking);
+                
+                // Gia hạn Redis lock thêm 5 phút
+                String lockKey = "lock:booking:slot_" + timeSlotId;
+                redisTemplate.opsForValue().set(lockKey, LOCK_VALUE, LOCK_TIMEOUT_MINUTES, TimeUnit.MINUTES);
+                
+                return bookingMapper.toResponse(savedBooking);
+            }
+        }
+
         if (currentStatus != Enums.TimeSlotStatus.AVAILABLE) {
             throw new AppException(400, "Sân đã có người đặt hoặc đang chờ thanh toán");
         }
