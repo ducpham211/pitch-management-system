@@ -1,6 +1,7 @@
 package com.example.backend.entity;
 
 import com.example.backend.utils.Enums;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -38,10 +39,13 @@ public class OpponentReview {
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    // THÊM @JsonIgnore VÀO 2 TRƯỜNG NÀY ĐỂ TRÁNH LỖI KHI GỌI API
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewer_id", insertable = false, updatable = false)
     private User reviewer;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewee_id", insertable = false, updatable = false)
     private User reviewee;
