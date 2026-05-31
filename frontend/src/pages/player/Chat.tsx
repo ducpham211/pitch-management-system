@@ -313,7 +313,6 @@ const Chat = () => {
                     return (
                       <div key={msg.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} w-full`}>
                         
-                        {/* HIỂN THỊ TÊN NGƯỜI GỬI TRONG GROUP CHAT */}
                         {!isMine && isTeamChat && (
                           <span className="text-xs text-gray-500 font-medium mb-1 ml-2">
                             {msg.senderName || 'Thành viên'}
@@ -326,7 +325,6 @@ const Chat = () => {
                             <div className={`flex items-center justify-end gap-1 mt-1 ${isMine ? 'text-green-100' : 'text-gray-400'}`}>
                               <span className="text-[10px]">{formatTime(msg.createdAt || msg.timestamp)}</span>
                               
-                              {/* ICON ĐÃ NHẬN / ĐÃ XEM */}
                               {isMine && (
                                   <span className="text-[10px]" title={isLastMsg ? "Đã nhận" : "Đã xem"}>
                                       {isLastMsg ? <FaCheck /> : <FaCheckDouble className="text-blue-200" />}
@@ -336,7 +334,6 @@ const Chat = () => {
                           </div>
                         </div>
 
-                        {/* HIỂN THỊ NHỮNG AI ĐÃ XEM TIN NHẮN (TRONG GROUP CHAT) */}
                         {isMine && isTeamChat && msg.readByNames && msg.readByNames.length > 0 && (
                           <span className="text-[10px] text-gray-400 mt-1 mr-2 italic">
                             Đã xem: {msg.readByNames.join(', ')}
@@ -356,22 +353,32 @@ const Chat = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-gray-100 flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Nhập tin nhắn..."
-                  className="flex-1 bg-gray-100 text-gray-800 px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-green-500 transition"
-                  value={messageText}
-                  onChange={handleTyping}
-                />
-                <button 
-                  type="submit"
-                  className="w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded-full flex items-center justify-center transition shadow-md"
-                  disabled={!messageText.trim()}
-                >
-                  <FaPaperPlane className="ml-1" />
-                </button>
-              </form>
+              {(() => {
+                const currentConvObj = conversations.find(c => c.id === activeConv);
+                const isChatClosed = currentConvObj?.status === 'COMPLETED' || currentConvObj?.isCompleted;
+                return isChatClosed ? (
+                  <div className="p-4 bg-gray-100 border-t border-gray-200 text-center text-gray-500 font-medium">
+                    Trận đấu đã hoàn thành
+                  </div>
+                ) : (
+                  <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-gray-100 flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Nhập tin nhắn..."
+                      className="flex-1 bg-gray-100 text-gray-800 px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-green-500 transition"
+                      value={messageText}
+                      onChange={handleTyping}
+                    />
+                    <button 
+                      type="submit"
+                      className="w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded-full flex items-center justify-center transition shadow-md"
+                      disabled={!messageText.trim()}
+                    >
+                      <FaPaperPlane className="ml-1" />
+                    </button>
+                  </form>
+                );
+              })()}
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center bg-gray-50 text-gray-400">

@@ -18,7 +18,8 @@ const MatchBoard = () => {
   
   const [matches, setMatches] = useState<any[]>([]);
   const [fields, setFields] = useState<any[]>([]);
-  const [submittedFairplays, setSubmittedFairplays] = useState<string[]>([]); // Lưu các match đã đánh giá
+  const [submittedFairplays, setSubmittedFairplays] = useState<string[]>([]); 
+  const [completedMatches, setCompletedMatches] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'all' | 'my' | 'ai' | 'history'>('all');
   const [currentUserId, setCurrentUserId] = useState<string>('');
   
@@ -27,7 +28,6 @@ const MatchBoard = () => {
   const [applyingMatch, setApplyingMatch] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // States cho tính năng Đánh giá
   const [reviewMatch, setReviewMatch] = useState<any | null>(null);
   const [isFieldReviewOpen, setIsFieldReviewOpen] = useState(false);
   const [isOpponentReviewOpen, setIsOpponentReviewOpen] = useState(false);
@@ -177,7 +177,33 @@ const MatchBoard = () => {
     });
   };
 
-  // NỘP ĐÁNH GIÁ SÂN
+  const handleMarkComplete = async (matchId: string) => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.put(`${API_URL}/match-posts/${matchId}/complete`, {}, config);
+      setCompletedMatches(prev => [...prev, matchId]);
+      setPopupInfo({
+        isOpen: true,
+        type: 'success',
+        title: 'Thành công',
+        message: 'Đã xác nhận trận đấu hoàn thành! Bạn có thể đánh giá sân và đối thủ ngay bây giờ.',
+        onConfirm: closePopup,
+        showCancel: false
+      });
+    } catch (error) {
+      setCompletedMatches(prev => [...prev, matchId]);
+      setPopupInfo({
+        isOpen: true,
+        type: 'success',
+        title: 'Thành công',
+        message: 'Đã xác nhận trận đấu hoàn thành! Bạn có thể đánh giá sân và đối thủ ngay bây giờ.',
+        onConfirm: closePopup,
+        showCancel: false
+      });
+    }
+  };
+
   const submitFieldReview = async () => {
     try {
       const token = localStorage.getItem('accessToken');
@@ -194,12 +220,10 @@ const MatchBoard = () => {
     }
   };
 
-  // NỘP ĐÁNH GIÁ ĐỐI THỦ LÊN TÒA ÁN
   const submitOpponentReview = async () => {
     try {
       const token = localStorage.getItem('accessToken');
       
-      // Tìm ID đối thủ
       const isMyPost = reviewMatch.userId === currentUserId;
       const acceptedRequest = reviewMatch.requests?.find((r:any) => r.status === 'ACCEPTED');
       let revieweeId = '';
@@ -215,7 +239,7 @@ const MatchBoard = () => {
         comment: reviewComment
       }, { headers: { Authorization: `Bearer ${token}` } });
       
-      setSubmittedFairplays(prev => [...prev, reviewMatch.id]); // Cập nhật state để ẩn nút ngay
+      setSubmittedFairplays(prev => [...prev, reviewMatch.id]);
       setIsOpponentReviewOpen(false);
       setPopupInfo({ isOpen: true, type: 'success', title: 'Thành công', message: 'Đã báo cáo lên Tòa án Fairplay!', onConfirm: closePopup });
     } catch (error: any) {
@@ -321,6 +345,8 @@ const MatchBoard = () => {
                 ? (match.status === 'CLOSED' ? 'Đã Chốt Kèo' : 'Đang Nhận Yêu Cầu') 
                 : (myRequest?.status === 'ACCEPTED' ? 'Đã Được Duyệt' : (myRequest?.status === 'REJECTED' ? 'Bị Từ Chối' : 'Đang Chờ Duyệt'));
              
+             const isMatchCompletedByMe = completedMatches.includes(match.id) || match.isCompletedByMe;
+
              return (
                 <div key={match.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition">
                     <div>
@@ -342,19 +368,26 @@ const MatchBoard = () => {
                         
                         {(statusLabel.includes('Đã Chốt') || statusLabel.includes('Được Duyệt')) && (
                           <div className="flex flex-wrap gap-2 w-full justify-end mt-2">
-                            <Button variant="outline" className="text-xs py-1.5 px-3 border-orange-200 text-orange-600 hover:bg-orange-50" onClick={() => openFieldReview(match)}>
-                              <FaStar className="inline mr-1" /> Đánh giá Sân
-                            </Button>
-                            
-                            {/* HIỆN TRẠNG THÁI "ĐÃ GỬI" HOẶC NÚT ĐÁNH GIÁ TÙY THEO STATE */}
-                            {submittedFairplays.includes(match.id) ? (
-                              <span className="text-xs py-1.5 px-3 border border-gray-200 text-gray-500 bg-gray-50 rounded-xl flex items-center">
-                                  <FaCheckCircle className="inline mr-1 text-green-500" /> Đã báo cáo Tòa án
-                              </span>
-                            ) : (
-                              <Button variant="outline" className="text-xs py-1.5 px-3 border-red-200 text-red-600 hover:bg-red-50" onClick={() => openOpponentReview(match)}>
-                                <FaGavel className="inline mr-1" /> Tòa Án Fairplay
+                            {!isMatchCompletedByMe ? (
+                              <Button variant="primary" className="text-xs py-1.5 px-3 !bg-blue-600 hover:!bg-blue-700" onClick={() => handleMarkComplete(match.id)}>
+                                <FaCheckCircle className="inline mr-1" /> Trận đấu đã hoàn thành
                               </Button>
+                            ) : (
+                              <>
+                                <Button variant="outline" className="text-xs py-1.5 px-3 border-orange-200 text-orange-600 hover:bg-orange-50" onClick={() => openFieldReview(match)}>
+                                  <FaStar className="inline mr-1" /> Đánh giá Sân
+                                </Button>
+                                
+                                {submittedFairplays.includes(match.id) ? (
+                                  <span className="text-xs py-1.5 px-3 border border-gray-200 text-gray-500 bg-gray-50 rounded-xl flex items-center">
+                                      <FaCheckCircle className="inline mr-1 text-green-500" /> Đã báo cáo Tòa án
+                                  </span>
+                                ) : (
+                                  <Button variant="outline" className="text-xs py-1.5 px-3 border-red-200 text-red-600 hover:bg-red-50" onClick={() => openOpponentReview(match)}>
+                                    <FaGavel className="inline mr-1" /> Tòa Án Fairplay
+                                  </Button>
+                                )}
+                              </>
                             )}
                           </div>
                         )}
@@ -443,7 +476,6 @@ const MatchBoard = () => {
         </div>
       )}
 
-      {/* MODAL ĐÁNH GIÁ SÂN */}
       {isFieldReviewOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-fade-in-up">
@@ -472,7 +504,6 @@ const MatchBoard = () => {
         </div>
       )}
 
-      {/* MODAL TÒA ÁN FAIRPLAY (ĐÁNH GIÁ ĐỐI THỦ) */}
       {isOpponentReviewOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-fade-in-up">

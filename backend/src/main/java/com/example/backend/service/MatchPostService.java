@@ -14,4 +14,5 @@ public interface MatchPostService {
     MatchPostResponse updateMatchPost(String postId, String currentUserId, MatchPostCreateRequest request);
     void deleteMatchPost(String postId, String currentUserId);
     public List<RecommendedMatchResponse> getSmartRecommendations(String currentUserId, String playstyleNote);
+    void markAsComplete(String postId, String currentUserId);
 }

@@ -60,4 +60,11 @@ public class MatchPostController {
 
         return ResponseEntity.ok(recommendations);
     }
+
+    @PutMapping("/{id}/complete")
+    public ResponseEntity<Void> markMatchPostAsComplete(@PathVariable("id") String postId) {
+        String currentUserId = TokenUtils.getCurrentUserId();
+        matchPostService.markAsComplete(postId, currentUserId);
+        return ResponseEntity.ok().build();
+    }
 }
