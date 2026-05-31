@@ -12,7 +12,7 @@ const PitchDetail = () => {
   const { user } = useAuth();
   
   const [pitch, setPitch] = useState<any>(null);
-  const [reviews, setReviews] = useState<any[]>([]); // State lưu đánh giá
+  const [reviews, setReviews] = useState<any[]>([]); 
   
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
@@ -59,10 +59,9 @@ const PitchDetail = () => {
         const res = await axiosClient.get(`/fields/${id}`);
         setPitch(res.data?.data || res.data);
 
-        // 2. Lấy đánh giá sân
+        // 2. Lấy đánh giá sân (chỉ gọi 1 API chính xác)
         try {
-            const reviewRes = await axiosClient.get(`/fields/${id}/reviews`)
-                .catch(() => axiosClient.get(`/reviews/field/${id}`));
+            const reviewRes = await axiosClient.get(`/reviews/field/${id}`);
             const reviewData = reviewRes.data?.content || reviewRes.data?.data || reviewRes.data;
             if (Array.isArray(reviewData)) {
                 setReviews(reviewData);
@@ -143,7 +142,6 @@ const PitchDetail = () => {
     return type;
   };
 
-  // Tính sao trung bình
   const avgRating = reviews.length > 0 
     ? (reviews.reduce((sum, r) => sum + (r.rating || 5), 0) / reviews.length).toFixed(1) 
     : 0;
@@ -153,7 +151,7 @@ const PitchDetail = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <Link to="/pitches" className="inline-flex items-center text-gray-500 hover:text-green-600 mb-6 transition font-medium">
+      <Link to="/find-pitch" className="inline-flex items-center text-gray-500 hover:text-green-600 mb-6 transition font-medium">
         <FaArrowLeft className="mr-2" /> Quay lại danh sách
       </Link>
 
@@ -282,7 +280,7 @@ const PitchDetail = () => {
                           <div className="flex items-center gap-3 sm:w-1/4 sm:flex-col sm:items-start sm:gap-1">
                               <FaUserCircle className="text-4xl text-gray-400" />
                               <div>
-                                  <p className="font-bold text-gray-800">{review.userName || review.reviewerName || 'Khách hàng'}</p>
+                                  <p className="font-bold text-gray-800">{review.userName || review.reviewerName || review.userFullName || 'Khách hàng'}</p>
                                   <p className="text-xs text-gray-500">
                                     {review.createdAt ? new Date(review.createdAt).toLocaleDateString('vi-VN') : 'Gần đây'}
                                   </p>
