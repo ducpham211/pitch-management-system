@@ -35,6 +35,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/").permitAll()
+                .requestMatchers("/error").permitAll() // Thêm dòng này để fix lỗi 404 bị biến thành 403
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/fields/**").permitAll()
@@ -42,8 +43,6 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/reviews/field/**").permitAll() 
                 .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/reviews/**").authenticated()
-                .requestMatchers(HttpMethod.GET, "/api/fields/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
                 .requestMatchers("/api/payments/webhook").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/api/chat/**").permitAll()

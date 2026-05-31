@@ -59,7 +59,7 @@ const PitchDetail = () => {
         const res = await axiosClient.get(`/fields/${id}`);
         setPitch(res.data?.data || res.data);
 
-        // 2. Lấy đánh giá sân (chỉ gọi 1 API chính xác)
+        // 2. Lấy đánh giá sân (Chỉ gọi ĐÚNG 1 API)
         try {
             const reviewRes = await axiosClient.get(`/reviews/field/${id}`);
             const reviewData = reviewRes.data?.content || reviewRes.data?.data || reviewRes.data;
@@ -151,7 +151,7 @@ const PitchDetail = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <Link to="/find-pitch" className="inline-flex items-center text-gray-500 hover:text-green-600 mb-6 transition font-medium">
+      <Link to="/pitches" className="inline-flex items-center text-gray-500 hover:text-green-600 mb-6 transition font-medium">
         <FaArrowLeft className="mr-2" /> Quay lại danh sách
       </Link>
 
