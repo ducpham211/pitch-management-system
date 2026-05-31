@@ -14,4 +14,6 @@ public class Enums {
     public enum NotificationType { SYSTEM, BOOKING_UPDATE, MATCH_REQUEST, NEW_MESSAGE, USER_UPDATE, PAYMENT_UPDATE, TEAM_INVITE }
     public enum ReviewStatus {AUTO_PASSED, PENDING_ADMIN_REVIEW, PENALIZED}
     public enum ConversationType { DIRECT, MATCH_GROUP, TEAM }
+    public enum OpponentRatingType { GOOD, NO_SHOW, BAD_BEHAVIOR }
+    public enum FairplayStatus { PENDING, RESOLVED, REJECTED }
 }

@@ -61,6 +61,9 @@ public class User {
     @OneToMany(mappedBy = "user")
     private List<ConversationMember> conversationMembers;
 
+    @Column(name = "reputation_score")
+    private Integer reputationScore = 100;
+
     public User() {}
 
     public User(String id, String email, String password, UserRole role, String fullName, String phone) {
@@ -100,6 +103,9 @@ public class User {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public Integer getReputationScore() { return reputationScore; }
+    public void setReputationScore(Integer reputationScore) { this.reputationScore = reputationScore; }
 
     public List<Team> getTeams() { return teams; }
     public void setTeams(List<Team> teams) { this.teams = teams; }

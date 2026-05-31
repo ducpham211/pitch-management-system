@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MatchCard from '../../components/common/MatchCard';
 import Button from '../../components/common/Button';
-import { FaPlus, FaGlobe, FaListAlt, FaClock, FaCalendarAlt, FaRobot, FaCheckCircle, FaHistory } from 'react-icons/fa';
+import { FaPlus, FaGlobe, FaListAlt, FaClock, FaCalendarAlt, FaRobot, FaCheckCircle, FaHistory, FaStar, FaGavel } from 'react-icons/fa';
 import CreateMatchModal from '../../components/match/CreateMatchModal';
 import AutoMatchModal from '../../components/match/AutoMatchModal';
 import ConfirmApplyModal from '../../components/match/ConfirmApplyModal';
@@ -25,6 +25,14 @@ const MatchBoard = () => {
   const [isAutoMatchModalOpen, setIsAutoMatchModalOpen] = useState(false);
   const [applyingMatch, setApplyingMatch] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // States cho tính năng Đánh giá
+  const [reviewMatch, setReviewMatch] = useState<any | null>(null);
+  const [isFieldReviewOpen, setIsFieldReviewOpen] = useState(false);
+  const [isOpponentReviewOpen, setIsOpponentReviewOpen] = useState(false);
+  const [fieldRating, setFieldRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [opponentRatingType, setOpponentRatingType] = useState('GOOD');
 
   const [popupInfo, setPopupInfo] = useState<{
     isOpen: boolean;
@@ -166,6 +174,54 @@ const MatchBoard = () => {
     });
   };
 
+  // NỘP ĐÁNH GIÁ SÂN
+  const submitFieldReview = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      await axios.post(`${API_URL}/reviews`, {
+        fieldId: reviewMatch.fieldId,
+        rating: fieldRating,
+        comment: reviewComment
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      
+      setIsFieldReviewOpen(false);
+      setPopupInfo({ isOpen: true, type: 'success', title: 'Thành công', message: 'Đã đánh giá sân!', onConfirm: closePopup });
+    } catch (error) {
+      setPopupInfo({ isOpen: true, type: 'error', title: 'Lỗi', message: 'Không thể gửi đánh giá sân.', onConfirm: closePopup });
+    }
+  };
+
+  // NỘP ĐÁNH GIÁ ĐỐI THỦ LÊN TÒA ÁN
+  const submitOpponentReview = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      
+      // Tìm ID đối thủ
+      const isMyPost = reviewMatch.userId === currentUserId;
+      const acceptedRequest = reviewMatch.requests?.find((r:any) => r.status === 'ACCEPTED');
+      let revieweeId = '';
+      if (isMyPost && acceptedRequest) revieweeId = acceptedRequest.requesterId;
+      else if (!isMyPost) revieweeId = reviewMatch.userId;
+
+      if (!revieweeId) throw new Error('Không tìm thấy ID đối thủ');
+
+      await axios.post(`${API_URL}/fairplay/reviews`, {
+        matchId: reviewMatch.id,
+        revieweeId: revieweeId,
+        ratingType: opponentRatingType,
+        comment: reviewComment
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      
+      setIsOpponentReviewOpen(false);
+      setPopupInfo({ isOpen: true, type: 'success', title: 'Thành công', message: 'Đã báo cáo lên Tòa án Fairplay!', onConfirm: closePopup });
+    } catch (error: any) {
+      setPopupInfo({ isOpen: true, type: 'error', title: 'Lỗi', message: error.response?.data?.message || error.message || 'Lỗi gửi báo cáo.', onConfirm: closePopup });
+    }
+  };
+
+  const openFieldReview = (match: any) => { setReviewMatch(match); setFieldRating(5); setReviewComment(''); setIsFieldReviewOpen(true); };
+  const openOpponentReview = (match: any) => { setReviewMatch(match); setOpponentRatingType('GOOD'); setReviewComment(''); setIsOpponentReviewOpen(true); };
+
   const formatTimeStr = (timeStr: any) => {
     if (!timeStr) return '';
     if (Array.isArray(timeStr)) return `${timeStr[0].toString().padStart(2, '0')}:${(timeStr[1] || 0).toString().padStart(2, '0')}`;
@@ -273,14 +329,22 @@ const MatchBoard = () => {
                             <span className="flex items-center gap-1.5"><FaClock className="text-orange-400"/> {formatTimeStr(match.timeStart)}</span>
                         </p>
                     </div>
-                    <div className="flex items-center gap-4 w-full md:w-auto justify-end border-t border-gray-100 md:border-none pt-3 md:pt-0">
-                        <span className={`px-4 py-2 rounded-xl text-xs font-bold border flex items-center gap-1.5 ${
+                    <div className="flex flex-col items-end gap-2 w-full md:w-auto justify-end border-t border-gray-100 md:border-none pt-3 md:pt-0">
+                        <span className={`px-4 py-2 rounded-xl text-xs font-bold border flex items-center justify-center md:justify-end gap-1.5 w-full ${
                             statusLabel.includes('Đã') || statusLabel.includes('Được') ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'
                         }`}>
                             {statusLabel.includes('Đã') || statusLabel.includes('Được') ? <FaCheckCircle/> : <FaClock/>} {statusLabel}
                         </span>
+                        
                         {(statusLabel.includes('Đã Chốt') || statusLabel.includes('Được Duyệt')) && (
-                            <Button variant="primary" className="!bg-blue-600 hover:!bg-blue-700 shadow-md py-2 px-5 rounded-xl" onClick={() => navigate('/messages')}>Vào Chat</Button>
+                          <div className="flex flex-wrap gap-2 w-full justify-end mt-2">
+                            <Button variant="outline" className="text-xs py-1.5 px-3 border-orange-200 text-orange-600 hover:bg-orange-50" onClick={() => openFieldReview(match)}>
+                              <FaStar className="inline mr-1" /> Đánh giá Sân
+                            </Button>
+                            <Button variant="outline" className="text-xs py-1.5 px-3 border-red-200 text-red-600 hover:bg-red-50" onClick={() => openOpponentReview(match)}>
+                              <FaGavel className="inline mr-1" /> Tòa Án Fairplay
+                            </Button>
+                          </div>
                         )}
                     </div>
                 </div>
@@ -364,6 +428,83 @@ const MatchBoard = () => {
               <p className="text-gray-500 text-lg">Bạn chưa đăng bài tìm đối nào.</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* MODAL ĐÁNH GIÁ SÂN */}
+      {isFieldReviewOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-fade-in-up">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Đánh giá chất lượng Sân</h3>
+            <div className="flex gap-2 justify-center mb-6">
+              {[1, 2, 3, 4, 5].map(star => (
+                <FaStar 
+                  key={star} 
+                  className={`text-3xl cursor-pointer transition ${star <= fieldRating ? 'text-yellow-400' : 'text-gray-200'}`} 
+                  onClick={() => setFieldRating(star)}
+                />
+              ))}
+            </div>
+            <textarea
+              className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-green-500 outline-none resize-none mb-4"
+              rows={3}
+              placeholder="Nhận xét của bạn về chất lượng sân, đèn, mặt cỏ..."
+              value={reviewComment}
+              onChange={(e) => setReviewComment(e.target.value)}
+            ></textarea>
+            <div className="flex gap-3">
+              <Button variant="secondary" className="w-full" onClick={() => setIsFieldReviewOpen(false)}>Hủy</Button>
+              <Button variant="primary" className="w-full" onClick={submitFieldReview}>Gửi Đánh Giá</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL TÒA ÁN FAIRPLAY (ĐÁNH GIÁ ĐỐI THỦ) */}
+      {isOpponentReviewOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-fade-in-up">
+            <h3 className="text-xl font-bold text-gray-800 mb-1 flex items-center gap-2"><FaGavel className="text-red-600"/> Tòa Án Fairplay</h3>
+            <p className="text-sm text-gray-500 mb-6">Hãy đánh giá thái độ thi đấu của đối phương. Hệ thống sẽ căn cứ vào đây để cộng/trừ Điểm Uy Tín (Trust Score).</p>
+            
+            <div className="space-y-3 mb-6">
+              <label className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition ${opponentRatingType === 'GOOD' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
+                <div className="flex items-center gap-3">
+                  <input type="radio" name="fairplay" checked={opponentRatingType === 'GOOD'} onChange={() => setOpponentRatingType('GOOD')} className="w-4 h-4 text-green-600" />
+                  <span className="font-bold text-green-700">Chơi đẹp / Thân thiện</span>
+                </div>
+                <span className="text-xs font-bold bg-green-200 text-green-800 px-2 py-1 rounded">+5 Uy tín</span>
+              </label>
+
+              <label className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition ${opponentRatingType === 'NO_SHOW' ? 'border-orange-500 bg-orange-50' : 'border-gray-200'}`}>
+                <div className="flex items-center gap-3">
+                  <input type="radio" name="fairplay" checked={opponentRatingType === 'NO_SHOW'} onChange={() => setOpponentRatingType('NO_SHOW')} className="w-4 h-4 text-orange-600" />
+                  <span className="font-bold text-orange-700">Bùng kèo / Hủy phút chót</span>
+                </div>
+                <span className="text-xs font-bold bg-orange-200 text-orange-800 px-2 py-1 rounded">-10 Uy tín</span>
+              </label>
+
+              <label className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition ${opponentRatingType === 'BAD_BEHAVIOR' ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}>
+                <div className="flex items-center gap-3">
+                  <input type="radio" name="fairplay" checked={opponentRatingType === 'BAD_BEHAVIOR'} onChange={() => setOpponentRatingType('BAD_BEHAVIOR')} className="w-4 h-4 text-red-600" />
+                  <span className="font-bold text-red-700">Chơi bạo lực / Gây rối</span>
+                </div>
+                <span className="text-xs font-bold bg-red-200 text-red-800 px-2 py-1 rounded">-15 Uy tín</span>
+              </label>
+            </div>
+
+            <textarea
+              className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-red-500 outline-none resize-none mb-4"
+              rows={3}
+              placeholder="Hãy cho Tòa án biết chi tiết (nếu có vi phạm)..."
+              value={reviewComment}
+              onChange={(e) => setReviewComment(e.target.value)}
+            ></textarea>
+            <div className="flex gap-3">
+              <Button variant="secondary" className="w-full" onClick={() => setIsOpponentReviewOpen(false)}>Thoát</Button>
+              <Button variant="primary" className="w-full !bg-red-600 hover:!bg-red-700" onClick={submitOpponentReview}>Gửi Lên Tòa Án</Button>
+            </div>
+          </div>
         </div>
       )}
 

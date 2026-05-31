@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { FaUsers, FaGavel, FaCheck, FaBan, FaFilter, FaStar } from 'react-icons/fa';
+import { FaUsers, FaGavel, FaBan, FaFilter, FaStar } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import { adminApi } from '../../api/adminApi';
+import axios from 'axios';
 import PopupMessage from '../../components/common/PopupMessage';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<'users' | 'reviews'>('users');
+  const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
   
   // States cho Users
   const [users, setUsers] = useState<any[]>([]);
@@ -15,17 +17,15 @@ const AdminDashboard = () => {
   const [userPage, setUserPage] = useState(0);
   const [userTotalPages, setUserTotalPages] = useState(1);
 
-  // States cho Reviews
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [reviewStatus, setReviewStatus] = useState('PENDING_ADMIN_REVIEW');
+  // States cho Fairplay Reviews
+  const [fairplayReviews, setFairplayReviews] = useState<any[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
-  const [reviewPage, setReviewPage] = useState(0);
-  const [reviewTotalPages, setReviewTotalPages] = useState(1);
 
   // States cho Modal Xử lý Review
   const [adjudicateModal, setAdjudicateModal] = useState<{isOpen: boolean, review: any}>({isOpen: false, review: null});
   const [customPenalty, setCustomPenalty] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const [popupInfo, setPopupInfo] = useState<{
     isOpen: boolean;
     type: 'success' | 'error' | 'info' | 'warning';
@@ -66,17 +66,14 @@ const AdminDashboard = () => {
     }
   };
 
-  const fetchReviews = async () => {
+  const fetchFairplayReviews = async () => {
     setIsLoadingReviews(true);
     try {
-      const params: any = { page: reviewPage, size: 10 };
-      if (reviewStatus) params.status = reviewStatus;
-
-      const res = await adminApi.getReviews(params);
-      setReviews(res.data.content || []);
-      setReviewTotalPages(res.data.totalPages || 1);
+      const token = localStorage.getItem('accessToken');
+      const res = await axios.get(`${API_URL}/admin/fairplay/pending`, { headers: { Authorization: `Bearer ${token}` } });
+      setFairplayReviews(res.data || []);
     } catch (error) {
-      console.error('Lỗi tải đánh giá', error);
+      console.error('Lỗi tải đánh giá Tòa án', error);
     } finally {
       setIsLoadingReviews(false);
     }
@@ -87,39 +84,56 @@ const AdminDashboard = () => {
     if (activeTab === 'users') {
       fetchUsers();
     } else {
-      fetchReviews();
+      fetchFairplayReviews();
     }
-  }, [activeTab, roleFilter, minTrustScore, reviewStatus, userPage, reviewPage]);
+  }, [activeTab, roleFilter, minTrustScore, userPage]);
 
-  // Xử lý Phán quyết
+  // Hàm tính điểm phạt mặc định dựa trên RatingType
+  const getSuggestedPenalty = (ratingType: string) => {
+    if (ratingType === 'GOOD') return 5;
+    if (ratingType === 'NO_SHOW') return -10;
+    if (ratingType === 'BAD_BEHAVIOR') return -15;
+    return 0;
+  };
+
+  const getRatingLabel = (ratingType: string) => {
+    if (ratingType === 'GOOD') return 'Cộng điểm (Chơi đẹp)';
+    if (ratingType === 'NO_SHOW') return 'Trừ điểm (Bùng kèo)';
+    if (ratingType === 'BAD_BEHAVIOR') return 'Trừ điểm (Chơi bạo lực/Gây rối)';
+    return ratingType;
+  };
+
+  // Xử lý Phán quyết của Admin
   const handleAdjudicate = async (approve: boolean) => {
     if (!adjudicateModal.review) return;
     setIsSubmitting(true);
     try {
-      const payload: any = { approve };
-      // Nếu duyệt phạt và có nhập số thủ công thì gửi lên, không thì để BE tự lấy điểm của AI
-      if (approve && customPenalty) {
-        payload.finalPenalty = Number(customPenalty);
-      }
+      const token = localStorage.getItem('accessToken');
+      const defaultPoints = getSuggestedPenalty(adjudicateModal.review.ratingType);
+      const pointsToApply = customPenalty !== '' ? Number(customPenalty) : defaultPoints;
 
-      const res = await adminApi.adjudicateReview(adjudicateModal.review.id, payload);
+      await axios.put(`${API_URL}/admin/fairplay/resolve/${adjudicateModal.review.id}`, {
+        isAccepted: approve,
+        pointsApplied: pointsToApply
+      }, { headers: { Authorization: `Bearer ${token}` } });
+
       setPopupInfo({
         isOpen: true,
         type: 'success',
         title: 'Thành công',
-        message: typeof res.data === 'string' ? res.data : 'Đã xử lý thành công!',
+        message: approve ? `Đã y án! Bị cáo bị ${pointsToApply > 0 ? '+' : ''}${pointsToApply} Uy Tín.` : 'Đã tha bổng cho người này!',
         onConfirm: closePopup
       });
       
       setAdjudicateModal({isOpen: false, review: null});
       setCustomPenalty('');
-      fetchReviews(); // Tải lại danh sách
+      fetchFairplayReviews(); // Tải lại danh sách sau khi duyệt
     } catch (error: any) {
       setPopupInfo({
         isOpen: true,
         type: 'error',
         title: 'Thất bại',
-        message: 'Lỗi xử lý: ' + (error.response?.data?.message || 'Không rõ nguyên nhân'),
+        message: 'Lỗi xử lý: ' + (error.response?.data?.message || error.message || 'Không rõ nguyên nhân'),
         onConfirm: closePopup
       });
     } finally {
@@ -187,8 +201,8 @@ const AdminDashboard = () => {
                         </span>
                       </td>
                       <td className="p-4">
-                        <div className="flex items-center gap-1 font-bold text-yellow-600 bg-yellow-50 px-3 py-1 rounded-lg w-fit border border-yellow-200">
-                          <FaStar className="text-yellow-500" /> {user.trustScore ?? 100}
+                        <div className={`flex items-center gap-1 font-bold px-3 py-1 rounded-lg w-fit border ${user.reputationScore < 60 ? 'text-red-600 bg-red-50 border-red-200' : 'text-yellow-600 bg-yellow-50 border-yellow-200'}`}>
+                          <FaStar className={user.reputationScore < 60 ? 'text-red-500' : 'text-yellow-500'} /> {user.reputationScore ?? 100}
                         </div>
                       </td>
                     </tr>
@@ -198,7 +212,6 @@ const AdminDashboard = () => {
             </table>
           </div>
           
-          {/* USER PAGINATION CONTROLS */}
           <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
             <span className="text-sm text-gray-500">Trang {userPage + 1} / {userTotalPages}</span>
             <div className="flex gap-2">
@@ -225,76 +238,46 @@ const AdminDashboard = () => {
 
       {activeTab === 'reviews' && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fade-in-up">
-           <div className="flex flex-wrap gap-4 mb-6 pb-6 border-b border-gray-100">
-            <div className="flex items-center gap-2 text-gray-700 font-medium">
-              <FaFilter className="text-gray-400" /> Trạng thái:
-            </div>
-            <select value={reviewStatus} onChange={(e) => setReviewStatus(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none bg-white">
-              <option value="">Tất cả</option>
-              <option value="PENDING_ADMIN_REVIEW">Đang Chờ Duyệt (Báo Động)</option>
-              <option value="AUTO_PASSED">An Toàn (AI tự động duyệt)</option>
-              <option value="PENALIZED">Đã Phạt</option>
-            </select>
+          <div className="mb-6 border-b border-gray-100 pb-4">
+             <h2 className="text-lg font-bold text-gray-800">Đơn Tố Cáo Đang Chờ Duyệt</h2>
+             <p className="text-sm text-gray-500">Những người chơi bị tố cáo sẽ được Admin quyết định có trừ điểm uy tín hay không.</p>
           </div>
 
           <div className="space-y-4">
             {isLoadingReviews ? (
                <div className="p-8 text-center text-gray-400 border border-dashed rounded-xl">Đang tải hồ sơ vụ án...</div>
-            ) : reviews.length === 0 ? (
-               <div className="p-8 text-center text-gray-400 border border-dashed rounded-xl bg-gray-50">Không có báo cáo nào ở trạng thái này.</div>
+            ) : fairplayReviews.length === 0 ? (
+               <div className="p-8 text-center text-gray-400 border border-dashed rounded-xl bg-gray-50">Tất cả người chơi đều trong sạch. Không có báo cáo nào chờ duyệt.</div>
             ) : (
-              reviews.map((review) => (
-                <div key={review.id} className={`p-5 rounded-xl border ${review.status === 'PENDING_ADMIN_REVIEW' ? 'border-red-200 bg-red-50/30' : 'border-gray-200'} transition hover:shadow-md flex flex-col md:flex-row justify-between gap-4`}>
+              fairplayReviews.map((review) => (
+                <div key={review.id} className="p-5 rounded-xl border border-red-200 bg-red-50/30 transition hover:shadow-md flex flex-col md:flex-row justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">MÃ VỤ: {truncateId(review.id)}</span>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded ${review.status === 'PENDING_ADMIN_REVIEW' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{review.status}</span>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-red-100 text-red-700">ĐANG CHỜ XỬ LÝ</span>
                     </div>
-                    <p className="text-sm text-gray-500 mb-1">Mã đơn: <span className="font-mono">{truncateId(review.matchRequestId)}</span> • Kẻ bị tố cáo (Bị cáo): <span className="font-mono font-bold text-gray-800">{truncateId(review.revieweeId)}</span></p>
+                    <p className="text-sm text-gray-500 mb-1">Trận đấu: <span className="font-mono">{truncateId(review.matchId)}</span></p>
+                    <p className="text-sm text-gray-500 mb-1">Người gửi (Nguyên đơn): <span className="font-mono">{truncateId(review.reviewerId)}</span></p>
+                    <p className="text-sm text-gray-500 mb-1">Người bị tố cáo (Bị cáo): <span className="font-mono font-bold text-gray-800">{truncateId(review.revieweeId)}</span></p>
                     <div className="bg-white p-3 border border-gray-200 rounded-lg my-3">
-                      <p className="text-sm text-gray-800"><strong className="text-gray-500">Lý do báo cáo:</strong> "{review.reason}"</p>
+                      <p className="text-sm text-gray-800"><strong className="text-gray-500">Lời khai / Bình luận:</strong> "{review.comment || 'Không có lời khai cụ thể'}"</p>
                     </div>
-                    {review.aiAnalysis && (
-                      <p className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100"><strong className="text-red-800">AI Phân Tích:</strong> {review.aiAnalysis}</p>
-                    )}
+                    <p className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100"><strong className="text-red-800">Loại vi phạm:</strong> {getRatingLabel(review.ratingType)}</p>
                   </div>
                   
                   <div className="flex flex-col justify-center items-end min-w-[200px] border-l border-gray-200 pl-4">
-                    <p className="text-sm text-gray-500 text-right w-full mb-1">Điểm uy tín trừ dự kiến</p>
-                    <p className="text-3xl font-bold text-red-600 mb-4">-{review.aiSuggestedPenalty || 0}</p>
+                    <p className="text-sm text-gray-500 text-right w-full mb-1">Mức án quy định</p>
+                    <p className={`text-3xl font-bold mb-4 ${getSuggestedPenalty(review.ratingType) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {getSuggestedPenalty(review.ratingType) > 0 ? '+' : ''}{getSuggestedPenalty(review.ratingType)}
+                    </p>
                     
-                    {review.status === 'PENDING_ADMIN_REVIEW' && (
-                      <Button variant="primary" className="w-full shadow-sm !bg-red-600 hover:!bg-red-700" onClick={() => setAdjudicateModal({isOpen: true, review})}>
-                        Mở Tòa Xử Lý
-                      </Button>
-                    )}
+                    <Button variant="primary" className="w-full shadow-sm !bg-red-600 hover:!bg-red-700" onClick={() => setAdjudicateModal({isOpen: true, review})}>
+                      Mở Tòa Xử Lý
+                    </Button>
                   </div>
                 </div>
               ))
             )}
-          </div>
-          
-          {/* REVIEW PAGINATION CONTROLS */}
-          <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
-            <span className="text-sm text-gray-500">Trang {reviewPage + 1} / {reviewTotalPages}</span>
-            <div className="flex gap-2">
-              <Button 
-                variant="secondary" 
-                className="py-1.5 px-3 text-sm hover:bg-gray-100 disabled:opacity-50" 
-                onClick={() => setReviewPage(curr => Math.max(0, curr - 1))}
-                disabled={reviewPage === 0}
-              >
-                Trước
-              </Button>
-              <Button 
-                variant="secondary" 
-                className="py-1.5 px-3 text-sm hover:bg-gray-100 disabled:opacity-50" 
-                onClick={() => setReviewPage(curr => Math.min(reviewTotalPages - 1, curr + 1))}
-                disabled={reviewPage >= reviewTotalPages - 1}
-              >
-                Sau
-              </Button>
-            </div>
           </div>
         </div>
       )}
@@ -307,14 +290,14 @@ const AdminDashboard = () => {
             <p className="text-sm text-gray-600 mb-4">Bạn đang xét xử vụ án <span className="font-mono font-bold">{truncateId(adjudicateModal.review.id)}</span>.</p>
             
             <div className="bg-red-50 border border-red-100 p-4 rounded-xl mb-4">
-              <p className="text-sm text-red-800 font-bold mb-2">Trí tuệ nhân tạo (AI) đề xuất:</p>
-              <p className="text-sm text-red-700 mb-2">Tội danh: {adjudicateModal.review.aiAnalysis}</p>
-              <p className="text-sm text-red-700">Mức án: <strong>Trừ {adjudicateModal.review.aiSuggestedPenalty} điểm uy tín</strong></p>
+              <p className="text-sm text-red-800 font-bold mb-2">Thông tin mức án quy định:</p>
+              <p className="text-sm text-red-700 mb-2">Tội danh: {getRatingLabel(adjudicateModal.review.ratingType)}</p>
+              <p className="text-sm text-red-700">Mức án chuẩn: <strong>{getSuggestedPenalty(adjudicateModal.review.ratingType) > 0 ? 'Cộng' : 'Trừ'} {Math.abs(getSuggestedPenalty(adjudicateModal.review.ratingType))} điểm uy tín</strong></p>
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bạn muốn đổi mức phạt không? (Để trống nếu đồng ý với AI)</label>
-              <input type="number" placeholder={`Nhập mức phạt (VD: ${adjudicateModal.review.aiSuggestedPenalty})`} value={customPenalty} onChange={(e) => setCustomPenalty(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Thay đổi mức án? (Để trống nếu đồng ý án chuẩn)</label>
+              <input type="number" placeholder={`Nhập điểm phạt mới (VD: ${getSuggestedPenalty(adjudicateModal.review.ratingType)})`} value={customPenalty} onChange={(e) => setCustomPenalty(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none" />
             </div>
 
             <div className="flex gap-3">
