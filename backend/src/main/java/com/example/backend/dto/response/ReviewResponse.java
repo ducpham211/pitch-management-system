@@ -16,4 +16,5 @@ public class ReviewResponse {
     private Integer aiSuggestedPenalty;
     private ReviewStatus status;
     private LocalDateTime createdAt;
+    private String userName;
 }

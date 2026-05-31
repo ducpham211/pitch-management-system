@@ -4,6 +4,7 @@ import com.example.backend.security.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -29,33 +30,28 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable) // Tắt CSRF vì chúng ta dùng JWT
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))// Tạm thời tắt CORS, cấu hình sau khi nối Frontend
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Không lưu session trên server
-                .authorizeHttpRequests(auth -> auth
-                        // Định nghĩa các API public (Ai cũng xem được)
-                        .requestMatchers("/").permitAll()
-                        .requestMatchers("/swagger-ui/**").permitAll()
-                        .requestMatchers("/v3/api-docs/**").permitAll()
-                        .requestMatchers("/swagger-resources/**").permitAll()
-                        .requestMatchers("/webjars/**").permitAll()
-                        .requestMatchers("/swagger-ui.html").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/fields/**").permitAll()
-                        .requestMatchers("/api/match-posts").permitAll()
-                        .requestMatchers("/api/payments/webhook").permitAll()
-                        .requestMatchers("/api/payments/**").authenticated()
-                        .requestMatchers("/ws/**").permitAll()
-                        .requestMatchers("/api/chat/**").permitAll()
-                        // Bất kỳ API nào khác đều yêu cầu phải có Token hợp lệ
-                        .anyRequest().authenticated()
-                );
-
-        // Thêm màng lọc JWT của chúng ta vào trước màng lọc mặc định của Spring
-        http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .csrf(AbstractHttpConfigurer::disable)
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**", "/swagger-ui.html").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/fields/**").permitAll()
+                .requestMatchers("/api/match-posts/**").permitAll()
+                // MỞ QUYỀN TRUY CẬP ĐÁNH GIÁ SÂN (GET là công khai, POST là yêu cầu đăng nhập)
+                .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/reviews/**").authenticated()
+                .requestMatchers("/api/payments/webhook").permitAll()
+                .requestMatchers("/ws/**").permitAll()
+                .requestMatchers("/api/chat/**").permitAll()
+                .anyRequest().authenticated()
+            )
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();

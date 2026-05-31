@@ -52,4 +52,10 @@ public class UserServiceImpl implements UserService {
         return userMapper.toResponse(savedUser);
     }
 
+    @Override
+    public Object getAllUsers(String role, Integer minTrustScore, int page, int size) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getAllUsers'");
+    }
+
 }
