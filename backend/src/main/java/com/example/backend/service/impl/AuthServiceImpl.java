@@ -52,7 +52,45 @@ public class AuthServiceImpl implements AuthService {
     private StringRedisTemplate redisTemplate;
 
     @Override
+    public void sendRegisterOtp(String email) {
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new AppException(400, "Email này đã được sử dụng.");
+        }
+
+        String otp = String.format("%06d", new Random().nextInt(999999));
+        redisTemplate.opsForValue().set("REG_OTP_" + email, otp, 5, TimeUnit.MINUTES);
+
+        System.out.println("=================================================");
+        System.out.println("OTP ĐĂNG KÝ CHO EMAIL " + email + " LÀ: " + otp);
+        System.out.println("=================================================");
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            
+            helper.setFrom(senderEmail, "Pitch IE303");
+            helper.setTo(email);
+            helper.setSubject("Mã OTP Đăng ký tài khoản");
+            helper.setText("Mã OTP đăng ký của bạn là: " + otp + ". Mã này có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này cho người khác.");
+            
+            mailSender.send(message);
+        } catch (Exception e) {
+            redisTemplate.delete("REG_OTP_" + email);
+            throw new AppException(500, "Lỗi khi gửi email: " + e.getMessage());
+        }
+    }
+
+    @Override
     public AuthResponse register(AuthRequest request) {
+        if (request.getOtp() == null || request.getOtp().isEmpty()) {
+            throw new AppException(400, "Vui lòng nhập mã OTP");
+        }
+
+        String savedOtp = redisTemplate.opsForValue().get("REG_OTP_" + request.getEmail());
+        if (savedOtp == null || !savedOtp.equals(request.getOtp())) {
+            throw new AppException(400, "OTP không hợp lệ hoặc đã hết hạn");
+        }
+
         String url = supabaseUrl + "/auth/v1/signup";
         HttpEntity<AuthRequest> entity = new HttpEntity<>(request, createHeaders());
 
@@ -77,6 +115,8 @@ public class AuthServiceImpl implements AuthService {
                 newUser.setFullName(request.getFullName());
                 newUser.setPassword(HashUtils.hashSHA256(request.getPassword()));
                 userRepository.save(newUser);
+                
+                redisTemplate.delete("REG_OTP_" + request.getEmail());
             }
 
             return new AuthResponse(null, "Đăng ký thành công!");

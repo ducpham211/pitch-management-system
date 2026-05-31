@@ -97,4 +97,18 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
+    @PostMapping("/send-register-otp")
+    public ResponseEntity<?> sendRegisterOtp(@RequestBody Map<String, String> request) {
+        try {
+            authService.sendRegisterOtp(request.get("email"));
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "OTP đã được gửi đến email của bạn.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage() != null ? e.getMessage() : "Lỗi Server - Vui lòng kiểm tra terminal Backend");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
 }

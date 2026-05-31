@@ -9,6 +9,7 @@ public interface AuthService {
     AuthResponse register(AuthRequest request);
     AuthResponse login(AuthRequest request);
     void forgotPassword(String email);
+    void sendRegisterOtp(String email);
     void verifyOtp(String email, String otp);
     void resetPassword(String email, String otp, String newPassword);
     String getGoogleAuthUrl(String redirectTo);

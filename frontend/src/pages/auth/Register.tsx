@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaEnvelope, FaLock, FaUser } from 'react-icons/fa';
+import { FaEnvelope, FaLock, FaUser, FaKey } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import PopupMessage from '../../components/common/PopupMessage';
 import axios from 'axios';
@@ -9,8 +9,10 @@ const Register = () => {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
   
   const [popupInfo, setPopupInfo] = useState({
     isOpen: false,
@@ -26,22 +28,68 @@ const Register = () => {
     setPopupInfo(prev => ({ ...prev, isOpen: false }));
   };
 
+  const handleSendOtp = async () => {
+    if (!email) {
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Thiếu email',
+        message: 'Vui lòng nhập email trước khi gửi OTP.',
+        onConfirm: closePopup
+      });
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Email không hợp lệ',
+        message: 'Vui lòng nhập đúng định dạng email.',
+        onConfirm: closePopup
+      });
+      return;
+    }
+
+    setIsSendingOtp(true);
+    try {
+      const response = await axios.post(`${API_URL}/auth/send-register-otp`, { email });
+      setPopupInfo({
+        isOpen: true,
+        type: 'success',
+        title: 'Thành công',
+        message: response.data.message || 'Mã OTP đã được gửi đến email của bạn!',
+        onConfirm: closePopup
+      });
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || 'Lỗi khi gửi OTP. Vui lòng thử lại sau.';
+      setPopupInfo({
+        isOpen: true,
+        type: 'error',
+        title: 'Lỗi',
+        message: errorMessage,
+        onConfirm: closePopup
+      });
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 1. Kiểm tra thiếu thông tin
-    if (!name || !email || !password || !confirmPassword) {
+    if (!name || !email || !otp || !password || !confirmPassword) {
       setPopupInfo({
         isOpen: true,
         type: 'error',
         title: 'Thiếu thông tin',
-        message: 'Vui lòng điền đầy đủ thông tin.',
+        message: 'Vui lòng điền đầy đủ thông tin và mã OTP.',
         onConfirm: closePopup
       });
       return;
     }
     
-    // 2. Chặn sớm mật khẩu yếu ở Frontend
     if (password.length < 6) {
       setPopupInfo({
         isOpen: true,
@@ -53,7 +101,6 @@ const Register = () => {
       return;
     }
 
-    // 3. Kiểm tra khớp mật khẩu
     if (password !== confirmPassword) {
       setPopupInfo({
         isOpen: true,
@@ -69,7 +116,8 @@ const Register = () => {
       const response = await axios.post(`${API_URL}/auth/register`, {
         email: email,
         password: password,
-        fullName: name
+        fullName: name,
+        otp: otp
       });
 
       setPopupInfo({
@@ -92,7 +140,6 @@ const Register = () => {
         ''
       ).toLowerCase();
 
-      // Bắt lỗi trùng email
       if (
         errString.includes('user_already_exists') || 
         errString.includes('already registered') || 
@@ -100,20 +147,14 @@ const Register = () => {
         errString.includes('duplicate')
       ) {
         errorMessage = 'Email này đã được sử dụng. Vui lòng chọn email khác.';
-      } 
-      // Bắt lỗi mật khẩu yếu từ Backend
-      else if (
+      } else if (
         errString.includes('weak_password') || 
         errString.includes('at least 6 characters')
       ) {
         errorMessage = 'Mật khẩu quá yếu. Mật khẩu phải chứa ít nhất 6 ký tự.';
-      } 
-      // Các lỗi khác do backend tự định nghĩa dạng message chuẩn
-      else if (err.response?.data?.message) {
+      } else if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
-      } 
-      // Lỗi text trơn
-      else if (typeof err.response?.data === 'string') {
+      } else if (typeof err.response?.data === 'string') {
         errorMessage = err.response.data;
       }
       
@@ -146,16 +187,40 @@ const Register = () => {
             />
           </div>
 
+          <div className="flex space-x-2">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <FaEnvelope />
+              </div>
+              <input
+                type="email"
+                placeholder="Email của bạn"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleSendOtp}
+              disabled={isSendingOtp}
+              className="px-4 whitespace-nowrap !rounded-xl"
+            >
+              {isSendingOtp ? 'Đang gửi...' : 'Gửi OTP'}
+            </Button>
+          </div>
+
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-              <FaEnvelope />
+              <FaKey />
             </div>
             <input
-              type="email"
-              placeholder="Email của bạn"
+              type="text"
+              placeholder="Nhập mã OTP"
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
             />
           </div>
 
