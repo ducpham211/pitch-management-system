@@ -57,10 +57,14 @@ const AdminDashboard = () => {
       if (minTrustScore) params.minTrustScore = Number(minTrustScore);
       
       const res = await adminApi.getUsers(params);
-      setUsers(res.data.content || []);
+      
+      // An toàn: Lấy mảng từ content hoặc data, nếu không thì mảng rỗng
+      const usersData = res.data?.content || res.data?.data || (Array.isArray(res.data) ? res.data : []);
+      setUsers(usersData);
       setUserTotalPages(res.data.totalPages || 1);
     } catch (error) {
       console.error('Lỗi tải người dùng', error);
+      setUsers([]);
     } finally {
       setIsLoadingUsers(false);
     }
@@ -71,9 +75,22 @@ const AdminDashboard = () => {
     try {
       const token = localStorage.getItem('accessToken');
       const res = await axios.get(`${API_URL}/admin/fairplay/pending`, { headers: { Authorization: `Bearer ${token}` } });
-      setFairplayReviews(res.data || []);
+      
+      // FIX LỖI "map is not a function":
+      // Đảm bảo dữ liệu trích xuất LUÔN là một Mảng (Array), cho dù Backend có gói nó trong { content: [] } hay { data: [] }
+      let reviewData = [];
+      if (Array.isArray(res.data)) {
+        reviewData = res.data;
+      } else if (res.data && Array.isArray(res.data.content)) {
+        reviewData = res.data.content;
+      } else if (res.data && Array.isArray(res.data.data)) {
+        reviewData = res.data.data;
+      }
+      
+      setFairplayReviews(reviewData);
     } catch (error) {
       console.error('Lỗi tải đánh giá Tòa án', error);
+      setFairplayReviews([]); // Nếu lỗi cũng trả về mảng rỗng để không bị sập UI
     } finally {
       setIsLoadingReviews(false);
     }
@@ -141,6 +158,10 @@ const AdminDashboard = () => {
     }
   };
 
+  // Kiểm tra mảng an toàn trước khi render
+  const safeReviewsArray = Array.isArray(fairplayReviews) ? fairplayReviews : [];
+  const safeUsersArray = Array.isArray(users) ? users : [];
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
@@ -187,10 +208,10 @@ const AdminDashboard = () => {
               <tbody className="divide-y divide-gray-100">
                 {isLoadingUsers ? (
                   <tr><td colSpan={5} className="p-8 text-center text-gray-400">Đang tải dữ liệu...</td></tr>
-                ) : users.length === 0 ? (
+                ) : safeUsersArray.length === 0 ? (
                   <tr><td colSpan={5} className="p-8 text-center text-gray-400">Không tìm thấy người dùng nào.</td></tr>
                 ) : (
-                  users.map((user) => (
+                  safeUsersArray.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50 transition">
                       <td className="p-4 font-mono text-xs text-gray-500">{truncateId(user.id)}</td>
                       <td className="p-4 font-bold text-gray-800">{user.fullName || 'Chưa cập nhật'}</td>
@@ -240,29 +261,31 @@ const AdminDashboard = () => {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fade-in-up">
           <div className="mb-6 border-b border-gray-100 pb-4">
              <h2 className="text-lg font-bold text-gray-800">Đơn Tố Cáo Đang Chờ Duyệt</h2>
-             <p className="text-sm text-gray-500">Những người chơi bị tố cáo sẽ được Admin quyết định có trừ điểm uy tín hay không.</p>
+             <p className="text-sm text-gray-500">Những người chơi bị tố cáo sẽ được Admin quyết định có trừ/cộng điểm uy tín hay không.</p>
           </div>
 
           <div className="space-y-4">
             {isLoadingReviews ? (
                <div className="p-8 text-center text-gray-400 border border-dashed rounded-xl">Đang tải hồ sơ vụ án...</div>
-            ) : fairplayReviews.length === 0 ? (
+            ) : safeReviewsArray.length === 0 ? (
                <div className="p-8 text-center text-gray-400 border border-dashed rounded-xl bg-gray-50">Tất cả người chơi đều trong sạch. Không có báo cáo nào chờ duyệt.</div>
             ) : (
-              fairplayReviews.map((review) => (
-                <div key={review.id} className="p-5 rounded-xl border border-red-200 bg-red-50/30 transition hover:shadow-md flex flex-col md:flex-row justify-between gap-4">
+              safeReviewsArray.map((review) => (
+                <div key={review.id} className={`p-5 rounded-xl border transition hover:shadow-md flex flex-col md:flex-row justify-between gap-4 ${getSuggestedPenalty(review.ratingType) > 0 ? 'border-green-200 bg-green-50/30' : 'border-red-200 bg-red-50/30'}`}>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">MÃ VỤ: {truncateId(review.id)}</span>
-                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-red-100 text-red-700">ĐANG CHỜ XỬ LÝ</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded ${getSuggestedPenalty(review.ratingType) > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>ĐANG CHỜ XỬ LÝ</span>
                     </div>
                     <p className="text-sm text-gray-500 mb-1">Trận đấu: <span className="font-mono">{truncateId(review.matchId)}</span></p>
-                    <p className="text-sm text-gray-500 mb-1">Người gửi (Nguyên đơn): <span className="font-mono">{truncateId(review.reviewerId)}</span></p>
+                    <p className="text-sm text-gray-500 mb-1">Người gửi: <span className="font-mono">{truncateId(review.reviewerId)}</span></p>
                     <p className="text-sm text-gray-500 mb-1">Người bị tố cáo (Bị cáo): <span className="font-mono font-bold text-gray-800">{truncateId(review.revieweeId)}</span></p>
-                    <div className="bg-white p-3 border border-gray-200 rounded-lg my-3">
+                    <div className="bg-white p-3 border border-gray-200 rounded-lg my-3 shadow-sm">
                       <p className="text-sm text-gray-800"><strong className="text-gray-500">Lời khai / Bình luận:</strong> "{review.comment || 'Không có lời khai cụ thể'}"</p>
                     </div>
-                    <p className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100"><strong className="text-red-800">Loại vi phạm:</strong> {getRatingLabel(review.ratingType)}</p>
+                    <p className={`text-xs p-2 rounded border ${getSuggestedPenalty(review.ratingType) > 0 ? 'text-green-600 bg-green-50 border-green-100' : 'text-red-600 bg-red-50 border-red-100'}`}>
+                      <strong>Loại vi phạm/Khen ngợi:</strong> {getRatingLabel(review.ratingType)}
+                    </p>
                   </div>
                   
                   <div className="flex flex-col justify-center items-end min-w-[200px] border-l border-gray-200 pl-4">
@@ -271,7 +294,7 @@ const AdminDashboard = () => {
                       {getSuggestedPenalty(review.ratingType) > 0 ? '+' : ''}{getSuggestedPenalty(review.ratingType)}
                     </p>
                     
-                    <Button variant="primary" className="w-full shadow-sm !bg-red-600 hover:!bg-red-700" onClick={() => setAdjudicateModal({isOpen: true, review})}>
+                    <Button variant="primary" className={`w-full shadow-sm ${getSuggestedPenalty(review.ratingType) > 0 ? '!bg-green-600 hover:!bg-green-700' : '!bg-red-600 hover:!bg-red-700'}`} onClick={() => setAdjudicateModal({isOpen: true, review})}>
                       Mở Tòa Xử Lý
                     </Button>
                   </div>
@@ -289,21 +312,21 @@ const AdminDashboard = () => {
             <h3 className="text-xl font-bold text-gray-800 mb-2 border-b pb-2">Tòa Án Tối Cao</h3>
             <p className="text-sm text-gray-600 mb-4">Bạn đang xét xử vụ án <span className="font-mono font-bold">{truncateId(adjudicateModal.review.id)}</span>.</p>
             
-            <div className="bg-red-50 border border-red-100 p-4 rounded-xl mb-4">
-              <p className="text-sm text-red-800 font-bold mb-2">Thông tin mức án quy định:</p>
-              <p className="text-sm text-red-700 mb-2">Tội danh: {getRatingLabel(adjudicateModal.review.ratingType)}</p>
-              <p className="text-sm text-red-700">Mức án chuẩn: <strong>{getSuggestedPenalty(adjudicateModal.review.ratingType) > 0 ? 'Cộng' : 'Trừ'} {Math.abs(getSuggestedPenalty(adjudicateModal.review.ratingType))} điểm uy tín</strong></p>
+            <div className={`border p-4 rounded-xl mb-4 ${getSuggestedPenalty(adjudicateModal.review.ratingType) > 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+              <p className={`text-sm font-bold mb-2 ${getSuggestedPenalty(adjudicateModal.review.ratingType) > 0 ? 'text-green-800' : 'text-red-800'}`}>Thông tin mức án quy định:</p>
+              <p className={`text-sm mb-2 ${getSuggestedPenalty(adjudicateModal.review.ratingType) > 0 ? 'text-green-700' : 'text-red-700'}`}>Tội danh/Khen ngợi: {getRatingLabel(adjudicateModal.review.ratingType)}</p>
+              <p className={`text-sm ${getSuggestedPenalty(adjudicateModal.review.ratingType) > 0 ? 'text-green-700' : 'text-red-700'}`}>Mức án chuẩn: <strong>{getSuggestedPenalty(adjudicateModal.review.ratingType) > 0 ? 'Cộng' : 'Trừ'} {Math.abs(getSuggestedPenalty(adjudicateModal.review.ratingType))} điểm uy tín</strong></p>
             </div>
 
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">Thay đổi mức án? (Để trống nếu đồng ý án chuẩn)</label>
-              <input type="number" placeholder={`Nhập điểm phạt mới (VD: ${getSuggestedPenalty(adjudicateModal.review.ratingType)})`} value={customPenalty} onChange={(e) => setCustomPenalty(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none" />
+              <input type="number" placeholder={`Nhập điểm (VD: ${getSuggestedPenalty(adjudicateModal.review.ratingType)})`} value={customPenalty} onChange={(e) => setCustomPenalty(e.target.value)} className={`w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 outline-none ${getSuggestedPenalty(adjudicateModal.review.ratingType) > 0 ? 'focus:ring-green-500' : 'focus:ring-red-500'}`} />
             </div>
 
             <div className="flex gap-3">
               <Button variant="secondary" className="w-full border-gray-300 hover:bg-gray-100 text-gray-600" onClick={() => setAdjudicateModal({isOpen: false, review: null})} disabled={isSubmitting}>Hủy bỏ</Button>
-              <Button variant="outline" className="w-full border-green-500 text-green-600 hover:bg-green-50" onClick={() => handleAdjudicate(false)} disabled={isSubmitting}><FaBan className="inline mr-1"/> Tha bổng</Button>
-              <Button variant="primary" className="w-full !bg-red-600 hover:!bg-red-700" onClick={() => handleAdjudicate(true)} disabled={isSubmitting}><FaGavel className="inline mr-1"/> Y Án Phạt</Button>
+              <Button variant="outline" className="w-full border-green-500 text-green-600 hover:bg-green-50" onClick={() => handleAdjudicate(false)} disabled={isSubmitting}><FaBan className="inline mr-1"/> Tha bổng / Bác bỏ</Button>
+              <Button variant="primary" className={`w-full ${getSuggestedPenalty(adjudicateModal.review.ratingType) > 0 ? '!bg-green-600 hover:!bg-green-700' : '!bg-red-600 hover:!bg-red-700'}`} onClick={() => handleAdjudicate(true)} disabled={isSubmitting}><FaGavel className="inline mr-1"/> Y Án Phạt</Button>
             </div>
           </div>
         </div>

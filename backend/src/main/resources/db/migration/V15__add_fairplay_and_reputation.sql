@@ -1,13 +1,13 @@
 -- Thêm cột điểm uy tín cho user, mặc định là 100
-ALTER TABLE users ADD COLUMN reputation_score INT DEFAULT 100;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reputation_score INT DEFAULT 100;
 UPDATE users SET reputation_score = 100 WHERE reputation_score IS NULL;
 
 -- Bảng lưu trữ đánh giá gửi lên Tòa án Fairplay
 CREATE TABLE IF NOT EXISTS opponent_reviews (
     id UUID PRIMARY KEY,
-    match_id VARCHAR(255),
-    reviewer_id VARCHAR(255) NOT NULL,
-    reviewee_id VARCHAR(255) NOT NULL,
+    match_id UUID,
+    reviewer_id UUID NOT NULL,
+    reviewee_id UUID NOT NULL,
     rating_type VARCHAR(50) NOT NULL, -- GOOD, NO_SHOW, BAD_BEHAVIOR
     comment TEXT,
     status VARCHAR(50) DEFAULT 'PENDING', -- PENDING, RESOLVED, REJECTED
