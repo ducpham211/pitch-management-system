@@ -269,13 +269,16 @@ const Chat = () => {
                   className={`p-4 border-b border-gray-100 cursor-pointer transition-colors ${activeConv === conv.id ? 'bg-green-50 border-l-4 border-l-green-500' : 'hover:bg-gray-100'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 ${conv.isBot ? 'bg-blue-100 text-blue-600' : (conv.type === 'TEAM' ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-600')} rounded-full flex items-center justify-center font-bold`}>
+                    <div className={`w-12 h-12 flex-shrink-0 ${conv.isBot ? 'bg-blue-100 text-blue-600' : (conv.type === 'TEAM' ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-600')} rounded-full flex items-center justify-center font-bold`}>
                       {conv.isBot ? <FaRobot size={24} /> : (conv.type === 'TEAM' ? <FaUsers size={24} /> : getPartnerName(conv).charAt(0).toUpperCase())}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline">
                         <h3 className="font-bold text-gray-800 truncate">{getPartnerName(conv)}</h3>
                       </div>
+                      {conv.matchId && (
+                        <p className="text-xs text-blue-500 mb-0.5 font-medium truncate">Mã kèo: {conv.matchId.substring(0,8).toUpperCase()}</p>
+                      )}
                       <p className="text-sm text-gray-500 truncate">{conv.lastMessage || 'Chưa có tin nhắn'}</p>
                     </div>
                   </div>
@@ -292,8 +295,13 @@ const Chat = () => {
                 <div className="flex items-center gap-3">
                   {activeConv === 'bot' ? <FaRobot className="text-4xl text-blue-500" /> : (conversations.find(c => c.id === activeConv)?.type === 'TEAM' ? <FaUsers className="text-4xl text-green-500" /> : <FaUserCircle className="text-4xl text-gray-400" />)}
                   <div>
-                    <h3 className="font-bold text-gray-800">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
                       {getPartnerName(conversations.find(c => c.id === activeConv) || {})}
+                      {conversations.find(c => c.id === activeConv)?.matchId && (
+                        <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase border border-blue-200">
+                          Kèo: {conversations.find(c => c.id === activeConv)?.matchId?.substring(0, 8)}
+                        </span>
+                      )}
                     </h3>
                     <p className="text-xs text-green-600">Đang hoạt động</p>
                   </div>

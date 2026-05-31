@@ -21,6 +21,10 @@ public class Conversation {
     @Column(name = "name")
     private String name;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private Enums.ConversationStatus status = Enums.ConversationStatus.ACTIVE;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -30,4 +34,6 @@ public class Conversation {
     @OneToMany(mappedBy = "conversation")
     private List<Message> messages;
 
+    @Column(name = "match_id")
+    private String matchId;
 }

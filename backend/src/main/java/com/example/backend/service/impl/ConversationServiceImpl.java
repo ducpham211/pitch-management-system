@@ -39,21 +39,21 @@ public class ConversationServiceImpl implements ConversationService {
                 .map(conv -> {
                     ConversationResponse response = conversationMapper.toConversationResponse(conv, currentUserId);
                     
-                    // FIX: Xử lý hiển thị Tên cho Chat Nhóm và Chat Cá Nhân
                     if (conv.getType() == Enums.ConversationType.TEAM) {
-                        // Nếu là chat nhóm (Team) -> Lấy tên nhóm
                         response.setPartnerName(conv.getName());
                     } else if (response.getPartnerId() != null) {
-                        // Nếu là chat 1-1 -> Tìm tên đối tác
                         userRepository.findById(response.getPartnerId()).ifPresent(user -> {
                             response.setPartnerName(user.getFullName() != null && !user.getFullName().isEmpty() 
                                     ? user.getFullName() : "Người dùng " + user.getId().substring(0, 6));
                         });
                     }
 
-                    // Đảm bảo type và name được truyền xuống (Để FE đổi Icon và Tên)
                     response.setType(conv.getType());
                     response.setName(conv.getName());
+                    response.setStatus(conv.getStatus());
+                    
+                    // TRUYỀN MÃ KÈO XUỐNG FRONTEND
+                    response.setMatchId(conv.getMatchId());
                     
                     return response;
                 })
@@ -65,6 +65,11 @@ public class ConversationServiceImpl implements ConversationService {
     @Transactional 
     public ConversationResponse createDirectConversation(ConversationCreateRequest request, String user1Id, String user2Id) {
         Conversation conversation = conversationMapper.toEntity(request);
+        conversation.setStatus(Enums.ConversationStatus.ACTIVE);
+        
+        // GẮN MÃ KÈO
+        conversation.setMatchId(request.getMatchId());
+        
         Conversation savedConversation = conversationRepository.save(conversation);
         
         ConversationMember member1 = new ConversationMember();
@@ -76,5 +81,16 @@ public class ConversationServiceImpl implements ConversationService {
         conversationMemberRepository.saveAll(java.util.List.of(member1, member2));
         
         return conversationMapper.toResponse(savedConversation);
+    }
+
+    @Override
+    @Transactional
+    public void markConversationsAsCompletedByMatchId(String matchId) {
+        if (matchId == null || matchId.isEmpty()) return;
+        List<Conversation> convs = conversationRepository.findByMatchId(matchId);
+        for (Conversation conv : convs) {
+            conv.setStatus(Enums.ConversationStatus.COMPLETED);
+        }
+        conversationRepository.saveAll(convs);
     }
 }

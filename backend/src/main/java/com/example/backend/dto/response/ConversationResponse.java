@@ -14,4 +14,6 @@ public class ConversationResponse {
     private LocalDateTime updatedAt; 
     private String name;
     private Enums.ConversationType type;
+    private Enums.ConversationStatus status;
+    private String matchId;
 }

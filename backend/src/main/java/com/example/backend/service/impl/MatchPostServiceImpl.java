@@ -10,7 +10,9 @@ import com.example.backend.entity.MatchPost;
 import com.example.backend.entity.User;
 import com.example.backend.mapper.MatchPostMapper;
 import com.example.backend.repository.MatchPostRepository;
+import com.example.backend.repository.MatchRequestRepository;
 import com.example.backend.repository.UserRepository;
+import com.example.backend.service.ConversationService;
 import com.example.backend.service.MatchPostService;
 import com.example.backend.service.ai.GroqAiService;
 import org.springframework.data.domain.Page;
@@ -19,6 +21,8 @@ import org.springframework.data.domain.Pageable;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import com.example.backend.exception.AppException;
@@ -31,6 +35,10 @@ public class MatchPostServiceImpl implements MatchPostService {
     private final MatchPostMapper matchPostMapper;
     private final UserRepository userRepository;
     private final GroqAiService groqAiService;
+    
+    // Thêm các dependency để đóng Chat
+    private final MatchRequestRepository matchRequestRepository;
+    private final ConversationService conversationService;
 
     @Override
     public MatchPostResponse createMatchPost(MatchPostCreateRequest request) {
@@ -117,11 +125,15 @@ public class MatchPostServiceImpl implements MatchPostService {
     }
 
     @Override
+    @Transactional // Thêm Transactional vì có ghi xuống nhiều repo
     public void markAsComplete(String postId, String currentUserId) {
         MatchPost matchPost = matchPostRepository.findById(postId)
                 .orElseThrow(() -> new AppException(404, "Không tìm thấy bài đăng!"));
         
-        matchPost.setStatus(Enums.PostStatus.CLOSED);
+        matchPost.setStatus(Enums.PostStatus.COMPLETED);
         matchPostRepository.save(matchPost);
+
+        // Khóa tất cả các cuộc trò chuyện của kèo này
+        conversationService.markConversationsAsCompletedByMatchId(postId);
     }
 }

@@ -100,24 +100,25 @@ const MatchBoard = () => {
     }
   );
 
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const [postsRes, fieldsRes, fairplaysRes] = await Promise.all([
+        axios.get(`${API_URL}/match-posts?size=100`, config),
+        axios.get(`${API_URL}/fields`, config),
+        token ? axios.get(`${API_URL}/fairplay/my-submitted`, config).catch(() => ({ data: [] })) : { data: [] }
+      ]);
+      setMatches(postsRes.data.content || postsRes.data || []);
+      setFields(fieldsRes.data.content || fieldsRes.data || []);
+      setSubmittedFairplays(fairplaysRes.data || []);
+    } catch (error) {} finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const token = localStorage.getItem('accessToken');
-        const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-        const [postsRes, fieldsRes, fairplaysRes] = await Promise.all([
-          axios.get(`${API_URL}/match-posts?size=100`, config),
-          axios.get(`${API_URL}/fields`, config),
-          token ? axios.get(`${API_URL}/fairplay/my-submitted`, config).catch(() => ({ data: [] })) : { data: [] }
-        ]);
-        setMatches(postsRes.data.content || postsRes.data || []);
-        setFields(fieldsRes.data.content || fieldsRes.data || []);
-        setSubmittedFairplays(fairplaysRes.data || []);
-      } catch (error) {} finally {
-        setIsLoading(false);
-      }
-    };
     fetchData();
   }, [API_URL]);
 
@@ -126,8 +127,7 @@ const MatchBoard = () => {
       const token = localStorage.getItem('accessToken');
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
       await axios.post(`${API_URL}/match-posts`, postData, config);
-      const res = await axios.get(`${API_URL}/match-posts?size=100`, config);
-      setMatches(res.data.content || res.data || []);
+      fetchData();
       setIsCreateModalOpen(false);
     } catch (error) {
       setPopupInfo({
@@ -161,8 +161,7 @@ const MatchBoard = () => {
             onConfirm: closePopup,
             showCancel: false
           });
-          const res = await axios.get(`${API_URL}/match-posts?size=100`, config);
-          setMatches(res.data.content || res.data || []);
+          fetchData();
         } catch (error: any) {
           setPopupInfo({
             isOpen: true,
@@ -177,12 +176,26 @@ const MatchBoard = () => {
     });
   };
 
-  const handleMarkComplete = async (matchId: string) => {
+  const handleMarkComplete = async (match: any) => {
     try {
       const token = localStorage.getItem('accessToken');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      await axios.put(`${API_URL}/match-posts/${matchId}/complete`, {}, config);
-      setCompletedMatches(prev => [...prev, matchId]);
+      const isMyPost = match.userId === currentUserId;
+
+      if (isMyPost) {
+        // Chủ post bấm xác nhận
+        await axios.put(`${API_URL}/match-posts/${match.id}/complete`, {}, config);
+      } else {
+        // Người đi xin kèo bấm xác nhận
+        const myRequest = match.requests?.find((r:any) => r.requesterId === currentUserId);
+        if (myRequest) {
+          await axios.put(`${API_URL}/match-requests/${myRequest.id}/complete`, {}, config);
+        }
+      }
+      
+      setCompletedMatches(prev => [...prev, match.id]);
+      fetchData();
+
       setPopupInfo({
         isOpen: true,
         type: 'success',
@@ -192,12 +205,11 @@ const MatchBoard = () => {
         showCancel: false
       });
     } catch (error) {
-      setCompletedMatches(prev => [...prev, matchId]);
-      setPopupInfo({
+       setPopupInfo({
         isOpen: true,
-        type: 'success',
-        title: 'Thành công',
-        message: 'Đã xác nhận trận đấu hoàn thành! Bạn có thể đánh giá sân và đối thủ ngay bây giờ.',
+        type: 'error',
+        title: 'Thất bại',
+        message: 'Có lỗi xảy ra khi xác nhận hoàn thành.',
         onConfirm: closePopup,
         showCancel: false
       });
@@ -225,7 +237,7 @@ const MatchBoard = () => {
       const token = localStorage.getItem('accessToken');
       
       const isMyPost = reviewMatch.userId === currentUserId;
-      const acceptedRequest = reviewMatch.requests?.find((r:any) => r.status === 'ACCEPTED');
+      const acceptedRequest = reviewMatch.requests?.find((r:any) => r.status === 'ACCEPTED' || r.status === 'COMPLETED');
       let revieweeId = '';
       if (isMyPost && acceptedRequest) revieweeId = acceptedRequest.requesterId;
       else if (!isMyPost) revieweeId = reviewMatch.userId;
@@ -280,10 +292,10 @@ const MatchBoard = () => {
   };
 
   const publicMatches = matches.filter(m => (m.status === 'OPEN' || m.status === 'OPENING') && (!m.message || !m.message.startsWith("[LIVE_MATCH]")));
-  const myMatches = matches.filter(m => m.userId === currentUserId && (!m.message || !m.message.startsWith("[LIVE_MATCH]")));
+  const myMatches = matches.filter(m => m.userId === currentUserId && m.status !== 'CLOSED' && m.status !== 'COMPLETED' && (!m.message || !m.message.startsWith("[LIVE_MATCH]")));
   
   const historyMatches = matches.filter(m => 
-      (m.userId === currentUserId && (m.status === 'CLOSED' || (m.requests && m.requests.length > 0)) && (!m.message || !m.message.startsWith("[LIVE_MATCH]"))) || 
+      (m.userId === currentUserId && (m.status === 'CLOSED' || m.status === 'COMPLETED' || (m.requests && m.requests.length > 0)) && (!m.message || !m.message.startsWith("[LIVE_MATCH]"))) || 
       (m.requests && m.requests.some((r: any) => r.requesterId === currentUserId))
   ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -341,11 +353,13 @@ const MatchBoard = () => {
           {historyMatches.length > 0 ? historyMatches.map((match) => {
              const myRequest = match.requests?.find((r:any) => r.requesterId === currentUserId);
              const isMyPost = match.userId === currentUserId;
-             const statusLabel = isMyPost 
-                ? (match.status === 'CLOSED' ? 'Đã Chốt Kèo' : 'Đang Nhận Yêu Cầu') 
-                : (myRequest?.status === 'ACCEPTED' ? 'Đã Được Duyệt' : (myRequest?.status === 'REJECTED' ? 'Bị Từ Chối' : 'Đang Chờ Duyệt'));
              
-             const isMatchCompletedByMe = completedMatches.includes(match.id) || match.isCompletedByMe;
+             const statusLabel = isMyPost 
+                ? (match.status === 'COMPLETED' ? 'Trận Đấu Hoàn Tất' : (match.status === 'CLOSED' ? 'Đã Chốt Kèo' : 'Đang Nhận Yêu Cầu')) 
+                : (myRequest?.status === 'COMPLETED' ? 'Trận Đấu Hoàn Tất' : (myRequest?.status === 'ACCEPTED' ? 'Đã Được Duyệt' : (myRequest?.status === 'REJECTED' ? 'Bị Từ Chối' : 'Đang Chờ Duyệt')));
+             
+             // Dựa vào COMPLETED, không dùng CLOSED nữa để tránh hiển thị nhầm
+             const isMatchCompletedByMe = completedMatches.includes(match.id) || (isMyPost ? match.status === 'COMPLETED' : myRequest?.status === 'COMPLETED');
 
              return (
                 <div key={match.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition">
@@ -361,15 +375,15 @@ const MatchBoard = () => {
                     </div>
                     <div className="flex flex-col items-end gap-2 w-full md:w-auto justify-end border-t border-gray-100 md:border-none pt-3 md:pt-0">
                         <span className={`px-4 py-2 rounded-xl text-xs font-bold border flex items-center justify-center md:justify-end gap-1.5 w-full ${
-                            statusLabel.includes('Đã') || statusLabel.includes('Được') ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                            statusLabel.includes('Đã') || statusLabel.includes('Được') || statusLabel.includes('Hoàn Tất') ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'
                         }`}>
-                            {statusLabel.includes('Đã') || statusLabel.includes('Được') ? <FaCheckCircle/> : <FaClock/>} {statusLabel}
+                            {statusLabel.includes('Đã') || statusLabel.includes('Được') || statusLabel.includes('Hoàn Tất') ? <FaCheckCircle/> : <FaClock/>} {statusLabel}
                         </span>
                         
-                        {(statusLabel.includes('Đã Chốt') || statusLabel.includes('Được Duyệt')) && (
+                        {(statusLabel.includes('Đã Chốt') || statusLabel.includes('Được Duyệt') || statusLabel.includes('Hoàn Tất')) && (
                           <div className="flex flex-wrap gap-2 w-full justify-end mt-2">
                             {!isMatchCompletedByMe ? (
-                              <Button variant="primary" className="text-xs py-1.5 px-3 !bg-blue-600 hover:!bg-blue-700" onClick={() => handleMarkComplete(match.id)}>
+                              <Button variant="primary" className="text-xs py-1.5 px-3 !bg-blue-600 hover:!bg-blue-700" onClick={() => handleMarkComplete(match)}>
                                 <FaCheckCircle className="inline mr-1" /> Trận đấu đã hoàn thành
                               </Button>
                             ) : (
@@ -452,11 +466,11 @@ const MatchBoard = () => {
                               <span className="font-medium">Lời nhắn:</span> {req.message}
                             </p>
                           </div>
-                          {match.status !== 'CLOSED' && req.status !== 'ACCEPTED' ? (
+                          {match.status !== 'CLOSED' && req.status !== 'ACCEPTED' && req.status !== 'COMPLETED' ? (
                             <Button variant="primary" className="!bg-green-600 text-sm py-2 px-4 whitespace-nowrap" onClick={() => handleAcceptRequest(req.id)}>
                               <FaCheckCircle className="inline mr-1"/> Chốt Kèo
                             </Button>
-                          ) : req.status === 'ACCEPTED' ? (
+                          ) : req.status === 'ACCEPTED' || req.status === 'COMPLETED' ? (
                             <span className="text-green-600 font-bold text-sm bg-green-100 px-3 py-1 rounded-full">Đã chốt</span>
                           ) : null}
                         </div>
