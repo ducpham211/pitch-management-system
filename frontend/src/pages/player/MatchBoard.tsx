@@ -18,6 +18,7 @@ const MatchBoard = () => {
   
   const [matches, setMatches] = useState<any[]>([]);
   const [fields, setFields] = useState<any[]>([]);
+  const [submittedFairplays, setSubmittedFairplays] = useState<string[]>([]); // Lưu các match đã đánh giá
   const [viewMode, setViewMode] = useState<'all' | 'my' | 'ai' | 'history'>('all');
   const [currentUserId, setCurrentUserId] = useState<string>('');
   
@@ -105,12 +106,14 @@ const MatchBoard = () => {
       try {
         const token = localStorage.getItem('accessToken');
         const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-        const [postsRes, fieldsRes] = await Promise.all([
+        const [postsRes, fieldsRes, fairplaysRes] = await Promise.all([
           axios.get(`${API_URL}/match-posts?size=100`, config),
-          axios.get(`${API_URL}/fields`, config)
+          axios.get(`${API_URL}/fields`, config),
+          token ? axios.get(`${API_URL}/fairplay/my-submitted`, config).catch(() => ({ data: [] })) : { data: [] }
         ]);
         setMatches(postsRes.data.content || postsRes.data || []);
         setFields(fieldsRes.data.content || fieldsRes.data || []);
+        setSubmittedFairplays(fairplaysRes.data || []);
       } catch (error) {} finally {
         setIsLoading(false);
       }
@@ -212,6 +215,7 @@ const MatchBoard = () => {
         comment: reviewComment
       }, { headers: { Authorization: `Bearer ${token}` } });
       
+      setSubmittedFairplays(prev => [...prev, reviewMatch.id]); // Cập nhật state để ẩn nút ngay
       setIsOpponentReviewOpen(false);
       setPopupInfo({ isOpen: true, type: 'success', title: 'Thành công', message: 'Đã báo cáo lên Tòa án Fairplay!', onConfirm: closePopup });
     } catch (error: any) {
@@ -323,7 +327,7 @@ const MatchBoard = () => {
                         <div className="flex items-center gap-2 mb-1.5">
                             {isMyPost ? <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase">Tôi Đăng Nhận Kèo</span> : <span className="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase">Tôi Xin Nhận Kèo</span>}
                         </div>
-                        <h4 className="font-bold text-gray-800 text-lg mb-1">{match.message.replace('[LIVE_MATCH]', '').trim()}</h4>
+                        <h4 className="font-bold text-gray-800 text-lg mb-1">{match.message.replace('[LIVE_MATCH]', '').trim() || 'Tìm đối tác giao hữu'}</h4>
                         <p className="text-sm text-gray-500 flex items-center gap-3">
                             <span className="flex items-center gap-1.5"><FaCalendarAlt className="text-red-400"/> {formatDateStr(match.date)}</span>
                             <span className="flex items-center gap-1.5"><FaClock className="text-orange-400"/> {formatTimeStr(match.timeStart)}</span>
@@ -341,9 +345,17 @@ const MatchBoard = () => {
                             <Button variant="outline" className="text-xs py-1.5 px-3 border-orange-200 text-orange-600 hover:bg-orange-50" onClick={() => openFieldReview(match)}>
                               <FaStar className="inline mr-1" /> Đánh giá Sân
                             </Button>
-                            <Button variant="outline" className="text-xs py-1.5 px-3 border-red-200 text-red-600 hover:bg-red-50" onClick={() => openOpponentReview(match)}>
-                              <FaGavel className="inline mr-1" /> Tòa Án Fairplay
-                            </Button>
+                            
+                            {/* HIỆN TRẠNG THÁI "ĐÃ GỬI" HOẶC NÚT ĐÁNH GIÁ TÙY THEO STATE */}
+                            {submittedFairplays.includes(match.id) ? (
+                              <span className="text-xs py-1.5 px-3 border border-gray-200 text-gray-500 bg-gray-50 rounded-xl flex items-center">
+                                  <FaCheckCircle className="inline mr-1 text-green-500" /> Đã báo cáo Tòa án
+                              </span>
+                            ) : (
+                              <Button variant="outline" className="text-xs py-1.5 px-3 border-red-200 text-red-600 hover:bg-red-50" onClick={() => openOpponentReview(match)}>
+                                <FaGavel className="inline mr-1" /> Tòa Án Fairplay
+                              </Button>
+                            )}
                           </div>
                         )}
                     </div>
@@ -508,29 +520,9 @@ const MatchBoard = () => {
         </div>
       )}
 
-      <AutoMatchModal 
-        isOpen={isAutoMatchModalOpen} 
-        onClose={() => setIsAutoMatchModalOpen(false)} 
-        onSubmit={(criteria) => {
-            autoMatch.handleAutoMatchSubmit(criteria);
-            setIsAutoMatchModalOpen(false);
-        }} 
-        fields={fields}
-      />
-
-      <CreateMatchModal 
-        isOpen={isCreateModalOpen} 
-        onClose={() => setIsCreateModalOpen(false)} 
-        onSubmit={handleCreatePostSubmit} 
-        fields={fields}
-      />
-
-      <ConfirmApplyModal 
-        isOpen={!!applyingMatch} 
-        match={applyingMatch} 
-        onClose={() => setApplyingMatch(null)} 
-        onConfirm={() => { setApplyingMatch(null); navigate('/messages'); }} 
-      />
+      <AutoMatchModal isOpen={isAutoMatchModalOpen} onClose={() => setIsAutoMatchModalOpen(false)} onSubmit={(criteria) => { autoMatch.handleAutoMatchSubmit(criteria); setIsAutoMatchModalOpen(false); }} fields={fields} />
+      <CreateMatchModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={handleCreatePostSubmit} fields={fields} />
+      <ConfirmApplyModal isOpen={!!applyingMatch} match={applyingMatch} onClose={() => setApplyingMatch(null)} onConfirm={() => { setApplyingMatch(null); navigate('/messages'); }} />
 
       <PopupMessage
         isOpen={popupInfo.isOpen}

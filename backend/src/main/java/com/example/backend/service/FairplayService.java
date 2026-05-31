@@ -7,4 +7,5 @@ public interface FairplayService {
     void submitReview(String reviewerId, OpponentReviewCreateRequest request);
     List<?> getPendingReviews();
     void resolveReview(String reviewId, FairplayDecisionRequest request);
+    List<String> getMySubmittedMatchIds(String reviewerId);
 }

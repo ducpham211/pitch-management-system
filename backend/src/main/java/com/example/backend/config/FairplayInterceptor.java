@@ -32,8 +32,8 @@ public class FairplayInterceptor implements HandlerInterceptor {
             }
 
             User user = userRepository.findById(userId).orElse(null);
-            if (user != null && user.getReputationScore() != null && user.getReputationScore() < 60) {
-                throw new AppException(403, "ĐIỂM UY TÍN DƯỚI 60 (" + user.getReputationScore() + "đ). Bạn bị Tòa Án Fairplay cấm ghép trận. Vui lòng liên hệ Admin!");
+            if (user != null && user.getTrustScore() != null && user.getTrustScore() < 60) {
+                throw new AppException(403, "ĐIỂM UY TÍN DƯỚI 60 (" + user.getTrustScore() + "đ). Bạn bị Tòa Án Fairplay cấm ghép trận.");
             }
         }
         return true;

@@ -6,6 +6,7 @@ import com.example.backend.utils.TokenUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/fairplay")
@@ -18,5 +19,11 @@ public class FairplayController {
         String reviewerId = TokenUtils.getCurrentUserId();
         fairplayService.submitReview(reviewerId, request);
         return ResponseEntity.ok("Đã gửi đánh giá lên Tòa án Fairplay chờ xử lý!");
+    }
+
+    @GetMapping("/my-submitted")
+    public ResponseEntity<List<String>> getMySubmittedReviews() {
+        String reviewerId = TokenUtils.getCurrentUserId();
+        return ResponseEntity.ok(fairplayService.getMySubmittedMatchIds(reviewerId));
     }
 }

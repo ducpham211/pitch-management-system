@@ -29,6 +29,11 @@ public class FairplayServiceImpl implements FairplayService {
             throw new AppException(400, "Bạn không thể tự đánh giá chính mình!");
         }
 
+        // CHẶN GỬI 2 LẦN
+        if (reviewRepository.existsByMatchIdAndReviewerId(request.getMatchId(), reviewerId)) {
+            throw new AppException(400, "Bạn đã gửi đánh giá đối thủ cho trận đấu này rồi!");
+        }
+
         OpponentReview review = new OpponentReview();
         review.setMatchId(request.getMatchId());
         review.setReviewerId(reviewerId);
@@ -60,17 +65,22 @@ public class FairplayServiceImpl implements FairplayService {
             review.setStatus(Enums.FairplayStatus.RESOLVED);
             review.setPointsApplied(request.getPointsApplied());
 
-            // Cập nhật điểm uy tín cho đối tượng bị đánh giá
             User reviewee = userRepository.findById(review.getRevieweeId())
                     .orElseThrow(() -> new AppException(404, "Không tìm thấy người dùng"));
 
-            int currentScore = reviewee.getReputationScore() != null ? reviewee.getReputationScore() : 100;
-            reviewee.setReputationScore(currentScore + request.getPointsApplied());
+            int currentScore = reviewee.getTrustScore() != null ? reviewee.getTrustScore() : 100;
+            reviewee.setTrustScore(currentScore + request.getPointsApplied());
             userRepository.save(reviewee);
         } else {
             review.setStatus(Enums.FairplayStatus.REJECTED);
         }
 
         reviewRepository.save(review);
+    }
+
+    // LẤY DANH SÁCH MATCH ĐÃ GỬI
+    @Override
+    public List<String> getMySubmittedMatchIds(String reviewerId) {
+        return reviewRepository.findMatchIdsByReviewerId(reviewerId);
     }
 }
