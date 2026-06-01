@@ -16,7 +16,7 @@ const OverviewTab = ({ bookings = [], isLoading }: OverviewTabProps) => {
   const totalRevenue = bookings.reduce((sum, b) => {
     if (b.status === 'COMPLETED') {
       return sum + (b.totalAmount || 0);
-    } else if (b.status === 'DEPOSIT_PAID' || b.status === 'CONFIRMED') {
+    } else if (b.status === 'DEPOSIT_PAID' || b.status === 'CONFIRMED' || b.status === 'CANCELLED') {
       return sum + (b.depositAmount || 0);
     }
     return sum;

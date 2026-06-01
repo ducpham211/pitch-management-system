@@ -137,13 +137,14 @@ const OwnerDashboard = () => {
             showCancel: false
           });
           fetchPitches();
-        } catch (error) {
+        } catch (error: any) {
+          const errorMessage = error.response?.data?.message || (typeof error.response?.data === 'string' ? error.response.data : 'Xóa sân thất bại. Có thể sân này đang có đơn đặt.');
           console.error("Lỗi xóa sân:", error);
           setPopupInfo({
             isOpen: true,
             type: 'error',
             title: 'Thất bại',
-            message: 'Xóa sân thất bại. Có thể sân này đang có đơn đặt.',
+            message: errorMessage,
             onConfirm: closePopup,
             showCancel: false
           });
@@ -207,12 +208,13 @@ const OwnerDashboard = () => {
         onConfirm: closePopup
       });
     } catch (error: any) {
+      const errorMessage = error.response?.data?.message || (typeof error.response?.data === 'string' ? error.response.data : 'Lỗi khi lưu sân. Vui lòng thử lại.');
       console.error('Lỗi lưu sân:', error);
       setPopupInfo({
         isOpen: true,
         type: 'error',
         title: 'Thất bại',
-        message: error.response?.data?.message || error.response?.data || 'Lỗi khi lưu sân. Vui lòng thử lại.',
+        message: errorMessage,
         onConfirm: closePopup
       });
     }
@@ -240,11 +242,12 @@ const OwnerDashboard = () => {
           });
           fetchBookings();
         } catch (error: any) {
+          const errorMessage = error.response?.data?.message || (typeof error.response?.data === 'string' ? error.response.data : 'Lỗi khi Check-in');
           setPopupInfo({
             isOpen: true,
             type: 'error',
             title: 'Thất bại',
-            message: error.response?.data || 'Lỗi khi Check-in',
+            message: errorMessage,
             onConfirm: closePopup,
             showCancel: false
           });
@@ -275,11 +278,12 @@ const OwnerDashboard = () => {
           });
           fetchBookings();
         } catch (error: any) {
+          const errorMessage = error.response?.data?.message || (typeof error.response?.data === 'string' ? error.response.data : 'Lỗi khi Hủy đơn');
           setPopupInfo({
             isOpen: true,
             type: 'error',
             title: 'Thất bại',
-            message: error.response?.data || 'Lỗi khi Hủy đơn',
+            message: errorMessage,
             onConfirm: closePopup,
             showCancel: false
           });
@@ -310,11 +314,12 @@ const OwnerDashboard = () => {
           });
           fetchBookings();
         } catch (error: any) {
+          const errorMessage = error.response?.data?.message || (typeof error.response?.data === 'string' ? error.response.data : 'Lỗi khi Check-out');
           setPopupInfo({
             isOpen: true,
             type: 'error',
             title: 'Thất bại',
-            message: error.response?.data || 'Lỗi khi Check-out',
+            message: errorMessage,
             onConfirm: closePopup,
             showCancel: false
           });
@@ -369,7 +374,6 @@ const OwnerDashboard = () => {
             bookings={bookings} 
             pitches={pitches} 
             isLoadingBookings={isLoadingBookings} 
-            handleCheckIn={handleCheckIn} 
             handleNoShow={handleNoShow} 
             handleCheckOut={handleCheckOut} 
           />
