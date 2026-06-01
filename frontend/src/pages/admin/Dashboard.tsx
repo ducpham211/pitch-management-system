@@ -368,7 +368,7 @@ const AdminDashboard = () => {
                         <h3 className="text-lg font-bold text-gray-800 truncate" title={field.name}>{field.name}</h3>
                         <div className="flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-bold shrink-0 border border-yellow-200">
                           <FaStar className="text-yellow-500" /> 
-                          {(field.averageRating || field.rating) ? Number(field.averageRating || field.rating).toFixed(1) : 'Chưa có'}
+                          {Number(field.averageRating || field.rating || 0) > 0 ? Number(field.averageRating || field.rating).toFixed(1) : 'Chưa có'}
                         </div>
                       </div>
                       <p className="text-sm text-gray-600 mb-1"><strong>Phân loại:</strong> {translateFieldType(field.type)}</p>
