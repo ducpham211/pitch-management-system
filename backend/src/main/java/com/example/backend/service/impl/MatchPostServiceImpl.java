@@ -126,14 +126,35 @@ public class MatchPostServiceImpl implements MatchPostService {
 
     @Override
     @Transactional // Thêm Transactional vì có ghi xuống nhiều repo
-    public void markAsComplete(String postId, String currentUserId) {
+    public void markAsComplete(String postId, String currentUserId, String fieldId) {
         MatchPost matchPost = matchPostRepository.findById(postId)
                 .orElseThrow(() -> new AppException(404, "Không tìm thấy bài đăng!"));
+        
+        if (matchPost.getFieldId() == null || matchPost.getFieldId().isEmpty()) {
+            if (fieldId == null || fieldId.isEmpty()) {
+                throw new AppException(400, "Vui lòng chọn sân đã đá để hoàn thành trận đấu.");
+            }
+            matchPost.setFieldId(fieldId);
+        }
         
         matchPost.setStatus(Enums.PostStatus.COMPLETED);
         matchPostRepository.save(matchPost);
 
         // Khóa tất cả các cuộc trò chuyện của kèo này
         conversationService.markConversationsAsCompletedByMatchId(postId);
+    }
+
+    @Override
+    public Page<MatchPostResponse> getMyActivePosts(String userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<MatchPost> matchPage = matchPostRepository.findMyActivePosts(userId, pageable);
+        return matchPage.map(matchPostMapper::toResponse);
+    }
+
+    @Override
+    public Page<MatchPostResponse> getMatchHistory(String userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<MatchPost> matchPage = matchPostRepository.findMatchHistory(userId, pageable);
+        return matchPage.map(matchPostMapper::toResponse);
     }
 }

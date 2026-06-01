@@ -15,17 +15,7 @@ const ConfirmApplyModal = ({ isOpen, match, onClose, onConfirm }: ConfirmApplyMo
   const [message, setMessage] = useState('Chào bạn, đội mình muốn nhận kèo này!');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [popupInfo, setPopupInfo] = useState({
-    isOpen: false,
-    type: 'info' as 'success' | 'error' | 'info',
-    title: '',
-    message: '',
-    onConfirm: () => {}
-  });
 
-  const closePopup = () => {
-    setPopupInfo(prev => ({ ...prev, isOpen: false }));
-  };
 
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
@@ -70,16 +60,7 @@ const ConfirmApplyModal = ({ isOpen, match, onClose, onConfirm }: ConfirmApplyMo
         message: message
       }, config);
 
-      setPopupInfo({
-        isOpen: true,
-        type: 'success',
-        title: 'Thành công',
-        message: 'Đã gửi yêu cầu nhận kèo và tạo phòng chat thành công!',
-        onConfirm: () => {
-          closePopup();
-          onConfirm();
-        }
-      });
+      onConfirm();
     } catch (err: any) {
       console.error(err);
       
@@ -126,14 +107,7 @@ const ConfirmApplyModal = ({ isOpen, match, onClose, onConfirm }: ConfirmApplyMo
             {isSubmitting ? 'Đang gửi...' : 'Gửi Yêu Cầu'}
           </Button>
         </div>
-        <PopupMessage
-          isOpen={popupInfo.isOpen}
-          onClose={closePopup}
-          type={popupInfo.type}
-          title={popupInfo.title}
-          message={popupInfo.message}
-          onConfirm={popupInfo.onConfirm}
-        />
+
       </div>
     </div>
   );

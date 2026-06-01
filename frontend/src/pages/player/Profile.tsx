@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaHistory, FaCheckCircle, FaTimesCircle, FaClock, FaStar } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import axiosClient from '../../api/axiosClient';
@@ -10,6 +10,8 @@ const Profile = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const hasFetchedRef = useRef(false);
   
   const [updateData, setUpdateData] = useState({ fullName: '', phone: '' });
   const [isUpdating, setIsUpdating] = useState(false);
@@ -45,6 +47,8 @@ const Profile = () => {
   }, [location]);
 
   useEffect(() => {
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
     const fetchProfileAndBookings = async () => {
       try {
         const profileRes = await axiosClient.get('/users/me');
@@ -159,7 +163,25 @@ const Profile = () => {
             </div>
             <h2 className="text-2xl font-bold text-gray-800">{userProfile?.fullName || 'Chưa cập nhật tên'}</h2>
             <p className="text-gray-500 mb-2">{userProfile?.email}</p>
-            <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold mb-6">Vai trò: {userProfile?.role || 'PLAYER'}</span>
+            <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold mb-4">Vai trò: {userProfile?.role || 'PLAYER'}</span>
+            
+            {/* Điểm uy tín (Trust Score) */}
+            <div className="mb-6 p-4 bg-gray-50 rounded-2xl w-full border border-gray-100 flex flex-col items-center shadow-inner">
+              <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider mb-1">Điểm Uy Tín (Trust Score)</span>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-3xl font-black ${(userProfile?.trustScore ?? 100) >= 80 ? 'text-green-600' : (userProfile?.trustScore ?? 100) >= 60 ? 'text-yellow-500' : 'text-red-500'}`}>
+                  {userProfile?.trustScore ?? 100}
+                </span>
+                <span className="text-gray-400 font-bold text-sm">/ 100</span>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-2 ${
+                (userProfile?.trustScore ?? 100) >= 80 ? 'bg-green-100 text-green-700' :
+                (userProfile?.trustScore ?? 100) >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+              }`}>
+                {(userProfile?.trustScore ?? 100) >= 80 ? 'Rất uy tín' :
+                 (userProfile?.trustScore ?? 100) >= 60 ? 'Trung bình (Cần cải thiện)' : 'Cảnh báo (Bị hạn chế)'}
+              </span>
+            </div>
             
             <div className="w-full flex flex-col gap-2">
               <button onClick={() => setActiveTab('info')} className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition ${activeTab === 'info' ? 'bg-green-50 text-green-600' : 'text-gray-600 hover:bg-gray-50'}`}>

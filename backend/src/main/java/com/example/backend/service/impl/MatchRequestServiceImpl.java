@@ -171,12 +171,23 @@ public class MatchRequestServiceImpl implements MatchRequestService {
 
     @Override
     @Transactional
-    public void markAsComplete(String requestId, String currentUserId) {
+    public void markAsComplete(String requestId, String currentUserId, String fieldId) {
         MatchRequest request = matchRequestRepository.findById(requestId)
             .orElseThrow(() -> new AppException(404, "Không tìm thấy request!"));
 
         if (!request.getRequesterId().equals(currentUserId)) {
             throw new AppException(403, "Bạn không có quyền xác nhận cho yêu cầu này!");
+        }
+
+        MatchPost matchPost = matchPostRepository.findById(request.getPostId())
+            .orElseThrow(() -> new AppException(404, "Không tìm thấy bài đăng!"));
+
+        if (matchPost.getFieldId() == null || matchPost.getFieldId().isEmpty()) {
+            if (fieldId == null || fieldId.isEmpty()) {
+                throw new AppException(400, "Vui lòng chọn sân đã đá để hoàn thành trận đấu.");
+            }
+            matchPost.setFieldId(fieldId);
+            matchPostRepository.save(matchPost);
         }
 
         request.setStatus(Enums.RequestStatus.COMPLETED);

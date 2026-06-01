@@ -22,6 +22,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.example.backend.exception.AppException;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -39,8 +42,20 @@ public class FieldServiceImpl implements FieldService {
     private final TimeSlotMapper timeSlotMapper;
 
     @Override
+    public Page<FieldResponse> getFieldsPage(Enums.FieldType type, String name, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Field> fields = fieldRepository.findFieldsPaginated(type, name, pageable);
+        return fields.map(f -> new FieldResponse(f.getId(), f.getName(), f.getType(), f.getCoverImage()));
+    }
+
+    @Override
     public List<FieldResponse> getFields(Enums.FieldType type, BigDecimal minPrice, BigDecimal maxPrice) {
-        List<Field> fields = fieldRepository.findFieldsWithFilters(type, minPrice, maxPrice);
+        List<Field> fields;
+        if (minPrice == null && maxPrice == null) {
+            fields = fieldRepository.findFieldsWithoutTimeSlots(type);
+        } else {
+            fields = fieldRepository.findFieldsWithFilters(type, minPrice, maxPrice);
+        }
         return fields.stream()
                 .map(f -> new FieldResponse(f.getId(), f.getName(), f.getType(), f.getCoverImage()))
                 .collect(Collectors.toList());
