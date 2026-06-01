@@ -42,6 +42,7 @@ public class FairplayServiceImpl implements FairplayService {
         review.setComment(request.getComment());
         review.setStatus(Enums.FairplayStatus.PENDING);
         review.setCreatedAt(LocalDateTime.now());
+        review.setImageUrl(request.getImageUrl());
         
         reviewRepository.save(review);
     }

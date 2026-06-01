@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FaUsers, FaGavel, FaBan, FaFilter, FaStar } from 'react-icons/fa';
+import { FaUsers, FaGavel, FaBan, FaFilter, FaStar, FaImage } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import { adminApi } from '../../api/adminApi';
 import axios from 'axios';
@@ -57,13 +57,10 @@ const AdminDashboard = () => {
       if (minTrustScore) params.minTrustScore = Number(minTrustScore);
       
       const res = await adminApi.getUsers(params);
-      
-      // An toàn: Lấy mảng từ content hoặc data
       const usersData = res.data?.content || res.data?.data || (Array.isArray(res.data) ? res.data : []);
       setUsers(usersData);
       setUserTotalPages(res.data.totalPages || 1);
     } catch (error) {
-      console.error('Lỗi tải người dùng', error);
       setUsers([]);
     } finally {
       setIsLoadingUsers(false);
@@ -87,7 +84,6 @@ const AdminDashboard = () => {
       
       setFairplayReviews(reviewData);
     } catch (error) {
-      console.error('Lỗi tải đánh giá Tòa án', error);
       setFairplayReviews([]); 
     } finally {
       setIsLoadingReviews(false);
@@ -129,7 +125,6 @@ const AdminDashboard = () => {
         pointsApplied: pointsToApply
       }, { headers: { Authorization: `Bearer ${token}` } });
 
-      // ĐỔI LẠI TEXT THÔNG BÁO CHO HỢP LÝ VỚI VIỆC CỘNG HAY TRỪ ĐIỂM
       let successMessage = '';
       if (approve) {
         successMessage = pointsToApply > 0 
@@ -141,25 +136,12 @@ const AdminDashboard = () => {
           : 'Đã tha bổng cho người này!';
       }
 
-      setPopupInfo({
-        isOpen: true,
-        type: 'success',
-        title: 'Thành công',
-        message: successMessage,
-        onConfirm: closePopup
-      });
-      
+      setPopupInfo({ isOpen: true, type: 'success', title: 'Thành công', message: successMessage, onConfirm: closePopup });
       setAdjudicateModal({isOpen: false, review: null});
       setCustomPenalty('');
       fetchFairplayReviews(); 
     } catch (error: any) {
-      setPopupInfo({
-        isOpen: true,
-        type: 'error',
-        title: 'Thất bại',
-        message: 'Lỗi xử lý: ' + (error.response?.data?.message || error.message || 'Không rõ nguyên nhân'),
-        onConfirm: closePopup
-      });
+      setPopupInfo({ isOpen: true, type: 'error', title: 'Thất bại', message: 'Lỗi xử lý: ' + (error.response?.data?.message || error.message || 'Không rõ nguyên nhân'), onConfirm: closePopup });
     } finally {
       setIsSubmitting(false);
     }
@@ -242,22 +224,8 @@ const AdminDashboard = () => {
           <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
             <span className="text-sm text-gray-500">Trang {userPage + 1} / {userTotalPages}</span>
             <div className="flex gap-2">
-              <Button 
-                variant="secondary" 
-                className="py-1.5 px-3 text-sm hover:bg-gray-100 disabled:opacity-50" 
-                onClick={() => setUserPage(curr => Math.max(0, curr - 1))}
-                disabled={userPage === 0}
-              >
-                Trước
-              </Button>
-              <Button 
-                variant="secondary" 
-                className="py-1.5 px-3 text-sm hover:bg-gray-100 disabled:opacity-50" 
-                onClick={() => setUserPage(curr => Math.min(userTotalPages - 1, curr + 1))}
-                disabled={userPage >= userTotalPages - 1}
-              >
-                Sau
-              </Button>
+              <Button variant="secondary" className="py-1.5 px-3 text-sm hover:bg-gray-100 disabled:opacity-50" onClick={() => setUserPage(curr => Math.max(0, curr - 1))} disabled={userPage === 0}>Trước</Button>
+              <Button variant="secondary" className="py-1.5 px-3 text-sm hover:bg-gray-100 disabled:opacity-50" onClick={() => setUserPage(curr => Math.min(userTotalPages - 1, curr + 1))} disabled={userPage >= userTotalPages - 1}>Sau</Button>
             </div>
           </div>
         </div>
@@ -287,12 +255,23 @@ const AdminDashboard = () => {
                         <span className={`text-xs font-bold px-2 py-0.5 rounded ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>ĐANG CHỜ XỬ LÝ</span>
                       </div>
                       <p className="text-sm text-gray-500 mb-1">Trận đấu: <span className="font-mono">{truncateId(review.matchId)}</span></p>
-                      <p className="text-sm text-gray-500 mb-1">Người gửi {isPositive ? '(Người đề xuất)' : '(Nguyên đơn)'}: <span className="font-mono">{truncateId(review.reviewerId)}</span></p>
-                      <p className="text-sm text-gray-500 mb-1">Người bị chỉ định {isPositive ? '(Người được tuyên dương)' : '(Bị cáo)'}: <span className="font-mono font-bold text-gray-800">{truncateId(review.revieweeId)}</span></p>
+                      <p className="text-sm text-gray-500 mb-1">Người gửi: <span className="font-mono">{truncateId(review.reviewerId)}</span></p>
+                      <p className="text-sm text-gray-500 mb-1">Bị cáo/Người được tuyên dương: <span className="font-mono font-bold text-gray-800">{truncateId(review.revieweeId)}</span></p>
+                      
                       <div className="bg-white p-3 border border-gray-200 rounded-lg my-3 shadow-sm">
                         <p className="text-sm text-gray-800"><strong className="text-gray-500">Lời khai / Bình luận:</strong> "{review.comment || 'Không có bình luận cụ thể'}"</p>
+                        
+                        {review.imageUrl && (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <span className="text-xs font-bold text-gray-500 flex items-center gap-1 mb-2"><FaImage /> ẢNH MINH CHỨNG:</span>
+                            <a href={review.imageUrl} target="_blank" rel="noreferrer" className="block max-w-[200px] overflow-hidden rounded-lg border border-gray-200 hover:opacity-80 transition cursor-zoom-in">
+                              <img src={review.imageUrl} alt="Minh chứng" className="w-full h-auto object-cover" />
+                            </a>
+                          </div>
+                        )}
                       </div>
-                      <p className={`text-xs p-2 rounded border ${isPositive ? 'text-green-600 bg-green-50 border-green-100' : 'text-red-600 bg-red-50 border-red-100'}`}>
+
+                      <p className={`text-xs p-2 rounded border inline-block ${isPositive ? 'text-green-600 bg-green-50 border-green-100' : 'text-red-600 bg-red-50 border-red-100'}`}>
                         <strong>Phân loại:</strong> {getRatingLabel(review.ratingType)}
                       </p>
                     </div>
@@ -315,16 +294,24 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Modal Mở Tòa Phán Quyết / Xét duyệt */}
       {adjudicateModal.isOpen && adjudicateModal.review && (() => {
         const isPositive = getSuggestedPenalty(adjudicateModal.review.ratingType) > 0;
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in-up">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm overflow-y-auto">
+            <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in-up my-auto">
               <h3 className="text-xl font-bold text-gray-800 mb-2 border-b pb-2">Hồ Sơ Xử Lý</h3>
-              <p className="text-sm text-gray-600 mb-4">Bạn đang xem xét hồ sơ <span className="font-mono font-bold">{truncateId(adjudicateModal.review.id)}</span>.</p>
+              <p className="text-sm text-gray-600 mb-4">Mã hồ sơ: <span className="font-mono font-bold">{truncateId(adjudicateModal.review.id)}</span>.</p>
               
+              {adjudicateModal.review.imageUrl && (
+                <div className="mb-4">
+                  <span className="text-xs font-bold text-gray-500 block mb-1">ẢNH MINH CHỨNG:</span>
+                  <a href={adjudicateModal.review.imageUrl} target="_blank" rel="noreferrer">
+                    <img src={adjudicateModal.review.imageUrl} className="w-full max-h-48 object-cover rounded-lg border border-gray-200 cursor-zoom-in" alt="Minh chứng" />
+                  </a>
+                </div>
+              )}
+
               <div className={`border p-4 rounded-xl mb-4 ${isPositive ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
                 <p className={`text-sm font-bold mb-2 ${isPositive ? 'text-green-800' : 'text-red-800'}`}>Thông tin mức điểm quy định:</p>
                 <p className={`text-sm mb-2 ${isPositive ? 'text-green-700' : 'text-red-700'}`}>Phân loại: {getRatingLabel(adjudicateModal.review.ratingType)}</p>
@@ -339,14 +326,13 @@ const AdminDashboard = () => {
               <div className="flex gap-3">
                 <Button variant="secondary" className="w-full border-gray-300 hover:bg-gray-100 text-gray-600" onClick={() => setAdjudicateModal({isOpen: false, review: null})} disabled={isSubmitting}>Hủy bỏ</Button>
                 
-                {/* ĐỔI TEXT NÚT HỦY DỰA THEO LOẠI */}
                 <Button variant="outline" className={`w-full ${isPositive ? 'border-red-500 text-red-600 hover:bg-red-50' : 'border-green-500 text-green-600 hover:bg-green-50'}`} onClick={() => handleAdjudicate(false)} disabled={isSubmitting}>
                   <FaBan className="inline mr-1"/> {isPositive ? 'Bác bỏ yêu cầu' : 'Tha bổng'}
                 </Button>
                 
-                {/* ĐỔI TEXT NÚT XÁC NHẬN DỰA THEO LOẠI */}
-                <Button variant="primary" className={`w-full ${isPositive ? '!bg-green-600 hover:!bg-green-700' : '!bg-red-600 hover:!bg-red-700'}`} onClick={() => handleAdjudicate(true)} disabled={isSubmitting}>
-                  <FaGavel className="inline mr-1"/> {isPositive ? 'Xác nhận cộng điểm' : 'Thi hành án phạt'}
+                <Button variant="primary" className={`w-full flex justify-center items-center ${isPositive ? '!bg-green-600 hover:!bg-green-700' : '!bg-red-600 hover:!bg-red-700'}`} onClick={() => handleAdjudicate(true)} disabled={isSubmitting}>
+                  {isSubmitting ? <span className="animate-spin mr-1">⌛</span> : <FaGavel className="inline mr-1"/>}
+                  {isSubmitting ? 'Đang xử lý...' : (isPositive ? 'Cộng điểm' : 'Thi hành án')}
                 </Button>
               </div>
             </div>
@@ -354,14 +340,7 @@ const AdminDashboard = () => {
         );
       })()}
 
-      <PopupMessage
-        isOpen={popupInfo.isOpen}
-        onClose={closePopup}
-        type={popupInfo.type}
-        title={popupInfo.title}
-        message={popupInfo.message}
-        onConfirm={popupInfo.onConfirm}
-      />
+      <PopupMessage isOpen={popupInfo.isOpen} onClose={closePopup} type={popupInfo.type} title={popupInfo.title} message={popupInfo.message} onConfirm={popupInfo.onConfirm} />
     </div>
   );
 };
