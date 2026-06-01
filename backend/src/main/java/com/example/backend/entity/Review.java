@@ -24,6 +24,10 @@ public class Review {
     @Column(columnDefinition = "TEXT")
     private String comment;
 
+    // THÊM TRƯỜNG IMAGE URL
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -52,6 +56,9 @@ public class Review {
 
     public String getComment() { return comment; }
     public void setComment(String comment) { this.comment = comment; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

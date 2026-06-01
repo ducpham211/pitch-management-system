@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MatchCard from '../../components/common/MatchCard';
 import Button from '../../components/common/Button';
-import { FaPlus, FaGlobe, FaListAlt, FaClock, FaCalendarAlt, FaRobot, FaCheckCircle, FaHistory, FaStar, FaGavel } from 'react-icons/fa';
+import { FaPlus, FaGlobe, FaListAlt, FaClock, FaCalendarAlt, FaRobot, FaCheckCircle, FaHistory, FaStar, FaGavel, FaImage } from 'react-icons/fa';
 import CreateMatchModal from '../../components/match/CreateMatchModal';
 import AutoMatchModal from '../../components/match/AutoMatchModal';
 import ConfirmApplyModal from '../../components/match/ConfirmApplyModal';
@@ -45,6 +45,10 @@ const MatchBoard = () => {
   // Refs to prevent duplicate/concurrent or re-trigger calls
   const hasFetchedStaticRef = useRef(false);
   const lastFetchedRef = useRef<{ viewMode: string; page: number } | null>(null);
+  // States cho Upload Ảnh
+  const [reviewImage, setReviewImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const [popupInfo, setPopupInfo] = useState<{
     isOpen: boolean;
@@ -250,7 +254,6 @@ const MatchBoard = () => {
         // Chủ post bấm xác nhận
         await axios.put(`${API_URL}/match-posts/${match.id}/complete${queryParam}`, {}, config);
       } else {
-        // Người đi xin kèo bấm xác nhận
         const myRequest = match.requests?.find((r:any) => r.requesterId === currentUserId);
         if (myRequest) {
           await axios.put(`${API_URL}/match-requests/${myRequest.id}/complete${queryParam}`, {}, config);
@@ -283,26 +286,51 @@ const MatchBoard = () => {
     }
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setReviewImage(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const uploadImageFirst = async (): Promise<string> => {
+    if (!reviewImage) return '';
+    const token = localStorage.getItem('accessToken');
+    const formData = new FormData();
+    formData.append('file', reviewImage);
+    const res = await axios.post(`${API_URL}/upload/image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${token}` }
+    });
+    return res.data.imageUrl;
+  };
+
   const submitFieldReview = async () => {
+    setIsUploadingImage(true);
     try {
       const token = localStorage.getItem('accessToken');
+      const imageUrl = await uploadImageFirst();
+
       await axios.post(`${API_URL}/reviews`, {
         fieldId: reviewMatch.fieldId,
         rating: fieldRating,
-        comment: reviewComment
+        comment: reviewComment,
+        imageUrl: imageUrl
       }, { headers: { Authorization: `Bearer ${token}` } });
       
       setIsFieldReviewOpen(false);
       setPopupInfo({ isOpen: true, type: 'success', title: 'Thành công', message: 'Đã đánh giá sân!', onConfirm: closePopup });
     } catch (error) {
       setPopupInfo({ isOpen: true, type: 'error', title: 'Lỗi', message: 'Không thể gửi đánh giá sân.', onConfirm: closePopup });
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
   const submitOpponentReview = async () => {
+    setIsUploadingImage(true);
     try {
       const token = localStorage.getItem('accessToken');
-      
       const isMyPost = reviewMatch.userId === currentUserId;
       const acceptedRequest = reviewMatch.requests?.find((r:any) => r.status === 'ACCEPTED' || r.status === 'COMPLETED');
       let revieweeId = '';
@@ -311,11 +339,14 @@ const MatchBoard = () => {
 
       if (!revieweeId) throw new Error('Không tìm thấy ID đối thủ');
 
+      const imageUrl = await uploadImageFirst();
+
       await axios.post(`${API_URL}/fairplay/reviews`, {
         matchId: reviewMatch.id,
         revieweeId: revieweeId,
         ratingType: opponentRatingType,
-        comment: reviewComment
+        comment: reviewComment,
+        imageUrl: imageUrl
       }, { headers: { Authorization: `Bearer ${token}` } });
       
       setSubmittedFairplays(prev => [...prev, reviewMatch.id]);
@@ -323,11 +354,13 @@ const MatchBoard = () => {
       setPopupInfo({ isOpen: true, type: 'success', title: 'Thành công', message: 'Đã báo cáo lên Tòa án Fairplay!', onConfirm: closePopup });
     } catch (error: any) {
       setPopupInfo({ isOpen: true, type: 'error', title: 'Lỗi', message: error.response?.data?.message || error.message || 'Lỗi gửi báo cáo.', onConfirm: closePopup });
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
-  const openFieldReview = (match: any) => { setReviewMatch(match); setFieldRating(5); setReviewComment(''); setIsFieldReviewOpen(true); };
-  const openOpponentReview = (match: any) => { setReviewMatch(match); setOpponentRatingType('GOOD'); setReviewComment(''); setIsOpponentReviewOpen(true); };
+  const openFieldReview = (match: any) => { setReviewMatch(match); setFieldRating(5); setReviewComment(''); setReviewImage(null); setImagePreview(''); setIsFieldReviewOpen(true); };
+  const openOpponentReview = (match: any) => { setReviewMatch(match); setOpponentRatingType('GOOD'); setReviewComment(''); setReviewImage(null); setImagePreview(''); setIsOpponentReviewOpen(true); };
 
   const formatTimeStr = (timeStr: any) => {
     if (!timeStr) return '';
@@ -414,12 +447,9 @@ const MatchBoard = () => {
           {matches.length > 0 ? matches.map((match) => {
              const myRequest = match.requests?.find((r:any) => r.requesterId === currentUserId);
              const isMyPost = match.userId === currentUserId;
-             
              const statusLabel = isMyPost 
                 ? (match.status === 'COMPLETED' ? 'Trận Đấu Hoàn Tất' : (match.status === 'CLOSED' ? 'Đã Chốt Kèo' : 'Đang Nhận Yêu Cầu')) 
                 : (myRequest?.status === 'COMPLETED' ? 'Trận Đấu Hoàn Tất' : (myRequest?.status === 'ACCEPTED' ? 'Đã Được Duyệt' : (myRequest?.status === 'REJECTED' ? 'Bị Từ Chối' : 'Đang Chờ Duyệt')));
-             
-             // Dựa vào COMPLETED, không dùng CLOSED nữa để tránh hiển thị nhầm
              const isMatchCompletedByMe = completedMatches.includes(match.id) || (isMyPost ? match.status === 'COMPLETED' : myRequest?.status === 'COMPLETED');
 
              return (
@@ -564,6 +594,7 @@ const MatchBoard = () => {
                 />
               ))}
             </div>
+            
             <textarea
               className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-green-500 outline-none resize-none mb-4"
               rows={3}
@@ -571,9 +602,24 @@ const MatchBoard = () => {
               value={reviewComment}
               onChange={(e) => setReviewComment(e.target.value)}
             ></textarea>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Đính kèm ảnh (Tùy chọn)</label>
+              <input type="file" accept="image/*" onChange={handleImageChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" />
+              {imagePreview && (
+                <div className="mt-3 relative w-fit">
+                   <img src={imagePreview} alt="Preview" className="h-32 object-contain rounded-lg border border-gray-200 shadow-sm" />
+                   <button onClick={() => { setReviewImage(null); setImagePreview(''); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-md hover:bg-red-600 transition">✕</button>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-3">
-              <Button variant="secondary" className="w-full" onClick={() => setIsFieldReviewOpen(false)}>Hủy</Button>
-              <Button variant="primary" className="w-full" onClick={submitFieldReview}>Gửi Đánh Giá</Button>
+              <Button variant="secondary" className="w-full" onClick={() => setIsFieldReviewOpen(false)} disabled={isUploadingImage}>Hủy</Button>
+              <Button variant="primary" className="w-full flex justify-center items-center gap-2" onClick={submitFieldReview} disabled={isUploadingImage}>
+                {isUploadingImage ? <FaRobot className="animate-spin" /> : null}
+                {isUploadingImage ? 'Đang tải lên...' : 'Gửi Đánh Giá'}
+              </Button>
             </div>
           </div>
         </div>
@@ -581,9 +627,9 @@ const MatchBoard = () => {
 
       {isOpponentReviewOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-fade-in-up">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-fade-in-up overflow-y-auto max-h-[90vh]">
             <h3 className="text-xl font-bold text-gray-800 mb-1 flex items-center gap-2"><FaGavel className="text-red-600"/> Tòa Án Fairplay</h3>
-            <p className="text-sm text-gray-500 mb-6">Hãy đánh giá thái độ thi đấu của đối phương. Hệ thống sẽ căn cứ vào đây để cộng/trừ Điểm Uy Tín (Trust Score).</p>
+            <p className="text-sm text-gray-500 mb-6">Hãy đánh giá thái độ thi đấu của đối phương. Cung cấp hình ảnh minh chứng nếu có hành vi vi phạm.</p>
             
             <div className="space-y-3 mb-6">
               <label className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition ${opponentRatingType === 'GOOD' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
@@ -618,9 +664,24 @@ const MatchBoard = () => {
               value={reviewComment}
               onChange={(e) => setReviewComment(e.target.value)}
             ></textarea>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Ảnh minh chứng (Khuyên dùng khi báo cáo vi phạm)</label>
+              <input type="file" accept="image/*" onChange={handleImageChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100" />
+              {imagePreview && (
+                <div className="mt-3 relative w-fit">
+                   <img src={imagePreview} alt="Preview" className="h-32 object-contain rounded-lg border border-gray-200 shadow-sm" />
+                   <button onClick={() => { setReviewImage(null); setImagePreview(''); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-md hover:bg-red-600 transition">✕</button>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-3">
-              <Button variant="secondary" className="w-full" onClick={() => setIsOpponentReviewOpen(false)}>Thoát</Button>
-              <Button variant="primary" className="w-full !bg-red-600 hover:!bg-red-700" onClick={submitOpponentReview}>Gửi Lên Tòa Án</Button>
+              <Button variant="secondary" className="w-full" onClick={() => setIsOpponentReviewOpen(false)} disabled={isUploadingImage}>Thoát</Button>
+              <Button variant="primary" className="w-full !bg-red-600 hover:!bg-red-700 flex justify-center items-center gap-2" onClick={submitOpponentReview} disabled={isUploadingImage}>
+                {isUploadingImage ? <FaRobot className="animate-spin" /> : null}
+                {isUploadingImage ? 'Đang tải lên...' : 'Gửi Lên Tòa Án'}
+              </Button>
             </div>
           </div>
         </div>

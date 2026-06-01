@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
-import { FaUsers, FaGavel, FaBan, FaFilter, FaStar } from 'react-icons/fa';
+import { FaUsers, FaGavel, FaBan, FaFilter, FaStar, FaImage, FaMapMarkerAlt, FaTimes } from 'react-icons/fa';
 import Button from '../../components/common/Button';
 import { adminApi } from '../../api/adminApi';
 import axios from 'axios';
 import PopupMessage from '../../components/common/PopupMessage';
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState<'users' | 'reviews'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'reviews' | 'field-reviews'>('users');
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
   
-  // States cho Users
   const [users, setUsers] = useState<any[]>([]);
   const [roleFilter, setRoleFilter] = useState('');
   const [minTrustScore, setMinTrustScore] = useState('');
@@ -17,15 +16,20 @@ const AdminDashboard = () => {
   const [userPage, setUserPage] = useState(0);
   const [userTotalPages, setUserTotalPages] = useState(1);
 
-  // States cho Fairplay Reviews
   const [fairplayReviews, setFairplayReviews] = useState<any[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
 
-  // States cho Modal Xử lý Review
   const [adjudicateModal, setAdjudicateModal] = useState<{isOpen: boolean, review: any}>({isOpen: false, review: null});
   const [customPenalty, setCustomPenalty] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  const [fields, setFields] = useState<any[]>([]);
+  const [isLoadingFields, setIsLoadingFields] = useState(false);
+  const [selectedField, setSelectedField] = useState<any | null>(null);
+  const [fieldReviews, setFieldReviews] = useState<any[]>([]);
+  const [isLoadingFieldReviews, setIsLoadingFieldReviews] = useState(false);
+  const [isFieldReviewModalOpen, setIsFieldReviewModalOpen] = useState(false);
+
   const [popupInfo, setPopupInfo] = useState<{
     isOpen: boolean;
     type: 'success' | 'error' | 'info' | 'warning';
@@ -57,13 +61,10 @@ const AdminDashboard = () => {
       if (minTrustScore) params.minTrustScore = Number(minTrustScore);
       
       const res = await adminApi.getUsers(params);
-      
-      // An toàn: Lấy mảng từ content hoặc data
       const usersData = res.data?.content || res.data?.data || (Array.isArray(res.data) ? res.data : []);
       setUsers(usersData);
       setUserTotalPages(res.data.totalPages || 1);
     } catch (error) {
-      console.error('Lỗi tải người dùng', error);
       setUsers([]);
     } finally {
       setIsLoadingUsers(false);
@@ -87,18 +88,55 @@ const AdminDashboard = () => {
       
       setFairplayReviews(reviewData);
     } catch (error) {
-      console.error('Lỗi tải đánh giá Tòa án', error);
       setFairplayReviews([]); 
     } finally {
       setIsLoadingReviews(false);
     }
   };
 
+  const fetchFields = async () => {
+    setIsLoadingFields(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await axios.get(`${API_URL}/fields`, { headers: { Authorization: `Bearer ${token}` } });
+      let fetchedFields = res.data.content || res.data || [];
+      
+      // Sắp xếp sân theo tên có tính đến giá trị số (Natural Sorting)
+      fetchedFields = fetchedFields.sort((a: any, b: any) => 
+        (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' })
+      );
+      
+      setFields(fetchedFields);
+    } catch (error) {
+      console.error("Lỗi tải danh sách sân", error);
+    } finally {
+      setIsLoadingFields(false);
+    }
+  };
+
+  const fetchFieldReviews = async (field: any) => {
+    setSelectedField(field);
+    setIsFieldReviewModalOpen(true);
+    setIsLoadingFieldReviews(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await axios.get(`${API_URL}/reviews/field/${field.id}`, { headers: { Authorization: `Bearer ${token}` } });
+      setFieldReviews(res.data || []);
+    } catch (error) {
+      console.error("Lỗi tải đánh giá sân", error);
+      setFieldReviews([]);
+    } finally {
+      setIsLoadingFieldReviews(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'users') {
       fetchUsers();
-    } else {
+    } else if (activeTab === 'reviews') {
       fetchFairplayReviews();
+    } else if (activeTab === 'field-reviews') {
+      fetchFields();
     }
   }, [activeTab, roleFilter, minTrustScore, userPage]);
 
@@ -129,7 +167,6 @@ const AdminDashboard = () => {
         pointsApplied: pointsToApply
       }, { headers: { Authorization: `Bearer ${token}` } });
 
-      // ĐỔI LẠI TEXT THÔNG BÁO CHO HỢP LÝ VỚI VIỆC CỘNG HAY TRỪ ĐIỂM
       let successMessage = '';
       if (approve) {
         successMessage = pointsToApply > 0 
@@ -141,27 +178,23 @@ const AdminDashboard = () => {
           : 'Đã tha bổng cho người này!';
       }
 
-      setPopupInfo({
-        isOpen: true,
-        type: 'success',
-        title: 'Thành công',
-        message: successMessage,
-        onConfirm: closePopup
-      });
-      
+      setPopupInfo({ isOpen: true, type: 'success', title: 'Thành công', message: successMessage, onConfirm: closePopup });
       setAdjudicateModal({isOpen: false, review: null});
       setCustomPenalty('');
       fetchFairplayReviews(); 
     } catch (error: any) {
-      setPopupInfo({
-        isOpen: true,
-        type: 'error',
-        title: 'Thất bại',
-        message: 'Lỗi xử lý: ' + (error.response?.data?.message || error.message || 'Không rõ nguyên nhân'),
-        onConfirm: closePopup
-      });
+      setPopupInfo({ isOpen: true, type: 'error', title: 'Thất bại', message: 'Lỗi xử lý: ' + (error.response?.data?.message || error.message || 'Không rõ nguyên nhân'), onConfirm: closePopup });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const translateFieldType = (type: string) => {
+    switch(type) {
+      case 'FIVE_A_SIDE': return 'Sân 5 người';
+      case 'SEVEN_A_SIDE': return 'Sân 7 người';
+      case 'ELEVEN_A_SIDE': return 'Sân 11 người';
+      default: return type;
     }
   };
 
@@ -173,14 +206,17 @@ const AdminDashboard = () => {
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Quản Trị Hệ Thống</h1>
-          <p className="text-gray-500 mt-1">Quản lý người dùng và xử lý vi phạm Fair-Play</p>
+          <p className="text-gray-500 mt-1">Quản lý người dùng, Tòa án Fair-Play và Chất lượng Sân</p>
         </div>
-        <div className="flex bg-gray-100 p-1 rounded-xl">
-          <button onClick={() => setActiveTab('users')} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+        <div className="flex bg-gray-100 p-1 rounded-xl overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          <button onClick={() => setActiveTab('users')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'users' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             <FaUsers /> Người Dùng
           </button>
-          <button onClick={() => setActiveTab('reviews')} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'reviews' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          <button onClick={() => setActiveTab('reviews')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'reviews' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             <FaGavel /> Tòa Án Fair-Play
+          </button>
+          <button onClick={() => setActiveTab('field-reviews')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'field-reviews' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            <FaMapMarkerAlt /> Đánh giá Sân
           </button>
         </div>
       </div>
@@ -242,22 +278,8 @@ const AdminDashboard = () => {
           <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
             <span className="text-sm text-gray-500">Trang {userPage + 1} / {userTotalPages}</span>
             <div className="flex gap-2">
-              <Button 
-                variant="secondary" 
-                className="py-1.5 px-3 text-sm hover:bg-gray-100 disabled:opacity-50" 
-                onClick={() => setUserPage(curr => Math.max(0, curr - 1))}
-                disabled={userPage === 0}
-              >
-                Trước
-              </Button>
-              <Button 
-                variant="secondary" 
-                className="py-1.5 px-3 text-sm hover:bg-gray-100 disabled:opacity-50" 
-                onClick={() => setUserPage(curr => Math.min(userTotalPages - 1, curr + 1))}
-                disabled={userPage >= userTotalPages - 1}
-              >
-                Sau
-              </Button>
+              <Button variant="secondary" className="py-1.5 px-3 text-sm hover:bg-gray-100 disabled:opacity-50" onClick={() => setUserPage(curr => Math.max(0, curr - 1))} disabled={userPage === 0}>Trước</Button>
+              <Button variant="secondary" className="py-1.5 px-3 text-sm hover:bg-gray-100 disabled:opacity-50" onClick={() => setUserPage(curr => Math.min(userTotalPages - 1, curr + 1))} disabled={userPage >= userTotalPages - 1}>Sau</Button>
             </div>
           </div>
         </div>
@@ -287,12 +309,23 @@ const AdminDashboard = () => {
                         <span className={`text-xs font-bold px-2 py-0.5 rounded ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>ĐANG CHỜ XỬ LÝ</span>
                       </div>
                       <p className="text-sm text-gray-500 mb-1">Trận đấu: <span className="font-mono">{truncateId(review.matchId)}</span></p>
-                      <p className="text-sm text-gray-500 mb-1">Người gửi {isPositive ? '(Người đề xuất)' : '(Nguyên đơn)'}: <span className="font-mono">{truncateId(review.reviewerId)}</span></p>
-                      <p className="text-sm text-gray-500 mb-1">Người bị chỉ định {isPositive ? '(Người được tuyên dương)' : '(Bị cáo)'}: <span className="font-mono font-bold text-gray-800">{truncateId(review.revieweeId)}</span></p>
+                      <p className="text-sm text-gray-500 mb-1">Người gửi: <span className="font-mono">{truncateId(review.reviewerId)}</span></p>
+                      <p className="text-sm text-gray-500 mb-1">Bị cáo/Người được tuyên dương: <span className="font-mono font-bold text-gray-800">{truncateId(review.revieweeId)}</span></p>
+                      
                       <div className="bg-white p-3 border border-gray-200 rounded-lg my-3 shadow-sm">
                         <p className="text-sm text-gray-800"><strong className="text-gray-500">Lời khai / Bình luận:</strong> "{review.comment || 'Không có bình luận cụ thể'}"</p>
+                        
+                        {review.imageUrl && (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <span className="text-xs font-bold text-gray-500 flex items-center gap-1 mb-2"><FaImage /> ẢNH MINH CHỨNG:</span>
+                            <a href={review.imageUrl} target="_blank" rel="noreferrer" className="block max-w-[200px] overflow-hidden rounded-lg border border-gray-200 hover:opacity-80 transition cursor-zoom-in">
+                              <img src={review.imageUrl} alt="Minh chứng" className="w-full h-auto object-cover" />
+                            </a>
+                          </div>
+                        )}
                       </div>
-                      <p className={`text-xs p-2 rounded border ${isPositive ? 'text-green-600 bg-green-50 border-green-100' : 'text-red-600 bg-red-50 border-red-100'}`}>
+
+                      <p className={`text-xs p-2 rounded border inline-block ${isPositive ? 'text-green-600 bg-green-50 border-green-100' : 'text-red-600 bg-red-50 border-red-100'}`}>
                         <strong>Phân loại:</strong> {getRatingLabel(review.ratingType)}
                       </p>
                     </div>
@@ -315,16 +348,59 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Modal Mở Tòa Phán Quyết / Xét duyệt */}
+      {activeTab === 'field-reviews' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fade-in-up">
+          <div className="mb-6 border-b border-gray-100 pb-4">
+             <h2 className="text-lg font-bold text-gray-800">Quản Lý Chất Lượng Sân</h2>
+             <p className="text-sm text-gray-500">Xem toàn bộ phản hồi, đánh giá và hình ảnh thực tế từ người chơi dành cho từng sân.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {isLoadingFields ? (
+               <div className="col-span-full p-8 text-center text-gray-400">Đang tải danh sách sân...</div>
+            ) : fields.length === 0 ? (
+               <div className="col-span-full p-8 text-center text-gray-400">Hệ thống chưa có sân bóng nào.</div>
+            ) : (
+               fields.map(field => (
+                  <div key={field.id} className="p-5 rounded-xl border border-gray-200 hover:shadow-md transition bg-gray-50/50 flex flex-col justify-between h-full">
+                    <div className="mb-4">
+                      <div className="flex justify-between items-start mb-2 gap-2">
+                        <h3 className="text-lg font-bold text-gray-800 truncate" title={field.name}>{field.name}</h3>
+                        <div className="flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-bold shrink-0 border border-yellow-200">
+                          <FaStar className="text-yellow-500" /> 
+                          {Number(field.averageRating || field.rating || 0) > 0 ? Number(field.averageRating || field.rating).toFixed(1) : 'Chưa có'}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-1"><strong>Phân loại:</strong> {translateFieldType(field.type)}</p>
+                    </div>
+                    <Button variant="outline" className="w-full border-blue-200 text-blue-600 hover:bg-blue-50 mt-auto" onClick={() => fetchFieldReviews(field)}>
+                      <FaStar className="inline mr-1 mb-1 text-yellow-500" /> Xem các đánh giá
+                    </Button>
+                  </div>
+               ))
+            )}
+          </div>
+        </div>
+      )}
+
       {adjudicateModal.isOpen && adjudicateModal.review && (() => {
         const isPositive = getSuggestedPenalty(adjudicateModal.review.ratingType) > 0;
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in-up">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm overflow-y-auto">
+            <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in-up my-auto">
               <h3 className="text-xl font-bold text-gray-800 mb-2 border-b pb-2">Hồ Sơ Xử Lý</h3>
-              <p className="text-sm text-gray-600 mb-4">Bạn đang xem xét hồ sơ <span className="font-mono font-bold">{truncateId(adjudicateModal.review.id)}</span>.</p>
+              <p className="text-sm text-gray-600 mb-4">Mã hồ sơ: <span className="font-mono font-bold">{truncateId(adjudicateModal.review.id)}</span>.</p>
               
+              {adjudicateModal.review.imageUrl && (
+                <div className="mb-4">
+                  <span className="text-xs font-bold text-gray-500 block mb-1">ẢNH MINH CHỨNG:</span>
+                  <a href={adjudicateModal.review.imageUrl} target="_blank" rel="noreferrer">
+                    <img src={adjudicateModal.review.imageUrl} className="w-full max-h-48 object-cover rounded-lg border border-gray-200 cursor-zoom-in" alt="Minh chứng" />
+                  </a>
+                </div>
+              )}
+
               <div className={`border p-4 rounded-xl mb-4 ${isPositive ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
                 <p className={`text-sm font-bold mb-2 ${isPositive ? 'text-green-800' : 'text-red-800'}`}>Thông tin mức điểm quy định:</p>
                 <p className={`text-sm mb-2 ${isPositive ? 'text-green-700' : 'text-red-700'}`}>Phân loại: {getRatingLabel(adjudicateModal.review.ratingType)}</p>
@@ -339,14 +415,13 @@ const AdminDashboard = () => {
               <div className="flex gap-3">
                 <Button variant="secondary" className="w-full border-gray-300 hover:bg-gray-100 text-gray-600" onClick={() => setAdjudicateModal({isOpen: false, review: null})} disabled={isSubmitting}>Hủy bỏ</Button>
                 
-                {/* ĐỔI TEXT NÚT HỦY DỰA THEO LOẠI */}
                 <Button variant="outline" className={`w-full ${isPositive ? 'border-red-500 text-red-600 hover:bg-red-50' : 'border-green-500 text-green-600 hover:bg-green-50'}`} onClick={() => handleAdjudicate(false)} disabled={isSubmitting}>
                   <FaBan className="inline mr-1"/> {isPositive ? 'Bác bỏ yêu cầu' : 'Tha bổng'}
                 </Button>
                 
-                {/* ĐỔI TEXT NÚT XÁC NHẬN DỰA THEO LOẠI */}
-                <Button variant="primary" className={`w-full ${isPositive ? '!bg-green-600 hover:!bg-green-700' : '!bg-red-600 hover:!bg-red-700'}`} onClick={() => handleAdjudicate(true)} disabled={isSubmitting}>
-                  <FaGavel className="inline mr-1"/> {isPositive ? 'Xác nhận cộng điểm' : 'Thi hành án phạt'}
+                <Button variant="primary" className={`w-full flex justify-center items-center ${isPositive ? '!bg-green-600 hover:!bg-green-700' : '!bg-red-600 hover:!bg-red-700'}`} onClick={() => handleAdjudicate(true)} disabled={isSubmitting}>
+                  {isSubmitting ? <span className="animate-spin mr-1">⌛</span> : <FaGavel className="inline mr-1"/>}
+                  {isSubmitting ? 'Đang xử lý...' : (isPositive ? 'Cộng điểm' : 'Thi hành án')}
                 </Button>
               </div>
             </div>
@@ -354,14 +429,65 @@ const AdminDashboard = () => {
         );
       })()}
 
-      <PopupMessage
-        isOpen={popupInfo.isOpen}
-        onClose={closePopup}
-        type={popupInfo.type}
-        title={popupInfo.title}
-        message={popupInfo.message}
-        onConfirm={popupInfo.onConfirm}
-      />
+      {isFieldReviewModalOpen && selectedField && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 md:p-8 animate-fade-in-up my-auto max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-start border-b border-gray-200 pb-4 mb-4 shrink-0">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800">Đánh giá: {selectedField.name}</h3>
+                <p className="text-gray-500 text-sm mt-1">Tổng hợp phản hồi từ người chơi</p>
+              </div>
+              <button onClick={() => setIsFieldReviewModalOpen(false)} className="text-gray-400 hover:text-gray-800 transition bg-gray-100 hover:bg-gray-200 p-2 rounded-full">
+                <FaTimes className="text-xl" />
+              </button>
+            </div>
+            
+            <div className="overflow-y-auto flex-1 pr-2 space-y-4">
+               {isLoadingFieldReviews ? (
+                 <div className="text-center py-10 text-gray-500">Đang tải dữ liệu đánh giá...</div>
+               ) : fieldReviews.length === 0 ? (
+                 <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                   <FaStar className="text-4xl text-gray-300 mx-auto mb-3" />
+                   <p className="text-gray-500">Sân này chưa nhận được đánh giá nào.</p>
+                 </div>
+               ) : (
+                 fieldReviews.map(review => (
+                   <div key={review.id} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                      <div className="flex justify-between items-start mb-2">
+                         <div>
+                            <p className="font-bold text-gray-800 text-sm">{review.user?.fullName || review.reviewerName || `User ID: ${truncateId(review.userId)}`}</p>
+                            <p className="text-xs text-gray-500">{new Date(review.createdAt).toLocaleString('vi-VN')}</p>
+                         </div>
+                         <div className="flex gap-1">
+                            {[...Array(5)].map((_, i) => (
+                               <FaStar key={i} className={i < review.rating ? 'text-yellow-400' : 'text-gray-300'} />
+                            ))}
+                         </div>
+                      </div>
+                      
+                      <p className="text-gray-700 text-sm mt-2 mb-3">"{review.comment || 'Không có bình luận chi tiết.'}"</p>
+                      
+                      {review.imageUrl && (
+                         <div className="mt-2 pt-3 border-t border-gray-200">
+                           <span className="text-xs font-bold text-gray-500 flex items-center gap-1 mb-2"><FaImage /> ẢNH THỰC TẾ:</span>
+                           <a href={review.imageUrl} target="_blank" rel="noreferrer" className="block w-fit">
+                             <img src={review.imageUrl} alt="Review" className="h-32 w-auto object-cover rounded-lg border border-gray-300 hover:opacity-80 transition shadow-sm cursor-zoom-in" />
+                           </a>
+                         </div>
+                      )}
+                   </div>
+                 ))
+               )}
+            </div>
+            
+            <div className="mt-6 shrink-0 flex justify-end border-t border-gray-200 pt-4">
+               <Button variant="secondary" onClick={() => setIsFieldReviewModalOpen(false)}>Đóng</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <PopupMessage isOpen={popupInfo.isOpen} onClose={closePopup} type={popupInfo.type} title={popupInfo.title} message={popupInfo.message} onConfirm={popupInfo.onConfirm} />
     </div>
   );
 };

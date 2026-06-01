@@ -13,6 +13,7 @@ import com.example.backend.mapper.TimeSlotMapper;
 import com.example.backend.repository.BookingRepository;
 import com.example.backend.repository.FieldRepository;
 import com.example.backend.repository.TimeSlotRepository;
+import com.example.backend.repository.ReviewRepository;
 import com.example.backend.service.FieldService;
 import com.example.backend.dto.request.FieldUpdateRequest;
 import com.example.backend.dto.request.TimeSlotCreateRequest;
@@ -40,6 +41,9 @@ public class FieldServiceImpl implements FieldService {
     private final TimeSlotRepository timeSlotRepository;
     private final FieldMapper fieldMapper;
     private final TimeSlotMapper timeSlotMapper;
+    
+    // THÊM REPOSITORY ĐỂ LẤY ĐIỂM ĐÁNH GIÁ
+    private final ReviewRepository reviewRepository; 
 
     @Override
     public Page<FieldResponse> getFieldsPage(Enums.FieldType type, String name, int page, int size) {
@@ -57,7 +61,13 @@ public class FieldServiceImpl implements FieldService {
             fields = fieldRepository.findFieldsWithFilters(type, minPrice, maxPrice);
         }
         return fields.stream()
-                .map(f -> new FieldResponse(f.getId(), f.getName(), f.getType(), f.getCoverImage()))
+                .map(f -> {
+                    // Lấy điểm trung bình từ Database
+                    Double avgRating = reviewRepository.getAverageRatingByFieldId(f.getId());
+                    Double finalRating = avgRating != null ? avgRating : 0.0;
+                    
+                    return new FieldResponse(f.getId(), f.getName(), f.getType(), f.getCoverImage(), finalRating);
+                })
                 .collect(Collectors.toList());
     }
 
@@ -105,7 +115,10 @@ public class FieldServiceImpl implements FieldService {
     public FieldResponse createField(FieldCreateRequest request) {
         Field field = fieldMapper.toEntity(request);
         Field fieldSaved = fieldRepository.save(field);
-        return fieldMapper.toResponse(fieldSaved);
+        
+        FieldResponse response = fieldMapper.toResponse(fieldSaved);
+        response.setAverageRating(0.0); // Sân mới tạo chưa có đánh giá
+        return response;
     }
 
     @Override
@@ -116,7 +129,10 @@ public class FieldServiceImpl implements FieldService {
         fieldMapper.updateEntityFromRequest(request, field);
         Field savedField = fieldRepository.save(field);
 
-        return fieldMapper.toResponse(savedField);
+        FieldResponse response = fieldMapper.toResponse(savedField);
+        Double avgRating = reviewRepository.getAverageRatingByFieldId(savedField.getId());
+        response.setAverageRating(avgRating != null ? avgRating : 0.0);
+        return response;
     }
 
     @Override

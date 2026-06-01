@@ -27,7 +27,6 @@ public class ReviewServiceImpl implements ReviewService {
     public ReviewResponse createReview(String userId, ReviewCreateRequest request) {
         String targetFieldId = request.getFieldId();
 
-        // Kịch bản 1: Đánh giá thông qua Lịch sử Đặt sân (có bookingId)
         if (request.getBookingId() != null && !request.getBookingId().isEmpty()) {
             Booking booking = bookingRepository.findById(request.getBookingId())
                     .orElseThrow(() -> new AppException(404, "Không tìm thấy đặt sân này"));
@@ -42,7 +41,6 @@ public class ReviewServiceImpl implements ReviewService {
             
             targetFieldId = booking.getFieldId();
         } 
-        // Kịch bản 2: Đánh giá sau khi đá giao hữu xong (chỉ có fieldId)
         else if (targetFieldId == null || targetFieldId.isEmpty()) {
             throw new AppException(400, "Thiếu thông tin sân bóng để đánh giá");
         }
@@ -50,6 +48,7 @@ public class ReviewServiceImpl implements ReviewService {
         Review review = reviewMapper.toEntity(request);
         review.setUserId(userId);
         review.setFieldId(targetFieldId);
+        review.setImageUrl(request.getImageUrl());
         review.setCreatedAt(LocalDateTime.now());
         review = reviewRepository.save(review);
 
