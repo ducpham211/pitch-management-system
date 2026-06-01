@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import com.example.backend.dto.request.NotificationCreateRequest;
+import com.example.backend.service.NotificationService;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +24,7 @@ public class FairplayServiceImpl implements FairplayService {
 
     private final OpponentReviewRepository reviewRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Override
     public void submitReview(String reviewerId, OpponentReviewCreateRequest request) {
@@ -72,6 +75,31 @@ public class FairplayServiceImpl implements FairplayService {
             int currentScore = reviewee.getTrustScore() != null ? reviewee.getTrustScore() : 100;
             reviewee.setTrustScore(currentScore + request.getPointsApplied());
             userRepository.save(reviewee);
+
+            // Gửi thông báo cho người chơi bị tố cáo về phán quyết của tòa án
+            try {
+                NotificationCreateRequest notifRequest = new NotificationCreateRequest();
+                notifRequest.setTitle("Phán quyết từ Tòa án Fairplay");
+                
+                String changeText = request.getPointsApplied() >= 0 
+                    ? ("được cộng " + request.getPointsApplied() + " điểm")
+                    : ("bị trừ " + Math.abs(request.getPointsApplied()) + " điểm");
+                    
+                String reasonText = "";
+                if (review.getRatingType() == Enums.OpponentRatingType.NO_SHOW) {
+                    reasonText = " do bùng kèo/hủy phút chót";
+                } else if (review.getRatingType() == Enums.OpponentRatingType.BAD_BEHAVIOR) {
+                    reasonText = " do hành vi chơi bạo lực/gây rối";
+                } else if (review.getRatingType() == Enums.OpponentRatingType.GOOD) {
+                    reasonText = " vì thi đấu đẹp/thân thiện";
+                }
+                
+                notifRequest.setContent("Theo phán quyết của Tòa án Fairplay, bạn " + changeText + " uy tín" + reasonText + ". Điểm uy tín hiện tại của bạn là: " + reviewee.getTrustScore() + "đ.");
+                notifRequest.setType(Enums.NotificationType.SYSTEM);
+                notificationService.createAndSendNotification(reviewee.getId(), notifRequest);
+            } catch (Exception e) {
+                System.err.println("Lỗi gửi thông báo phán quyết Fairplay: " + e.getMessage());
+            }
         } else {
             review.setStatus(Enums.FairplayStatus.REJECTED);
         }
