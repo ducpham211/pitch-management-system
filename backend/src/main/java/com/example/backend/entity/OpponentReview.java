@@ -49,4 +49,7 @@ public class OpponentReview {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewee_id", insertable = false, updatable = false)
     private User reviewee;
+
+    @Column(name = "image_url")
+    private String imageUrl;
 }

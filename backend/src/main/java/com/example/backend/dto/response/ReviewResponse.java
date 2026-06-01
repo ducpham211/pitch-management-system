@@ -17,4 +17,5 @@ public class ReviewResponse {
     private ReviewStatus status;
     private LocalDateTime createdAt;
     private String userName;
+    private String imageUrl;
 }

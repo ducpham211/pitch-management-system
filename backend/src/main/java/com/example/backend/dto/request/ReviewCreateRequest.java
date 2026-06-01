@@ -8,4 +8,5 @@ public class ReviewCreateRequest {
     private String fieldId;
     private Integer rating;
     private String comment;
+    private String imageUrl;
 }

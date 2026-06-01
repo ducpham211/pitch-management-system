@@ -58,4 +58,7 @@ public class Review {
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
+
+    @Column(name = "image_url")
+    private String imageUrl;
 }
