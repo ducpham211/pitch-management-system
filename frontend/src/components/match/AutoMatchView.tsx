@@ -139,14 +139,14 @@ const AutoMatchView = ({
                 <FaRobot className="text-blue-600"/> Đề Xuất Phù Hợp ({aiResults.length})
             </h3>
             
-            {aiResults.length === 0 ? (
+            {aiResults.filter(r => r && r.fullMatch).length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
                     <FaRobot className="text-6xl mb-4 opacity-20" />
                     <p className="text-lg">Không có bài đăng tĩnh nào khớp. Đợi radar quét người dùng trực tuyến...</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 overflow-y-auto p-2 pb-4" style={{ scrollbarWidth: 'thin' }}>
-                    {aiResults.slice(0, 4).map((res, idx) => (
+                    {aiResults.filter(r => r && r.fullMatch).slice(0, 4).map((res, idx) => (
                         <div key={idx} className="flex flex-col gap-3">
                             <div className="bg-blue-50/80 p-3 rounded-xl border border-blue-100 flex items-start gap-2">
                                 <FaRobot className="text-xl text-blue-500 shrink-0 mt-0.5" />
@@ -154,9 +154,9 @@ const AutoMatchView = ({
                             </div>
                             <MatchCard 
                                 match={res.fullMatch} 
-                                fieldName={fields.find(f => f.id === res.fullMatch.fieldId)?.name}
+                                fieldName={fields.find(f => f.id === res.fullMatch?.fieldId)?.name || ''}
                                 onApply={() => {
-                                    if(!isProcessingMatch) onAcceptStaticMatch(res.fullMatch.id);
+                                    if(!isProcessingMatch && res.fullMatch?.id) onAcceptStaticMatch(res.fullMatch.id);
                                 }} 
                             />
                         </div>

@@ -87,4 +87,9 @@ public class MatchPostController {
         Page<MatchPostResponse> response = matchPostService.getMatchHistory(currentUserId, page, size);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/live")
+    public ResponseEntity<List<MatchPostResponse>> getActiveLiveMatches() {
+        return ResponseEntity.ok(matchPostService.getActiveLiveMatches());
+    }
 }
