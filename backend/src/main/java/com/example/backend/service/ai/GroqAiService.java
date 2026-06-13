@@ -49,6 +49,9 @@ public class GroqAiService {
     public record AiAnalysisResult(boolean isToxic, int penaltyScore, String aiReason) {
     }
 
+    public record FairplayAiResult(com.example.backend.utils.Enums.OpponentRatingType ratingType, int points, String reason) {
+    }
+
     public AiAnalysisResult analyzeReview(String content) {
         try {
             String prompt = String.format(
@@ -96,6 +99,53 @@ public class GroqAiService {
         } catch (Exception e) {
             log.error("==== LỖI GỌI GROQ AI ====", e);
             return new AiAnalysisResult(false, 0, "Không thể phân tích do lỗi kết nối AI");
+        }
+    }
+
+    public FairplayAiResult analyzeFairplayComment(String content) {
+        try {
+            String prompt = String.format(
+                    "Bạn là trọng tài AI phân tích đánh giá trận đấu bóng đá. Đọc đánh giá sau: '%s'. " +
+                    "Nếu nhận xét mang tính khen ngợi/bình thường/tốt: loại GOOD, điểm 5. " +
+                    "Nếu đi trễ/cao su: loại LATE, điểm -5. " +
+                    "Nếu bùng kèo/không đến: loại NO_SHOW, điểm -10. " +
+                    "Nếu chơi xấu/bạo lực/chửi bới/gây rối: loại BAD_BEHAVIOR, điểm -15 đến -20 tuỳ mức độ. " +
+                    "Chỉ trả về ĐÚNG 1 OBJECT JSON: {\"ratingType\": \"GOOD\"|\"LATE\"|\"NO_SHOW\"|\"BAD_BEHAVIOR\", \"points\": <số nguyên>, \"reason\": \"<lý do ngắn gọn>\"}",
+                    content.replace("\"", "\\\"")
+            );
+
+            String requestBody = """
+                    {
+                      "model": "%s",
+                      "messages": [
+                        {
+                          "role": "user",
+                          "content": "%s"
+                        }
+                      ],
+                      "temperature": 0.2
+                    }
+                    """.formatted(model, prompt);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(apiKey);
+            HttpEntity<String> requestEntity = new HttpEntity<>(requestBody, headers);
+
+            String response = restTemplate.postForObject(apiUrl, requestEntity, String.class);
+            JsonNode rootNode = objectMapper.readTree(response);
+            String aiTextResponse = rootNode.path("choices").get(0).path("message").path("content").asText();
+            aiTextResponse = aiTextResponse.replaceAll("```json", "").replaceAll("```", "").trim();
+
+            JsonNode resultNode = objectMapper.readTree(aiTextResponse);
+            return new FairplayAiResult(
+                    com.example.backend.utils.Enums.OpponentRatingType.valueOf(resultNode.get("ratingType").asText()),
+                    resultNode.get("points").asInt(),
+                    resultNode.get("reason").asText()
+            );
+        } catch (Exception e) {
+            log.error("==== LỖI GỌI GROQ AI FAIRPLAY ====", e);
+            return new FairplayAiResult(com.example.backend.utils.Enums.OpponentRatingType.GOOD, 5, "Lỗi phân tích AI, mặc định Tốt");
         }
     }
 

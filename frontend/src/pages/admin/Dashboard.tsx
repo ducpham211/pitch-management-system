@@ -140,15 +140,19 @@ const AdminDashboard = () => {
     }
   }, [activeTab, roleFilter, minTrustScore, userPage]);
 
+  // CẬP NHẬT Ở ĐÂY: Thêm case LATE
   const getSuggestedPenalty = (ratingType: string) => {
     if (ratingType === 'GOOD') return 5;
+    if (ratingType === 'LATE') return -5;
     if (ratingType === 'NO_SHOW') return -10;
     if (ratingType === 'BAD_BEHAVIOR') return -15;
     return 0;
   };
 
+  // CẬP NHẬT Ở ĐÂY: Thêm label cho LATE
   const getRatingLabel = (ratingType: string) => {
     if (ratingType === 'GOOD') return 'Cộng điểm (Chơi đẹp)';
+    if (ratingType === 'LATE') return 'Trừ điểm (Đi trễ/Cao su)';
     if (ratingType === 'NO_SHOW') return 'Trừ điểm (Bùng kèo)';
     if (ratingType === 'BAD_BEHAVIOR') return 'Trừ điểm (Chơi bạo lực/Gây rối)';
     return ratingType;
