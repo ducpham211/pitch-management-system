@@ -41,15 +41,17 @@ public class FieldServiceImpl implements FieldService {
     private final TimeSlotRepository timeSlotRepository;
     private final FieldMapper fieldMapper;
     private final TimeSlotMapper timeSlotMapper;
-    
-    // THÊM REPOSITORY ĐỂ LẤY ĐIỂM ĐÁNH GIÁ
     private final ReviewRepository reviewRepository; 
 
     @Override
     public Page<FieldResponse> getFieldsPage(Enums.FieldType type, String name, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<Field> fields = fieldRepository.findFieldsPaginated(type, name, pageable);
-        return fields.map(f -> new FieldResponse(f.getId(), f.getName(), f.getType(), f.getCoverImage()));
+        return fields.map(f -> {
+            Double avgRating = reviewRepository.getAverageRatingByFieldId(f.getId());
+            Double finalRating = avgRating != null ? avgRating : 0.0;
+            return new FieldResponse(f.getId(), f.getName(), f.getType(), f.getCoverImage(), finalRating);
+        });
     }
 
     @Override
@@ -62,7 +64,6 @@ public class FieldServiceImpl implements FieldService {
         }
         return fields.stream()
                 .map(f -> {
-                    // Lấy điểm trung bình từ Database
                     Double avgRating = reviewRepository.getAverageRatingByFieldId(f.getId());
                     Double finalRating = avgRating != null ? avgRating : 0.0;
                     
@@ -117,7 +118,7 @@ public class FieldServiceImpl implements FieldService {
         Field fieldSaved = fieldRepository.save(field);
         
         FieldResponse response = fieldMapper.toResponse(fieldSaved);
-        response.setAverageRating(0.0); // Sân mới tạo chưa có đánh giá
+        response.setAverageRating(0.0);
         return response;
     }
 

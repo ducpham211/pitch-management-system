@@ -2,6 +2,8 @@ package com.example.backend.entity;
 
 import com.example.backend.utils.Enums;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,18 +13,23 @@ import java.util.List;
 public class MatchPost {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.UUID)
     private String id;
 
     @Column(name = "user_id")
+    @JdbcTypeCode(SqlTypes.UUID)
     private String userId;
 
     @Column(name = "team_id")
+    @JdbcTypeCode(SqlTypes.UUID)
     private String teamId;
 
     @Column(name = "field_id")
+    @JdbcTypeCode(SqlTypes.UUID)
     private String fieldId;
 
     @Column(name = "booking_id")
+    @JdbcTypeCode(SqlTypes.UUID)
     private String bookingId;
 
     private LocalDate date;

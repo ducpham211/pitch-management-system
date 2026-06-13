@@ -22,17 +22,17 @@ public interface MatchPostRepository extends JpaRepository<MatchPost, String> {
             @Param("postType") Enums.PostType postType,
             Pageable pageable
     );
-    @Query("SELECT m FROM MatchPost m WHERE m.status = 'OPEN' AND m.userId != :currentUserId ORDER BY m.createdAt DESC")
+    
+    @Query("SELECT m FROM MatchPost m WHERE m.status = 'OPEN' AND m.userId != cast(:currentUserId as uuid) ORDER BY m.createdAt DESC")
     Page<MatchPost> findPotentialMatches(@Param("currentUserId") String currentUserId, Pageable pageable);
 
-    @Query("SELECT m FROM MatchPost m WHERE m.userId = :userId AND m.status != 'CLOSED' AND m.status != 'COMPLETED' ORDER BY m.createdAt DESC")
+    @Query("SELECT m FROM MatchPost m WHERE m.userId = cast(:userId as uuid) AND m.status != 'CLOSED' AND m.status != 'COMPLETED' ORDER BY m.createdAt DESC")
     Page<MatchPost> findMyActivePosts(@Param("userId") String userId, Pageable pageable);
 
     @Query("SELECT DISTINCT m FROM MatchPost m LEFT JOIN m.requests r WHERE " +
-           "((m.userId = :userId AND (m.status = 'CLOSED' OR m.status = 'COMPLETED' OR size(m.requests) > 0)) " +
-           "OR (r.requesterId = :userId)) " +
+           "((m.userId = cast(:userId as uuid) AND (m.status = 'CLOSED' OR m.status = 'COMPLETED' OR size(m.requests) > 0)) " +
+           "OR (r.requesterId = cast(:userId as uuid))) " +
            "AND (m.message IS NULL OR m.message NOT LIKE '[LIVE_MATCH]%') " +
            "ORDER BY m.createdAt DESC")
     Page<MatchPost> findMatchHistory(@Param("userId") String userId, Pageable pageable);
 }
-
