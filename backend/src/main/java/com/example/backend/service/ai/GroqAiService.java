@@ -49,6 +49,9 @@ public class GroqAiService {
     public record AiAnalysisResult(boolean isToxic, int penaltyScore, String aiReason) {
     }
 
+    public record FairplayAiResult(com.example.backend.utils.Enums.OpponentRatingType ratingType, int points, String reason) {
+    }
+
     public AiAnalysisResult analyzeReview(String content) {
         try {
             String prompt = String.format(
@@ -96,6 +99,63 @@ public class GroqAiService {
         } catch (Exception e) {
             log.error("==== LỖI GỌI GROQ AI ====", e);
             return new AiAnalysisResult(false, 0, "Không thể phân tích do lỗi kết nối AI");
+        }
+    }
+
+    public FairplayAiResult analyzeFairplayComment(String content) {
+        try {
+            // Đã làm cho Prompt rõ ràng và ép buộc định dạng số nguyên hơn
+            String promptText = "Bạn là trọng tài AI phân tích đánh giá trận đấu bóng đá. Đọc đánh giá sau: '" + content + "'. " +
+                    "Phân loại và cho điểm theo quy tắc BẮT BUỘC SAU, nếu vi phạm nhiều lỗi thì điểm trừ được cộng dồn, ví dụ vừa đi trễ vừa đá xấu: -15-5=-20đ: " +
+                    "- Khen ngợi/Tốt: ratingType là \"GOOD\", points là 5. " +
+                    "- Đi trễ/Cao su: ratingType là \"LATE\", points là -5. " +
+                    "- Bùng kèo/Không đến: ratingType là \"NO_SHOW\", points là -10. " +
+                    "- Chơi xấu/Bạo lực/Gây rối: ratingType là \"BAD_BEHAVIOR\", points là -15 (hoặc -20 nếu rất tệ). " +
+                    "TUYỆT ĐỐI KHÔNG GIẢI THÍCH THÊM. CHỈ TRẢ VỀ DUY NHẤT 1 OBJECT JSON ĐÚNG CHUẨN: {\"ratingType\": \"GOOD\"|\"LATE\"|\"NO_SHOW\"|\"BAD_BEHAVIOR\", \"points\": <số nguyên âm hoặc dương>, \"reason\": \"<lý do ngắn gọn>\"}";
+
+            ObjectNode requestBodyNode = objectMapper.createObjectNode();
+            requestBodyNode.put("model", model);
+            
+            ArrayNode messagesArray = requestBodyNode.putArray("messages");
+            ObjectNode msgNode = messagesArray.addObject();
+            msgNode.put("role", "user");
+            msgNode.put("content", promptText);
+            
+            requestBodyNode.put("temperature", 0.2);
+
+            String requestBody = objectMapper.writeValueAsString(requestBodyNode);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(apiKey);
+            HttpEntity<String> requestEntity = new HttpEntity<>(requestBody, headers);
+
+            String response = restTemplate.postForObject(apiUrl, requestEntity, String.class);
+            JsonNode rootNode = objectMapper.readTree(response);
+            String aiTextResponse = rootNode.path("choices").get(0).path("message").path("content").asText();
+            
+            log.info("==== KẾT QUẢ RAW TỪ GROQ AI (FAIRPLAY) ====\n{}", aiTextResponse);
+            
+            int startIndex = aiTextResponse.indexOf('{');
+            int endIndex = aiTextResponse.lastIndexOf('}');
+            
+            if (startIndex != -1 && endIndex != -1 && startIndex <= endIndex) {
+                String cleanJson = aiTextResponse.substring(startIndex, endIndex + 1);
+                log.info("==== CHUỖI JSON SAU KHI CẮT ====\n{}", cleanJson);
+                
+                JsonNode resultNode = objectMapper.readTree(cleanJson);
+                
+                return new FairplayAiResult(
+                        com.example.backend.utils.Enums.OpponentRatingType.valueOf(resultNode.get("ratingType").asText()),
+                        resultNode.get("points").asInt(),
+                        resultNode.get("reason").asText()
+                );
+            } else {
+                throw new Exception("AI returned invalid format, no JSON object found in response: " + aiTextResponse);
+            }
+        } catch (Exception e) {
+            log.error("==== LỖI GỌI GROQ AI FAIRPLAY ====", e);
+            return new FairplayAiResult(com.example.backend.utils.Enums.OpponentRatingType.GOOD, 5, "Lỗi phân tích AI, mặc định Tốt");
         }
     }
 
