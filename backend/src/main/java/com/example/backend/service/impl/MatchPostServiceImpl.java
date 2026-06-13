@@ -36,7 +36,6 @@ public class MatchPostServiceImpl implements MatchPostService {
     private final UserRepository userRepository;
     private final GroqAiService groqAiService;
     
-    // Thêm các dependency để đóng Chat
     private final MatchRequestRepository matchRequestRepository;
     private final ConversationService conversationService;
 
@@ -51,6 +50,7 @@ public class MatchPostServiceImpl implements MatchPostService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<MatchPostResponse> getMatchPosts(Enums.TeamLevel skillLevel, Enums.PostType postType, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<MatchPost> matchPage = matchPostRepository.filterMatchPosts(skillLevel, postType, pageable);
@@ -58,6 +58,7 @@ public class MatchPostServiceImpl implements MatchPostService {
     }
     
     @Override
+    @Transactional
     public MatchPostResponse updateMatchPost(String postId, String currentUserId, MatchPostCreateRequest request){
         MatchPost matchPost = matchPostRepository.findById(postId).orElseThrow(()-> new AppException(404, "Không tìm thấy bài đăng!"));
         if(!matchPost.getUserId().equals(currentUserId)){
@@ -69,6 +70,7 @@ public class MatchPostServiceImpl implements MatchPostService {
     }
     
     @Override
+    @Transactional
     public void deleteMatchPost(String postId, String currentUserId) {
         MatchPost matchPost = matchPostRepository.findById(postId).orElseThrow(()-> new AppException(404, "Không tìm thấy bài đăng!"));
         if(!matchPost.getUserId().equals(currentUserId)){
@@ -78,6 +80,7 @@ public class MatchPostServiceImpl implements MatchPostService {
     }
     
     @Override
+    @Transactional(readOnly = true)
     public List<RecommendedMatchResponse> getSmartRecommendations(String currentUserId, String playstyleNote) {
 
         User currentUser = userRepository.findById(currentUserId)
@@ -125,7 +128,7 @@ public class MatchPostServiceImpl implements MatchPostService {
     }
 
     @Override
-    @Transactional // Thêm Transactional vì có ghi xuống nhiều repo
+    @Transactional
     public void markAsComplete(String postId, String currentUserId, String fieldId) {
         MatchPost matchPost = matchPostRepository.findById(postId)
                 .orElseThrow(() -> new AppException(404, "Không tìm thấy bài đăng!"));
@@ -140,11 +143,11 @@ public class MatchPostServiceImpl implements MatchPostService {
         matchPost.setStatus(Enums.PostStatus.COMPLETED);
         matchPostRepository.save(matchPost);
 
-        // Khóa tất cả các cuộc trò chuyện của kèo này
         conversationService.markConversationsAsCompletedByMatchId(postId);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<MatchPostResponse> getMyActivePosts(String userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<MatchPost> matchPage = matchPostRepository.findMyActivePosts(userId, pageable);
@@ -152,6 +155,7 @@ public class MatchPostServiceImpl implements MatchPostService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<MatchPostResponse> getMatchHistory(String userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<MatchPost> matchPage = matchPostRepository.findMatchHistory(userId, pageable);
