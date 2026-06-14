@@ -33,7 +33,6 @@ const MatchBoard = () => {
   const [isOpponentReviewOpen, setIsOpponentReviewOpen] = useState(false);
   const [fieldRating, setFieldRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
-  const [opponentRatingType, setOpponentRatingType] = useState('GOOD');
 
   const [completingMatch, setCompletingMatch] = useState<any | null>(null);
   const [isSelectFieldOpen, setIsSelectFieldOpen] = useState(false);
@@ -344,7 +343,6 @@ const MatchBoard = () => {
       await axios.post(`${API_URL}/fairplay/reviews`, {
         matchId: reviewMatch.id,
         revieweeId: revieweeId,
-        ratingType: opponentRatingType,
         comment: reviewComment,
         imageUrl: imageUrl
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -360,7 +358,7 @@ const MatchBoard = () => {
   };
 
   const openFieldReview = (match: any) => { setReviewMatch(match); setFieldRating(5); setReviewComment(''); setReviewImage(null); setImagePreview(''); setIsFieldReviewOpen(true); };
-  const openOpponentReview = (match: any) => { setReviewMatch(match); setOpponentRatingType('GOOD'); setReviewComment(''); setReviewImage(null); setImagePreview(''); setIsOpponentReviewOpen(true); };
+  const openOpponentReview = (match: any) => { setReviewMatch(match); setReviewComment(''); setReviewImage(null); setImagePreview(''); setIsOpponentReviewOpen(true); };
 
   const formatTimeStr = (timeStr: any) => {
     if (!timeStr) return '';
@@ -629,38 +627,12 @@ const MatchBoard = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-fade-in-up overflow-y-auto max-h-[90vh]">
             <h3 className="text-xl font-bold text-gray-800 mb-1 flex items-center gap-2"><FaGavel className="text-red-600"/> Tòa Án Fairplay</h3>
-            <p className="text-sm text-gray-500 mb-6">Hãy đánh giá thái độ thi đấu của đối phương. Cung cấp hình ảnh minh chứng nếu có hành vi vi phạm.</p>
-            
-            <div className="space-y-3 mb-6">
-              <label className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition ${opponentRatingType === 'GOOD' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
-                <div className="flex items-center gap-3">
-                  <input type="radio" name="fairplay" checked={opponentRatingType === 'GOOD'} onChange={() => setOpponentRatingType('GOOD')} className="w-4 h-4 text-green-600" />
-                  <span className="font-bold text-green-700">Chơi đẹp / Thân thiện</span>
-                </div>
-                <span className="text-xs font-bold bg-green-200 text-green-800 px-2 py-1 rounded">+5 Uy tín</span>
-              </label>
-
-              <label className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition ${opponentRatingType === 'NO_SHOW' ? 'border-orange-500 bg-orange-50' : 'border-gray-200'}`}>
-                <div className="flex items-center gap-3">
-                  <input type="radio" name="fairplay" checked={opponentRatingType === 'NO_SHOW'} onChange={() => setOpponentRatingType('NO_SHOW')} className="w-4 h-4 text-orange-600" />
-                  <span className="font-bold text-orange-700">Bùng kèo / Hủy phút chót</span>
-                </div>
-                <span className="text-xs font-bold bg-orange-200 text-orange-800 px-2 py-1 rounded">-10 Uy tín</span>
-              </label>
-
-              <label className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition ${opponentRatingType === 'BAD_BEHAVIOR' ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}>
-                <div className="flex items-center gap-3">
-                  <input type="radio" name="fairplay" checked={opponentRatingType === 'BAD_BEHAVIOR'} onChange={() => setOpponentRatingType('BAD_BEHAVIOR')} className="w-4 h-4 text-red-600" />
-                  <span className="font-bold text-red-700">Chơi bạo lực / Gây rối</span>
-                </div>
-                <span className="text-xs font-bold bg-red-200 text-red-800 px-2 py-1 rounded">-15 Uy tín</span>
-              </label>
-            </div>
+            <p className="text-sm text-gray-500 mb-6">Hãy nhập nhận xét về đối thủ. Hệ thống AI sẽ phân tích nhận xét của bạn để tự động đề xuất điểm cộng (+5) hoặc điểm trừ (-5 đến -20 tuỳ mức độ: đi trễ, bùng kèo, chơi xấu) trước khi gửi lên Admin phê duyệt.</p>
 
             <textarea
               className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-red-500 outline-none resize-none mb-4"
-              rows={3}
-              placeholder="Hãy cho Tòa án biết chi tiết (nếu có vi phạm)..."
+              rows={4}
+              placeholder="Nhập nhận xét của bạn về đối thủ (ví dụ: 'Đối thủ đá rất fairplay', hoặc 'Đối thủ đi trễ 30 phút và đá xấu')..."
               value={reviewComment}
               onChange={(e) => setReviewComment(e.target.value)}
             ></textarea>
