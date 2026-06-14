@@ -49,7 +49,7 @@ public class FieldServiceImpl implements FieldService {
     public Page<FieldResponse> getFieldsPage(Enums.FieldType type, String name, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<Field> fields = fieldRepository.findFieldsPaginated(type, name, pageable);
-        return fields.map(f -> new FieldResponse(f.getId(), f.getName(), f.getType(), f.getCoverImage()));
+        return fields.map(f -> new FieldResponse(f.getId(), f.getName(), f.getType(), f.getCoverImage(), 0.0));
     }
 
     @Override

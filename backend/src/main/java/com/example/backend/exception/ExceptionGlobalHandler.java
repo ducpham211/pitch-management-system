@@ -35,10 +35,14 @@ public class ExceptionGlobalHandler {
         // Log lỗi thật ra console để dev debug (Enterprise standard)
         ex.printStackTrace(); 
         
+        String detailMessage = ex.getClass().getName() + ": " + ex.getMessage();
+        if (ex.getStackTrace() != null && ex.getStackTrace().length > 0) {
+            detailMessage += " at " + ex.getStackTrace()[0].toString();
+        }
         // Trả về UI cục lỗi an toàn
         ErrorResponse errorResponse = new ErrorResponse(
             HttpStatus.INTERNAL_SERVER_ERROR.value(), 
-            "Hệ thống đang bảo trì hoặc có trục trặc nhỏ. Vui lòng thử lại sau!"
+            detailMessage
         );
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }

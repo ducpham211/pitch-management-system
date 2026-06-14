@@ -687,7 +687,7 @@ const MatchBoard = () => {
         </div>
       )}
 
-      <AutoMatchModal isOpen={isAutoMatchModalOpen} onClose={() => setIsAutoMatchModalOpen(false)} onSubmit={(criteria) => { autoMatch.handleAutoMatchSubmit(criteria); setIsAutoMatchModalOpen(false); }} fields={fields} />
+      <AutoMatchModal isOpen={isAutoMatchModalOpen} onClose={() => setIsAutoMatchModalOpen(false)} onSubmit={async (criteria) => { await autoMatch.handleAutoMatchSubmit(criteria); setIsAutoMatchModalOpen(false); }} fields={fields} />
       <CreateMatchModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={handleCreatePostSubmit} fields={fields} />
       <ConfirmApplyModal 
         isOpen={!!applyingMatch} 
