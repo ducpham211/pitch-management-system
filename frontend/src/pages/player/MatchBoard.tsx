@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MatchCard from '../../components/common/MatchCard';
 import Button from '../../components/common/Button';
@@ -34,6 +34,16 @@ const MatchBoard = () => {
   const [fieldRating, setFieldRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
 
+  const [completingMatch, setCompletingMatch] = useState<any | null>(null);
+  const [isSelectFieldOpen, setIsSelectFieldOpen] = useState(false);
+  const [selectedFieldIdForComplete, setSelectedFieldIdForComplete] = useState('');
+
+  const [matchesPage, setMatchesPage] = useState(0);
+  const [matchesTotalPages, setMatchesTotalPages] = useState(0);
+
+  // Refs to prevent duplicate/concurrent or re-trigger calls
+  const hasFetchedStaticRef = useRef(false);
+  const lastFetchedRef = useRef<{ viewMode: string; page: number } | null>(null);
   // States cho Upload Ảnh
   const [reviewImage, setReviewImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
@@ -104,34 +114,78 @@ const MatchBoard = () => {
     }
   );
 
-  const fetchData = async () => {
+  const fetchStaticData = async () => {
+    if (hasFetchedStaticRef.current) return;
+    hasFetchedStaticRef.current = true;
+    try {
+      const token = localStorage.getItem('accessToken');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const [fieldsRes, fairplaysRes] = await Promise.all([
+        axios.get(`${API_URL}/fields`, config),
+        token ? axios.get(`${API_URL}/fairplay/my-submitted`, config).catch(() => ({ data: [] })) : { data: [] }
+      ]);
+      setFields(fieldsRes.data.content || fieldsRes.data || []);
+      setSubmittedFairplays(fairplaysRes.data || []);
+    } catch (error) {
+      console.error("Lỗi khi tải dữ liệu tĩnh:", error);
+      hasFetchedStaticRef.current = false; // Reset on failure so it can retry
+    }
+  };
+
+  const fetchMatches = async () => {
+    if (viewMode === 'ai') return;
+    
+    // Block duplicate requests with the exact same parameters
+    if (lastFetchedRef.current?.viewMode === viewMode && lastFetchedRef.current?.page === matchesPage) {
+      return;
+    }
+    lastFetchedRef.current = { viewMode, page: matchesPage };
+    
     setIsLoading(true);
     try {
       const token = localStorage.getItem('accessToken');
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-      const [postsRes, fieldsRes, fairplaysRes] = await Promise.all([
-        axios.get(`${API_URL}/match-posts?size=100`, config),
-        axios.get(`${API_URL}/fields`, config),
-        token ? axios.get(`${API_URL}/fairplay/my-submitted`, config).catch(() => ({ data: [] })) : { data: [] }
-      ]);
-      setMatches(postsRes.data.content || postsRes.data || []);
-      setFields(fieldsRes.data.content || fieldsRes.data || []);
-      setSubmittedFairplays(fairplaysRes.data || []);
-    } catch (error) {} finally {
+      
+      let response;
+      if (viewMode === 'all') {
+        response = await axios.get(`${API_URL}/match-posts?page=${matchesPage}&size=6`, config);
+      } else if (viewMode === 'my') {
+        response = await axios.get(`${API_URL}/match-posts/my-posts?page=${matchesPage}&size=6`, config);
+      } else if (viewMode === 'history') {
+        response = await axios.get(`${API_URL}/match-posts/history?page=${matchesPage}&size=6`, config);
+      }
+      
+      if (response) {
+        const resData = response.data;
+        setMatches(resData.content || resData || []);
+        setMatchesTotalPages(resData.totalPages || 0);
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải danh sách trận đấu:", error);
+      setMatches([]);
+      setMatchesTotalPages(0);
+      lastFetchedRef.current = null; // Clear ref on failure to allow retrying
+    } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchStaticData();
   }, [API_URL]);
+
+  useEffect(() => {
+    fetchMatches();
+  }, [viewMode, matchesPage, API_URL]);
 
   const handleCreatePostSubmit = async (postData: any) => {
     try {
       const token = localStorage.getItem('accessToken');
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
       await axios.post(`${API_URL}/match-posts`, postData, config);
-      fetchData();
+      setMatchesPage(0);
+      lastFetchedRef.current = null; // Force reload
+      fetchMatches();
       setIsCreateModalOpen(false);
     } catch (error) {
       setPopupInfo({
@@ -165,7 +219,8 @@ const MatchBoard = () => {
             onConfirm: closePopup,
             showCancel: false
           });
-          fetchData();
+          lastFetchedRef.current = null; // Force reload
+          fetchMatches();
         } catch (error: any) {
           setPopupInfo({
             isOpen: true,
@@ -180,23 +235,35 @@ const MatchBoard = () => {
     });
   };
 
-  const handleMarkComplete = async (match: any) => {
+  const handleMarkComplete = async (match: any, fieldIdForComplete?: string) => {
+    if (!match.fieldId && !fieldIdForComplete) {
+      setCompletingMatch(match);
+      setSelectedFieldIdForComplete(fields[0]?.id || '');
+      setIsSelectFieldOpen(true);
+      return;
+    }
+
     try {
       const token = localStorage.getItem('accessToken');
       const config = { headers: { Authorization: `Bearer ${token}` } };
       const isMyPost = match.userId === currentUserId;
+      const queryParam = fieldIdForComplete ? `?fieldId=${fieldIdForComplete}` : '';
 
       if (isMyPost) {
-        await axios.put(`${API_URL}/match-posts/${match.id}/complete`, {}, config);
+        // Chủ post bấm xác nhận
+        await axios.put(`${API_URL}/match-posts/${match.id}/complete${queryParam}`, {}, config);
       } else {
         const myRequest = match.requests?.find((r:any) => r.requesterId === currentUserId);
         if (myRequest) {
-          await axios.put(`${API_URL}/match-requests/${myRequest.id}/complete`, {}, config);
+          await axios.put(`${API_URL}/match-requests/${myRequest.id}/complete${queryParam}`, {}, config);
         }
       }
       
       setCompletedMatches(prev => [...prev, match.id]);
-      fetchData();
+      setIsSelectFieldOpen(false);
+      setCompletingMatch(null);
+      lastFetchedRef.current = null; // Force reload
+      fetchMatches();
 
       setPopupInfo({
         isOpen: true,
@@ -322,12 +389,7 @@ const MatchBoard = () => {
     }
   };
 
-  const publicMatches = matches.filter(m => (m.status === 'OPEN' || m.status === 'OPENING') && (!m.message || !m.message.startsWith("[LIVE_MATCH]")));
-  const myMatches = matches.filter(m => m.userId === currentUserId && m.status !== 'CLOSED' && m.status !== 'COMPLETED' && (!m.message || !m.message.startsWith("[LIVE_MATCH]")));
-  const historyMatches = matches.filter(m => 
-      (m.userId === currentUserId && (m.status === 'CLOSED' || m.status === 'COMPLETED' || (m.requests && m.requests.length > 0)) && (!m.message || !m.message.startsWith("[LIVE_MATCH]"))) || 
-      (m.requests && m.requests.some((r: any) => r.requesterId === currentUserId))
-  ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  // Dữ liệu đã được phân trang và lọc từ backend, không cần lọc lại trong RAM
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl relative h-full">
@@ -338,10 +400,10 @@ const MatchBoard = () => {
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
           <div className="bg-gray-100 p-1 rounded-lg flex overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-            <button onClick={() => setViewMode('all')} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'all' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}><FaGlobe /> Bảng chung</button>
-            <button onClick={() => setViewMode('my')} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'my' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}><FaListAlt /> Bài của tôi</button>
-            <button onClick={() => setViewMode('history')} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'history' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}><FaHistory /> Lịch sử</button>
-            {autoMatch.isPolling && <button onClick={() => setViewMode('ai')} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'ai' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}><FaRobot className="animate-spin" /> Đang Ghép Tự Động</button>}
+            <button onClick={() => { setViewMode('all'); setMatchesPage(0); }} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'all' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}><FaGlobe /> Bảng chung</button>
+            <button onClick={() => { setViewMode('my'); setMatchesPage(0); }} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'my' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}><FaListAlt /> Bài của tôi</button>
+            <button onClick={() => { setViewMode('history'); setMatchesPage(0); }} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'history' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}><FaHistory /> Lịch sử</button>
+            {autoMatch.isPolling && <button onClick={() => { setViewMode('ai'); setMatchesPage(0); }} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition whitespace-nowrap ${viewMode === 'ai' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}><FaRobot className="animate-spin" /> Đang Ghép Tự Động</button>}
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
             {viewMode !== 'ai' && (
@@ -380,7 +442,7 @@ const MatchBoard = () => {
         />
       ) : viewMode === 'history' ? (
         <div className="space-y-4 max-w-4xl mx-auto">
-          {historyMatches.length > 0 ? historyMatches.map((match) => {
+          {matches.length > 0 ? matches.map((match) => {
              const myRequest = match.requests?.find((r:any) => r.requesterId === currentUserId);
              const isMyPost = match.userId === currentUserId;
              const statusLabel = isMyPost 
@@ -443,9 +505,9 @@ const MatchBoard = () => {
           )}
         </div>
       ) : viewMode === 'all' ? (
-        publicMatches.length > 0 ? (
+        matches.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {publicMatches.map((match, index) => (
+            {matches.map((match, index) => (
               <MatchCard 
                 key={match.id || index} 
                 match={match} 
@@ -461,8 +523,8 @@ const MatchBoard = () => {
         )
       ) : (
         <div className="space-y-6">
-          {myMatches.length > 0 ? (
-            myMatches.map((match) => (
+          {matches.length > 0 ? (
+            matches.map((match) => (
               <div key={match.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-6">
                 <div className="md:w-1/3 border-r md:pr-6 border-gray-100">
                   <div className="flex justify-between items-start mb-2">
@@ -597,9 +659,76 @@ const MatchBoard = () => {
         </div>
       )}
 
-      <AutoMatchModal isOpen={isAutoMatchModalOpen} onClose={() => setIsAutoMatchModalOpen(false)} onSubmit={(criteria) => { autoMatch.handleAutoMatchSubmit(criteria); setIsAutoMatchModalOpen(false); }} fields={fields} />
+      <AutoMatchModal isOpen={isAutoMatchModalOpen} onClose={() => setIsAutoMatchModalOpen(false)} onSubmit={async (criteria) => { await autoMatch.handleAutoMatchSubmit(criteria); setIsAutoMatchModalOpen(false); }} fields={fields} />
       <CreateMatchModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={handleCreatePostSubmit} fields={fields} />
-      <ConfirmApplyModal isOpen={!!applyingMatch} match={applyingMatch} onClose={() => setApplyingMatch(null)} onConfirm={() => { setApplyingMatch(null); navigate('/messages'); }} />
+      <ConfirmApplyModal 
+        isOpen={!!applyingMatch} 
+        match={applyingMatch} 
+        onClose={() => setApplyingMatch(null)} 
+        onConfirm={() => { 
+          setApplyingMatch(null); 
+          setPopupInfo({
+            isOpen: true,
+            type: 'success',
+            title: 'Thành công',
+            message: 'Đã gửi yêu cầu nhận kèo và tạo phòng chat thành công!',
+            showCancel: false,
+            onConfirm: () => {
+              closePopup();
+              navigate('/messages');
+            }
+          });
+        }} 
+      />
+
+      {viewMode !== 'ai' && matchesTotalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-8 mb-4">
+          <button
+            disabled={matchesPage === 0}
+            onClick={() => setMatchesPage(matchesPage - 1)}
+            className="px-4 py-2 border rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm text-gray-700 bg-white shadow-sm transition"
+          >
+            Trang trước
+          </button>
+          <span className="text-sm font-semibold text-gray-600 px-3">
+            Trang {matchesPage + 1} / {matchesTotalPages}
+          </span>
+          <button
+            disabled={matchesPage >= matchesTotalPages - 1}
+            onClick={() => setMatchesPage(matchesPage + 1)}
+            className="px-4 py-2 border rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm text-gray-700 bg-white shadow-sm transition"
+          >
+            Trang sau
+          </button>
+        </div>
+      )}
+
+      {isSelectFieldOpen && completingMatch && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-fade-in-up">
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Xác nhận Sân Bóng đã đá</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Kèo giao hữu này chưa có thông tin sân bóng cụ thể. Vui lòng chọn sân bóng hai đội đã thi đấu để hoàn thành trận đấu và mở tính năng đánh giá.
+            </p>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Chọn Sân Bóng</label>
+              <select 
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 outline-none bg-white text-gray-800" 
+                value={selectedFieldIdForComplete} 
+                onChange={(e) => setSelectedFieldIdForComplete(e.target.value)}
+              >
+                {fields.map(f => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="secondary" className="w-full" onClick={() => { setIsSelectFieldOpen(false); setCompletingMatch(null); }}>Hủy</Button>
+              <Button variant="primary" className="w-full !bg-green-600 hover:!bg-green-700" onClick={() => handleMarkComplete(completingMatch, selectedFieldIdForComplete)}>Xác Nhận</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <PopupMessage
         isOpen={popupInfo.isOpen}

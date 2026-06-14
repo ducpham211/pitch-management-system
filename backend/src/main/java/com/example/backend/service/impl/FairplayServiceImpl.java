@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import com.example.backend.dto.request.NotificationCreateRequest;
+import com.example.backend.service.NotificationService;
 
 @Service
 @RequiredArgsConstructor

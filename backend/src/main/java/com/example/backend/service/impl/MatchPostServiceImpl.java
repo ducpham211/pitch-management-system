@@ -51,6 +51,7 @@ public class MatchPostServiceImpl implements MatchPostService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<MatchPostResponse> getMatchPosts(Enums.TeamLevel skillLevel, Enums.PostType postType, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<MatchPost> matchPage = matchPostRepository.filterMatchPosts(skillLevel, postType, pageable);
@@ -94,8 +95,9 @@ public class MatchPostServiceImpl implements MatchPostService {
 
         List<AiOpponentDto> aiInputData = top15Matches.stream()
                 .map(m -> {
-                    int opponentTrust = userRepository.findById(m.getUserId().toString())
-                            .map(User::getTrustScore).orElse(100);
+                    int opponentTrust = m.getUser() != null && m.getUser().getTrustScore() != null 
+                            ? m.getUser().getTrustScore() 
+                            : 100;
 
                     return new AiOpponentDto(m.getId().toString(), m.getMessage(), opponentTrust);
                 })
@@ -126,14 +128,44 @@ public class MatchPostServiceImpl implements MatchPostService {
 
     @Override
     @Transactional // Thêm Transactional vì có ghi xuống nhiều repo
-    public void markAsComplete(String postId, String currentUserId) {
+    public void markAsComplete(String postId, String currentUserId, String fieldId) {
         MatchPost matchPost = matchPostRepository.findById(postId)
                 .orElseThrow(() -> new AppException(404, "Không tìm thấy bài đăng!"));
+        
+        if (matchPost.getFieldId() == null || matchPost.getFieldId().isEmpty()) {
+            if (fieldId == null || fieldId.isEmpty()) {
+                throw new AppException(400, "Vui lòng chọn sân đã đá để hoàn thành trận đấu.");
+            }
+            matchPost.setFieldId(fieldId);
+        }
         
         matchPost.setStatus(Enums.PostStatus.COMPLETED);
         matchPostRepository.save(matchPost);
 
         // Khóa tất cả các cuộc trò chuyện của kèo này
         conversationService.markConversationsAsCompletedByMatchId(postId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<MatchPostResponse> getMyActivePosts(String userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<MatchPost> matchPage = matchPostRepository.findMyActivePosts(userId, pageable);
+        return matchPage.map(matchPostMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<MatchPostResponse> getMatchHistory(String userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<MatchPost> matchPage = matchPostRepository.findMatchHistory(userId, pageable);
+        return matchPage.map(matchPostMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MatchPostResponse> getActiveLiveMatches() {
+        List<MatchPost> liveMatches = matchPostRepository.findActiveLiveMatches();
+        return liveMatches.stream().map(matchPostMapper::toResponse).toList();
     }
 }

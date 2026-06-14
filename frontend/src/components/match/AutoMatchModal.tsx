@@ -84,16 +84,29 @@ const AutoMatchModal = ({ isOpen, onClose, onSubmit, fields }: AutoMatchModalPro
     }
   }, [criteria.fieldId, criteria.date, isAnyTime]);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
-      ...criteria,
-      date: isAnyTime ? '' : criteria.date,
-      timeStartStr: isAnyTime ? '' : criteria.timeStartStr,
-      timeEndStr: isAnyTime ? '' : criteria.timeEndStr
-    });
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        ...criteria,
+        date: isAnyTime ? '' : criteria.date,
+        timeStartStr: isAnyTime ? '' : criteria.timeStartStr,
+        timeEndStr: isAnyTime ? '' : criteria.timeEndStr
+      });
+    } catch (err) {
+      setIsSubmitting(false);
+    }
   };
 
   const renderTimeOptions = () => {
@@ -133,7 +146,7 @@ const AutoMatchModal = ({ isOpen, onClose, onSubmit, fields }: AutoMatchModalPro
       <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-fade-in-up">
         <div className="flex justify-between items-center p-5 border-b border-blue-100 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
           <h3 className="text-xl font-bold flex items-center gap-2"><FaRobot className="text-2xl" /> Auto Ghép Trận</h3>
-          <button onClick={onClose} className="text-white/80 hover:text-white transition">
+          <button onClick={onClose} disabled={isSubmitting} className="text-white/80 hover:text-white transition disabled:opacity-50">
             <FaTimes className="text-xl" />
           </button>
         </div>
@@ -141,12 +154,12 @@ const AutoMatchModal = ({ isOpen, onClose, onSubmit, fields }: AutoMatchModalPro
           
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">Mô tả lối đá (Hệ thống sẽ dựa vào đây để phân tích)</label>
-            <input required type="text" placeholder="VD: Đá ban bật nhỏ, vui vẻ, không quạo..." className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 focus:bg-white transition-colors" value={criteria.message} onChange={e => setCriteria({...criteria, message: e.target.value})} />
+            <input required type="text" disabled={isSubmitting} placeholder="VD: Đá ban bật nhỏ, vui vẻ, không quạo..." className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 focus:bg-white transition-colors disabled:opacity-50" value={criteria.message} onChange={e => setCriteria({...criteria, message: e.target.value})} />
           </div>
 
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">Khu Vực Sân</label>
-            <select className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-colors" value={criteria.fieldId} onChange={e => setCriteria({...criteria, fieldId: e.target.value})}>
+            <select disabled={isSubmitting} className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-colors disabled:opacity-50" value={criteria.fieldId} onChange={e => setCriteria({...criteria, fieldId: e.target.value})}>
               <option value="">-- Mọi sân trên hệ thống --</option>
               {fields.map(f => (
                 <option key={f.id} value={f.id}>{f.name}</option>
@@ -155,7 +168,7 @@ const AutoMatchModal = ({ isOpen, onClose, onSubmit, fields }: AutoMatchModalPro
           </div>
 
           <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 shadow-sm">
-             <div className="flex items-center gap-3 mb-3 pb-3 border-b border-blue-200/50 cursor-pointer" onClick={() => setIsAnyTime(!isAnyTime)}>
+             <div className={`flex items-center gap-3 mb-3 pb-3 border-b border-blue-200/50 cursor-pointer ${isSubmitting ? 'pointer-events-none opacity-50' : ''}`} onClick={() => !isSubmitting && setIsAnyTime(!isAnyTime)}>
                 <div className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${isAnyTime ? 'bg-blue-600' : 'bg-white border-2 border-gray-300'}`}>
                     {isAnyTime && <FaCheckCircle className="text-white text-sm" />}
                 </div>
@@ -165,15 +178,15 @@ const AutoMatchModal = ({ isOpen, onClose, onSubmit, fields }: AutoMatchModalPro
                 </div>
              </div>
 
-             <div className={`grid grid-cols-2 gap-4 transition-all duration-300 ${isAnyTime ? 'opacity-40 pointer-events-none grayscale-[50%]' : 'opacity-100'}`}>
+             <div className={`grid grid-cols-2 gap-4 transition-all duration-300 ${isAnyTime ? 'opacity-40 pointer-events-none grayscale-[50%]' : 'opacity-100'} ${isSubmitting ? 'opacity-50 pointer-events-none' : ''}`}>
                 <div>
                   <label className="block text-xs font-bold text-blue-900 mb-1">Ngày đá</label>
-                  <input type="date" disabled={isAnyTime} className="w-full border border-blue-200 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white" value={criteria.date} onChange={e => setCriteria({...criteria, date: e.target.value})} />
+                  <input type="date" disabled={isAnyTime || isSubmitting} className="w-full border border-blue-200 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white" value={criteria.date} onChange={e => setCriteria({...criteria, date: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-blue-900 mb-1">Khung giờ</label>
                   <select 
-                    disabled={isAnyTime}
+                    disabled={isAnyTime || isSubmitting}
                     className="w-full border border-blue-200 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white" 
                     onChange={e => {
                       const val = e.target.value;
@@ -192,7 +205,7 @@ const AutoMatchModal = ({ isOpen, onClose, onSubmit, fields }: AutoMatchModalPro
 
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">Trình độ đối thủ</label>
-            <select className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-colors" value={criteria.skillLevel} onChange={e => setCriteria({...criteria, skillLevel: e.target.value})}>
+            <select disabled={isSubmitting} className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-colors disabled:opacity-50" value={criteria.skillLevel} onChange={e => setCriteria({...criteria, skillLevel: e.target.value})}>
               <option value="">-- Mọi trình độ --</option>
               <option value="BEGINNER">Yếu / Vui vẻ</option>
               <option value="INTERMEDIATE">Trung bình / Khá</option>
@@ -201,8 +214,17 @@ const AutoMatchModal = ({ isOpen, onClose, onSubmit, fields }: AutoMatchModalPro
           </div>
 
           <div className="pt-2 flex gap-4">
-            <Button type="button" variant="secondary" className="w-full rounded-xl bg-gray-100 hover:bg-gray-200 py-3.5 font-bold" onClick={onClose}>Hủy</Button>
-            <Button type="submit" variant="primary" className="w-full rounded-xl !bg-blue-600 hover:!bg-blue-700 shadow-lg py-3.5 font-bold">Bắt Đầu Ghép</Button>
+            <Button type="button" variant="secondary" className="w-full rounded-xl bg-gray-100 hover:bg-gray-200 py-3.5 font-bold" onClick={onClose} disabled={isSubmitting}>Hủy</Button>
+            <Button type="submit" variant="primary" className="w-full rounded-xl !bg-blue-600 hover:!bg-blue-700 shadow-lg py-3.5 font-bold flex justify-center items-center gap-2" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Đang khởi tạo...
+                </>
+              ) : (
+                'Bắt Đầu Ghép'
+              )}
+            </Button>
           </div>
         </form>
       </div>

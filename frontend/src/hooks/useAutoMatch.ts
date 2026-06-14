@@ -26,6 +26,8 @@ export const useAutoMatch = (
   const [foundLivePost, setFoundLivePost] = useState<any>(null);
   const [waitingForPostId, setWaitingForPostId] = useState<string | null>(null);
 
+  const isMatchedRef = useRef(false);
+
   const searchCriteriaRef = useRef<any>(null);
   const silentPostIdRef = useRef<string | null>(null);
   const skippedMatchIdsRef = useRef<string[]>([]);
@@ -49,7 +51,8 @@ export const useAutoMatch = (
     
     if (savedPostId && savedCriteria) {
         setSilentPostId(savedPostId);
-        setSearchCriteria(JSON.parse(savedCriteria));
+        const criteria = JSON.parse(savedCriteria);
+        setSearchCriteria(criteria);
         if (savedWaitId) {
             setWaitingForPostId(savedWaitId);
             setAiStep('WAITING_OPPONENT');
@@ -58,7 +61,26 @@ export const useAutoMatch = (
         }
         setIsPolling(true);
         onChangeViewMode('ai');
+
+        // Tải gợi ý tĩnh một lần duy nhất lúc tải lại trang
+        const token = localStorage.getItem('accessToken');
+        const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+        axios.get(`${API_URL}/match-posts/recommendations?playstyle=${encodeURIComponent(criteria.message)}`, config)
+            .then(resAi => setAiResults(resAi.data || []))
+            .catch(() => setAiResults([]));
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      // Khi component bị unmount (chuyển trang, F5), gửi request xóa bài đăng live ngay để tránh kẹt (trừ khi đã chốt kèo thành công)
+      const currentSilentId = silentPostIdRef.current;
+      if (currentSilentId && !isMatchedRef.current) {
+          const token = localStorage.getItem('accessToken');
+          const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+          axios.delete(`${API_URL}/match-posts/${currentSilentId}`, config).catch(() => {});
+      }
+    };
   }, []);
 
   const handleCancelSearch = async () => {
@@ -95,13 +117,21 @@ export const useAutoMatch = (
       if (!isPolling || !searchCriteriaRef.current || isProcessingMatch || isActiveRequest) return;
       isActiveRequest = true;
 
+      let mySilentPost: any = null;
+
       try {
         const token = localStorage.getItem('accessToken');
         if (!token) { setIsPolling(false); return; }
         const config = { headers: { Authorization: `Bearer ${token}` } };
         
-        const postsRes = await axios.get(`${API_URL}/match-posts?size=100`, config);
+        // Gọi song song danh sách bài viết tĩnh (tương thích) và bài viết trực tuyến (live)
+        const [postsRes, livePostsRes] = await Promise.all([
+            axios.get(`${API_URL}/match-posts?size=100`, config),
+            axios.get(`${API_URL}/match-posts/live`, config)
+        ]);
         const currentMatches = postsRes.data.content || postsRes.data || [];
+        const liveMatches = livePostsRes.data || [];
+        
         if (isMounted) onMatchesFetched(currentMatches);
 
         if (aiStepRef.current === 'SEARCHING' && !silentPostIdRef.current && searchCriteriaRef.current) {
@@ -136,8 +166,7 @@ export const useAutoMatch = (
         const currentSilentId = silentPostIdRef.current;
         if (currentSilentId) {
              const cleanSilentId = String(typeof currentSilentId === 'object' ? (currentSilentId as any).id : currentSilentId);
-             const mySilentPost = currentMatches.find((p: any) => String(p.id) === cleanSilentId);
-             
+             mySilentPost = liveMatches.find((p: any) => String(p.id) === cleanSilentId);
              if (mySilentPost && mySilentPost.status === 'CLOSED') {
                  handleCancelSearch();
                  return;
@@ -164,7 +193,7 @@ export const useAutoMatch = (
         }
 
         if ((aiStepRef.current === 'WAITING_OPPONENT' || aiStepRef.current === 'RECEIVE_REQUEST') && waitingForPostIdRef.current) {
-             const targetPost = currentMatches.find((p: any) => p.id === waitingForPostIdRef.current);
+             const targetPost = liveMatches.find((p: any) => p.id === waitingForPostIdRef.current);
              if (targetPost) {
                  const myReq = targetPost.requests?.find((r: any) => r.requesterId === currentUserIdRef.current);
                  if (myReq) {
@@ -172,15 +201,13 @@ export const useAutoMatch = (
                           if (isMounted) {
                               setIsPolling(false);
                               setIsProcessingMatch(true); 
+                              isMatchedRef.current = true;
                               if (onShowAlert) {
                                   onShowAlert({ type: 'success', title: 'Thành công', message: '🎉 Đối phương đã chốt kèo! Chuyển đến phòng chat...' });
                               } else {
                                   alert('🎉 Đối phương đã chốt kèo! Chuyển đến phòng chat...');
                               }
                               
-                              if (silentPostIdRef.current) {
-                                  try { await axios.delete(`${API_URL}/match-posts/${silentPostIdRef.current}`, config); } catch(e) {}
-                              }
                               setSilentPostId(null);
                               setWaitingForPostId(null);
                               localStorage.removeItem('autoMatch_silentPostId');
@@ -216,13 +243,15 @@ export const useAutoMatch = (
         }
 
         if (aiStepRef.current === 'SEARCHING') {
-            const otherLivePost = currentMatches.find((p: any) =>
+            const otherLivePost = liveMatches.find((p: any) =>
                 p.userId !== currentUserIdRef.current &&
                 p.message && p.message.startsWith("[LIVE_MATCH]") &&
                 (p.status === 'OPEN' || p.status === 'OPENING') &&
                 (!searchCriteriaRef.current.date || p.date.startsWith(searchCriteriaRef.current.date)) &&
                 (!searchCriteriaRef.current.fieldId || p.fieldId === searchCriteriaRef.current.fieldId) &&
-                !skippedMatchIdsRef.current.includes(p.id)
+                !skippedMatchIdsRef.current.includes(p.id) &&
+                mySilentPost && p.createdAt && mySilentPost.createdAt &&
+                new Date(p.createdAt).getTime() > new Date(mySilentPost.createdAt).getTime()
             );
 
             if (otherLivePost) {
@@ -237,24 +266,19 @@ export const useAutoMatch = (
             }
 
             let staticMatches: any[] = [];
-            try {
-                const resAi = await axios.get(`${API_URL}/match-posts/recommendations?playstyle=${encodeURIComponent(searchCriteriaRef.current.message)}`, config);
-                staticMatches = resAi.data.map((rec: any) => {
-                  const fullMatch = currentMatches.find((m: any) => 
-                      m.id === rec.matchId && 
-                      m.userId !== currentUserIdRef.current && 
-                      (m.status === 'OPEN' || m.status === 'OPENING') && 
-                      (!m.message || !m.message.startsWith("[LIVE_MATCH]"))
-                  );
-                  return { ...rec, fullMatch };
-                }).filter((r: any) => r.fullMatch);
-            } catch (error) {}
+            staticMatches = aiResults.map((rec: any) => {
+              const fullMatch = currentMatches.find((m: any) => 
+                  m.id === rec.matchId && 
+                  m.userId !== currentUserIdRef.current && 
+                  (m.status === 'OPEN' || m.status === 'OPENING')
+              );
+              return { ...rec, fullMatch };
+            }).filter((r: any) => r.fullMatch);
 
             if (staticMatches.length === 0) {
                 const fallbackMatches = currentMatches.filter((m: any) => 
                     m.userId !== currentUserIdRef.current && 
-                    (m.status === 'OPEN' || m.status === 'OPENING') && 
-                    (!m.message || !m.message.startsWith("[LIVE_MATCH]"))
+                    (m.status === 'OPEN' || m.status === 'OPENING')
                 );
                 staticMatches = fallbackMatches.map((m: any) => ({
                     fullMatch: m,
@@ -272,8 +296,7 @@ export const useAutoMatch = (
 
             if (isMounted) {
                 setAiResults(staticMatches);
-                setAiStep('RESULTS');
-                setIsPolling(false);
+                // Giữ nguyên trạng thái SEARCHING để radar tiếp tục quét trực tuyến
             }
         }
       } catch (error: any) {
@@ -283,7 +306,7 @@ export const useAutoMatch = (
       } finally {
         isActiveRequest = false;
         if (isMounted && isPolling && !isProcessingMatch && (aiStepRef.current === 'SEARCHING' || aiStepRef.current === 'WAITING_OPPONENT')) {
-            timeoutId = setTimeout(pollForMatches, 3000);
+            timeoutId = setTimeout(pollForMatches, 1000);
         }
       }
     };
@@ -334,6 +357,14 @@ export const useAutoMatch = (
         setSilentPostId(stringId);
         localStorage.setItem('autoMatch_silentPostId', stringId);
         localStorage.setItem('autoMatch_criteria', JSON.stringify(criteria));
+
+        // Tải gợi ý tĩnh từ AI một lần duy nhất khi gửi yêu cầu tìm kiếm
+        try {
+            const resAi = await axios.get(`${API_URL}/match-posts/recommendations?playstyle=${encodeURIComponent(criteria.message)}`, config);
+            setAiResults(resAi.data || []);
+        } catch (e) {
+            setAiResults([]);
+        }
     } catch (error) {}
     onChangeViewMode('ai');
     setIsPolling(true);
@@ -434,7 +465,7 @@ export const useAutoMatch = (
         
         if (pendingRequest) {
             await axios.put(`${API_URL}/match-requests/${pendingRequest.id}/status`, { status: 'REJECTED' }, config);
-            const postsRes = await axios.get(`${API_URL}/match-posts?size=100`, config);
+            const postsRes = await axios.get(`${API_URL}/match-posts/live`, config);
             const currentMatches = postsRes.data.content || postsRes.data || [];
             const theirPost = currentMatches.find((p: any) => p.userId === pendingRequest.requesterId && p.message?.startsWith("[LIVE_MATCH]"));
             if (theirPost) setSkippedMatchIds(prev => [...prev, theirPost.id]);
@@ -450,6 +481,7 @@ export const useAutoMatch = (
   const handleAcceptPending = async () => {
     setIsProcessingMatch(true);
     setIsPolling(false);
+    isMatchedRef.current = true; // Đánh dấu đã chốt kèo thành công
     try {
         const token = localStorage.getItem('accessToken');
         const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -457,7 +489,6 @@ export const useAutoMatch = (
         await axios.put(`${API_URL}/match-requests/${pendingRequest.id}/status`, { status: 'ACCEPTED' }, config);
         
         if (silentPostIdRef.current) {
-            try { await axios.delete(`${API_URL}/match-posts/${silentPostIdRef.current}`, config); } catch(e) {}
             setSilentPostId(null);
             localStorage.removeItem('autoMatch_silentPostId');
             localStorage.removeItem('autoMatch_criteria');
